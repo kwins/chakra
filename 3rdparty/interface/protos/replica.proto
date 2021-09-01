@@ -1,0 +1,66 @@
+syntax="proto3";
+package proto.replica;
+
+import "types.proto";
+
+message ReplicaOfMessage{
+  string db_name = 1;
+  bool force = 2; // 如果之前正在复制，则断开之前的复制，强制新的
+}
+
+message SyncMessageRequest{
+  string db_name = 1;
+  int64 seq = 2;
+}
+
+message SyncMessageResponse{
+  types.Error error = 1;
+  types.Type psync_type = 2;
+  string db_name = 3;
+  int64 bulk_size = 4;
+  int64 seq = 6;            // 增量同步开始位置
+}
+
+message PingMessage{
+  int64 ping_ms = 1;
+  string my_name = 2;
+}
+
+message PongMessage{
+  types.Error error = 1;
+  int64 pong_ms = 2;
+  string my_name = 3;
+}
+
+// 截止到某个时间点的全量数据
+message BulkMessage{
+  message Data{
+    string key = 1;
+    string value = 2;
+  }
+  bool end = 1; // true 代表是最后一个 alpha 消息
+  int64 seq = 2; // snapshot 对应的 last seq
+  repeated Data kvs = 3;
+}
+
+message DeltaMessageRequest{
+  string db_name = 1;
+  int64 seq = 2;
+  int64 size = 3; // 每次最大同步字节数
+}
+
+// 截止到某个时间点之后的增量数据
+message DeltaMessageResponse{
+  message Sequence{
+    int64 seq = 1; // 新的序列号
+    string data = 2; // 序列化后的数据，已经包含了 key value信息
+  }
+  types.Error error = 1;
+  string name = 2; // db name
+  repeated Sequence seqs = 3;
+}
+
+message HeartBeatMessage{
+  int64 heartbeat_ms = 1;
+  int64 seq = 2;
+}

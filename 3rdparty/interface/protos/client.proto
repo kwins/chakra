@@ -1,0 +1,15 @@
+syntax="proto3";
+package proto.client;
+
+import "types.proto";
+
+message SetMessageRequest{
+  string db_name = 1;
+  types.Type type = 2;
+  string key = 3;
+  string value = 4;
+}
+
+message SetMessageResponse{
+  types.Error error = 1;
+}

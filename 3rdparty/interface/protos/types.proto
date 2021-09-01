@@ -1,0 +1,43 @@
+syntax="proto3";
+package proto.types;
+
+enum Type{
+  NF                  = 0;
+  // cluster
+  P_MEET              = 1;
+  P_PING              = 2;
+  P_PONG              = 3;
+  P_MEET_PEER         = 4;
+  P_FAIL              = 5;
+  P_SET_DB            = 6;            // 初始化 DB
+  P_SET_EPOCH         = 7;            // 初始化节点 epoch
+
+  // client
+  C_GET               = 1000;
+  C_SET               = 1001;
+  C_MGET              = 1002;
+  C_MSET              = 1003;
+
+  // data
+  D_STRING            = 2001;
+  D_INTEGER           = 2002;
+  D_FLOAT             = 2003;
+  D_ARRAY             = 2004;         // array string
+
+  // replica
+  R_PING              = 3001;
+  R_PONG              = 3002;
+  R_FULLSYNC          = 3003;         // 请求复制返回全量同步
+  R_PARTSYNC          = 3004;         // 请求复制返回部分同步
+  R_PSYNC             = 3005;         // 请求复制
+  R_REPLICA_OF        = 3006;         // 发起复制请求
+  R_REPLICA_INCR      = 3007;         // 处理增量命令
+  R_HEARTBEAT         = 3008;         // replicator 心跳
+  R_PULL              = 3009;         // 拉取增量数据
+  R_BULK              = 3010;         // 发送全量数据块
+}
+
+message Error{
+  int32 errcode = 1;
+  string errmsg = 2;
+}
