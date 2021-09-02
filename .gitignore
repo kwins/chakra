@@ -1,7 +1,8 @@
 build
 cmake-build-debug
 .idea
-test
+test*
 .vscode
 chakra
 ut
+core.*

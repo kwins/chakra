@@ -31,7 +31,7 @@ public:
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     void put(rocksdb::WriteBatch &batch);
     void del(const std::string& key, bool dbdel = true);
-    ~BucketDB();
+    ~BucketDB() override;
 
 private:
     // implement rocksdb WriteBatch Handler interface

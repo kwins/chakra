@@ -107,7 +107,7 @@ void chakra::database::FamilyDB::put(const std::string& name, rocksdb::WriteBatc
 }
 
 std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() {
-    static auto familyDBPtr = std::shared_ptr<FamilyDB>();
+    static auto familyDBPtr = std::make_shared<FamilyDB>();
     return familyDBPtr;
 }
 

@@ -80,7 +80,7 @@ nlohmann::json chakra::cluster::Peer::dumpPeer() {
     if (!dbs.empty()){
         for (auto& it : dbs){
             nlohmann::json jslot;
-            jslot["slotname"] = it.second.name;
+            jslot["name"] = it.second.name;
             jslot["memory"] = it.second.memory;
             jslot["shard"] = it.second.shard;
             jslot["shard_size"] = it.second.shardSize;
