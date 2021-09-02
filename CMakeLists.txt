@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.14)
 include(ExternalProject)
 include(cmake/misc.cmake)
 
@@ -17,8 +17,12 @@ file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
-set(LIBS libev.a libprotobuf.a libgtest.a librocksdb.a libgflags.a libglog.a libinterface.a libz.a liblz4.a)
-set(TEST_LIB librocksdb.a libgflags.a libgtest.a libglog.a libz.a liblz4.a)
+set(LIBS libev.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libinterface.a libz.a liblz4.a)
+set(TEST_LIB librocksdb.a libglog.a libgflags.a libgtest.a  libz.a liblz4.a)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
+    set(LINUX_LINKS pthread rt atomic gomp m gfortran profiler dl)
+endif()
 
 # chakra
 add_executable(chakra src/main.cpp
@@ -36,10 +40,10 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
         ${CMAKE_SOURCE_DIR}/src
         )
-add_dependencies(chakra ev protobuf rocksdb gflags gtest glog interface zlib lz4)
+add_dependencies(chakra ev protobuf rocksdb glog gflags gtest interface zlib lz4)
 target_link_directories(chakra PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)
-target_link_libraries(chakra ${LIBS})
+target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
 
 
 # ut
@@ -52,8 +56,8 @@ target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/samples/unittest
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
 )
-add_dependencies(ut rocksdb glog zlib lz4)
+add_dependencies(ut rocksdb glog gflags gtest zlib lz4)
 target_link_directories(ut PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)
-target_link_libraries(ut ${TEST_LIB})
+target_link_libraries(ut ${TEST_LIB} ${LINUX_LINKS})
 

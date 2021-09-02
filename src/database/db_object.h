@@ -6,6 +6,7 @@
 #define CHAKRA_DB_OBJECT_H
 
 #include <string>
+#include <functional>
 
 namespace chakra::database{
 class Object{

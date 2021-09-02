@@ -10,6 +10,7 @@
 #include <list>
 #include <mutex>
 #include "replica/replica.h"
+#include <condition_variable>
 
 namespace chakra::serv{
 class Chakra : public utils::UnCopyable {

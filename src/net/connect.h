@@ -9,6 +9,7 @@
 #include <chrono>
 #include <sys/socket.h>
 #include "utils/error.h"
+#include <functional>
 
 namespace chakra::net{
 

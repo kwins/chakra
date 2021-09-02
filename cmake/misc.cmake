@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.14)
 
 # 当已经定义了EPBase变量时, 不再重复定义.
 # 在现有编译过程中, 本文件可能会被重复地include多次

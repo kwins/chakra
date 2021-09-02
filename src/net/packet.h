@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <google/protobuf/message.h>
 #include "types.pb.h"
+#include <functional>
 
 namespace chakra::net{
 

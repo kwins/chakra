@@ -22,8 +22,8 @@ ExternalProject_Add (
 ExternalProject_Add (
         gtest
         URL ${PROJECT_SOURCE_DIR}/3rdparty/googletest-release-1.8.0.tar.gz
-        CONFIGURE_COMMAND cmake -DCMAKE_INSTALL_PREFIX=${EPBase}/Install .
-        BUILD_COMMAND make
+        CONFIGURE_COMMAND cmake ${CMakeConfig} .
+        BUILD_COMMAND ${Make}
         BUILD_IN_SOURCE 1
         INSTALL_COMMAND make install
 )

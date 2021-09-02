@@ -14,22 +14,22 @@
 void chakra::replica::Replica::initReplica(chakra::replica::Replica::Options options) {
     LOG(INFO) << "Replica init";
     opts = std::move(options);
-//    LOG(INFO) << "Replica init 1";
-//    auto err = loadLinks();
-//    if (err) LOG(WARNING) << "REPL load links " << err.toString();
-//    int sd = -1;
-//    LOG(INFO) << "Replica init 2";
-//    err = net::Network::tpcListen(7293, 512, sd);
-//    if (err){
-//        LOG(ERROR) << "REPL listen on " << this->opts.ip << ":" << this->opts.port << " " << strerror(errno);
-//        exit(1);
-//    }
-//    LOG(INFO) << "Replica init 3";
-//    replicaio.set<chakra::replica::Replica, &chakra::replica::Replica::onAccept>(this);
-//    replicaio.set(ev::get_default_loop());
-//    replicaio.start(sd, ev::READ);
-//    LOG(INFO) << "Replica init 4";
-//    startReplicaCron();
+    LOG(INFO) << "Replica init 1";
+    auto err = loadLinks();
+    if (err) LOG(WARNING) << "REPL load links " << err.toString();
+    int sd = -1;
+    LOG(INFO) << "Replica init 2";
+    err = net::Network::tpcListen(7293, 512, sd);
+    if (err){
+        LOG(ERROR) << "REPL listen on " << this->opts.ip << ":" << this->opts.port << " " << strerror(errno);
+        exit(1);
+    }
+    LOG(INFO) << "Replica init 3";
+    replicaio.set<chakra::replica::Replica, &chakra::replica::Replica::onAccept>(this);
+    replicaio.set(ev::get_default_loop());
+    replicaio.start(sd, ev::READ);
+    LOG(INFO) << "Replica init 4";
+    startReplicaCron();
 }
 
 void chakra::replica::Replica::startReplicaCron() {
@@ -42,8 +42,7 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
     LOG(INFO) << "REPL load";
     nlohmann::json j;
     LOG(INFO) << "REPL load 1";
-//    std::string filename = this->opts.dir + "/" + REPLICA_FILE_NAME;
-    std::string filename = "../test/replicas.json";
+   std::string filename = this->opts.dir + "/" + REPLICA_FILE_NAME;
     LOG(INFO) << "REPL load 2";
     auto err = utils::FileHelper::loadFile(filename, j);
     if (err){
@@ -62,7 +61,7 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
 }
 
 std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
-    static auto replicaptr = std::shared_ptr<Replica>();
+    static auto replicaptr = std::make_shared<Replica>();
     return replicaptr;
 }
 
