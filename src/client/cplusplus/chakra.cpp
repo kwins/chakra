@@ -52,6 +52,11 @@ chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, in
     return err;
 }
 
+chakra::utils::Error
+chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
+    return chakra::utils::Error();
+}
+
 chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
     utils::Error err;
     chakra::net::Packet::serialize(msg, type,[this, &reply, &err](char* req, size_t reqlen){

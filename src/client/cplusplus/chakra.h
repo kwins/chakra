@@ -15,6 +15,7 @@ public:
     explicit Chakra(net::Connect::Options options);
     utils::Error meet(const std::string& ip, int port, proto::peer::MeetMessageResponse& response);
     utils::Error set(const std::string& dbname, const std::string& key, const std::string& value);
+    utils::Error get(const std::string& dbname, const std::string& key, std::string& value);
     utils::Error setdb(const std::string& dbname, int cached);
     void close();
 private:

@@ -43,6 +43,13 @@ TEST_F(TestChakra, client){
 
     err = client->set("test_db", "key_1", "value_1");
     if (err) LOG(ERROR) << "set:" << err.toString();
+
+    std::string str;
+    err = client->get("test_db", "key_1",str);
+    if (err) LOG(ERROR) << "get:" << err.toString();
+    else{
+        LOG(INFO) << "get value:" << str;
+    }
 }
 
 #endif //CHAKRA_UT_CLIENT_H
