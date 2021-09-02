@@ -3,13 +3,13 @@ package proto.peer;
 
 import "types.proto";
 
-message MeetMessage{
+message MeetMessageRequest{
     string ip = 1;
     int32 port = 2;
     bool client = 3; // ture is client meet ,false is peer meet
 }
 
-message MeetMessageReply{
+message MeetMessageResponse{
     types.Error error = 1;
 }
 
@@ -88,6 +88,10 @@ message EpochMessage{
     int64 epoch = 1;
 }
 
-message DBSetMessage{
+message DBSetMessageRequest{
     repeated MetaDB dbs = 1;
+}
+
+message DBSetMessageResponse{
+    types.Error error = 1;
 }

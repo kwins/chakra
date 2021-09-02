@@ -79,7 +79,7 @@ chakra::utils::Error chakra::net::Connect::receivePack(const std::function< void
 
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
     if (packSize > 0 && bufLen < packSize){
-        return utils::Error();
+        return utils::Error(utils::Error::ERR_PACK_NOT_ENOUGH, "pack not enough");
     }
 
     // 处理整个包

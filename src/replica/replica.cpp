@@ -14,21 +14,18 @@
 void chakra::replica::Replica::initReplica(chakra::replica::Replica::Options options) {
     LOG(INFO) << "Replica init";
     opts = std::move(options);
-    LOG(INFO) << "Replica init 1";
     auto err = loadLinks();
     if (err) LOG(WARNING) << "REPL load links " << err.toString();
-    int sd = -1;
-    LOG(INFO) << "Replica init 2";
-    err = net::Network::tpcListen(7293, 512, sd);
-    if (err){
+
+    err = net::Network::tpcListen(opts.port, opts.tcpBackLog, sfd);
+    if (err || sfd == -1){
         LOG(ERROR) << "REPL listen on " << this->opts.ip << ":" << this->opts.port << " " << strerror(errno);
         exit(1);
     }
-    LOG(INFO) << "Replica init 3";
+
     replicaio.set<chakra::replica::Replica, &chakra::replica::Replica::onAccept>(this);
     replicaio.set(ev::get_default_loop());
-    replicaio.start(sd, ev::READ);
-    LOG(INFO) << "Replica init 4";
+    replicaio.start(sfd, ev::READ);
     startReplicaCron();
 }
 
@@ -41,9 +38,7 @@ void chakra::replica::Replica::startReplicaCron() {
 chakra::utils::Error chakra::replica::Replica::loadLinks() {
     LOG(INFO) << "REPL load";
     nlohmann::json j;
-    LOG(INFO) << "REPL load 1";
    std::string filename = this->opts.dir + "/" + REPLICA_FILE_NAME;
-    LOG(INFO) << "REPL load 2";
     auto err = utils::FileHelper::loadFile(filename, j);
     if (err){
         // TODO: error code judge
@@ -90,6 +85,8 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 }
 
 void chakra::replica::Replica::dumpLinks() {
+    if (primaryDBLinks.empty()) return;
+
     std::string tofile = this->opts.dir + "/" + REPLICA_FILE_NAME;
     nlohmann::json j;
     for(auto& link : primaryDBLinks){
@@ -133,6 +130,8 @@ void chakra::replica::Replica::onAccept(ev::io &watcher, int event) {
 }
 
 void chakra::replica::Replica::stop() {
+    if (sfd != -1) ::close(sfd);
+
     replicaio.stop();
     cronIO.stop();
     replicaLinks.remove_if([](chakra::replica::Link* link){

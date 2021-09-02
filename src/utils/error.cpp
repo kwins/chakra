@@ -21,6 +21,10 @@ chakra::utils::Error::operator bool() const {
     return code != 0;
 }
 
+bool chakra::utils::Error::is(int code) const {
+    return Error::code == code;
+}
+
 std::string chakra::utils::Error::toString() {
     return "(" + std::to_string(code) + ":" + msg + ")";
 }

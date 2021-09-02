@@ -18,6 +18,7 @@ public:
     struct Options{
         // server
         int port = 7290;
+        int tcpBackLog = 512;
         std::string ip = "127.0.0.1";
         float cronInterval = 1;
         chakra::cluster::View::Options clusterOpts;
@@ -25,7 +26,7 @@ public:
     };
 
     struct Worker;
-    struct Link{
+    struct Link{ // 在不同的线程中
         explicit Link(int sockfd);
         static void onPeerRead(ev::io& watcher, int event);
         void startEvRead(chakra::serv::Chakra::Worker* worker);
@@ -43,10 +44,12 @@ public:
         ~Worker();
 
         static void onAsync(ev::async& watcher, int event);
+        static void onStopAsync(ev::async& watcher, int events);
 
         int workID = 0;
         ev::dynamic_loop loop{};
         ev::async async{};
+        ev::async stopAsnyc{};
         std::list<Link*> links{};
         long linkNums;
     };
@@ -66,16 +69,18 @@ private:
     Options opts = {};
     std::vector<Worker*> workers = {};
     long connNums = 0;
-    ev::io ioCt;
+
     ev::sig sigint;
     ev::sig sigterm;
     ev::sig sigkill;
     ev::timer cronIO;
+    ev::io acceptIO;
+    int sfd;
 
     long workNum = 0;
     int successWorkers = 0;
     int exitSuccessWorkers = 0;
-    mutable std::mutex mutex = {};
+    std::mutex mutex = {};
     std::condition_variable cond = {};
 };
 

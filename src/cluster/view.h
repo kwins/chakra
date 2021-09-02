@@ -25,7 +25,7 @@ public:
         long handshakeTimeoutMs = 60000;
         long peerTimeoutMs = 60000;
         int peerLinkRetryTimeoutMs = 60000;
-        double cronIntervalSec = 0.1;
+        double cronIntervalSec = 1;
         int tcpBackLog = 512;
     };
 
@@ -87,6 +87,7 @@ private:
     Options opts{};
 
     ev::io acceptIO;
+    int sfd = -1;
     ev::timer cronIO;
     long iteraion = 0;
     const std::string configFile = "peers.json";

@@ -7,15 +7,18 @@
 #include "net/connect.h"
 #include "peer.pb.h"
 #include "types.pb.h"
+#include "utils/error.h"
 
 namespace chakra::client{
 class Chakra {
 public:
     explicit Chakra(net::Connect::Options options);
-    proto::peer::MeetMessageReply meet(const std::string& ip, int port);
-
+    utils::Error meet(const std::string& ip, int port, proto::peer::MeetMessageResponse& response);
+    utils::Error set(const std::string& dbname, const std::string& key, const std::string& value);
+    utils::Error setdb(const std::string& dbname, int cached);
+    void close();
 private:
-    void executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
+    utils::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
     std::shared_ptr<net::Connect> conn;
 };
 

@@ -10,6 +10,7 @@
 #include "cluster/view.h"
 #include <netinet/in.h>
 #include "replica/replica.h"
+#include "net/network.h"
 
 // Chakra
 std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
@@ -21,13 +22,9 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
     // workers
     this->opts = opts;
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 2;
-    workNum = 1;
     workers.reserve(workNum);
-    LOG(INFO) << "Chakra init word num:" << workNum;
-
     for (int i = 0; i < workNum; ++i) {
         std::thread([this, i]{
-
             std::unique_lock<std::mutex> lck(mutex);
             this->successWorkers++;
             this->mutex.unlock();
@@ -36,34 +33,44 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
             workers[i]->async.set<&chakra::serv::Chakra::Worker::onAsync>(workers[i]);
             workers[i]->async.set(workers[i]->loop);
             workers[i]->async.start();
+            workers[i]->stopAsnyc.set<&chakra::serv::Chakra::Worker::onStopAsync>(workers[i]);
+            workers[i]->stopAsnyc.set(workers[i]->loop);
+            workers[i]->stopAsnyc.start();
 
             this->cond.notify_one();
             this->workers[i]->startUp(i); // loop in here until server stop
 
             std::unique_lock<std::mutex> lck1(mutex);
             this->exitSuccessWorkers++;
-            this->mutex.unlock();
             this->cond.notify_one();
+
         }).detach();
     }
 
-    LOG(INFO) << "Chakra init 1";
     std::unique_lock<std::mutex> lck2(mutex);
     while (successWorkers < workNum){
         cond.wait(lck2);
     }
-    LOG(INFO) << "Chakra init 4";
 
     chakra::cluster::View::get()->initView(opts.clusterOpts);
-    LOG(INFO) << "Chakra init 5";
     chakra::replica::Replica::get()->initReplica(opts.replicaOpts);
-    LOG(INFO) << "Chakra init 6";
     // sig
     initLibev();
-    LOG(INFO) << "Chakra init 7";
 }
 
 void chakra::serv::Chakra::initLibev() {
+    // listen
+    sfd = -1;
+    auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
+    if (err || sfd == -1){
+        LOG(ERROR) << "Chakra listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
+        exit(1);
+    }
+    acceptIO.set(ev::get_default_loop());
+    acceptIO.set<Chakra, &Chakra::onAccept>(this);
+    acceptIO.start(sfd, ev::READ);
+    LOG(ERROR) << "Chakra listen on " << this->opts.ip << ":" << this->opts.port << " success.";
+
     // signal
     sigint.set<&chakra::serv::Chakra::onSignal>(this);
     sigint.set(ev::get_default_loop());
@@ -79,6 +86,7 @@ void chakra::serv::Chakra::initLibev() {
 }
 
 void chakra::serv::Chakra::onSignal(ev::sig & sig, int event) {
+    LOG(INFO) << "Chakra on signal";
     sig.stop();
     auto serv = static_cast<chakra::serv::Chakra*>(sig.data);
     if (serv)
@@ -116,14 +124,22 @@ void chakra::serv::Chakra::startUp() {
 }
 
 void chakra::serv::Chakra::stop() {
-    ioCt.stop();
+    LOG(INFO) << "Chakra stop";
+    if (sfd != -1) ::close(sfd);
+    acceptIO.stop();
     cronIO.stop();
-    for(auto worker : workers){
-        worker->stop();
+    exitSuccessWorkers = 0;
+    for (int i = 0; i < workNum; ++i)
+        workers[i]->stop();
+
+    std::unique_lock<std::mutex> lck(mutex);
+    while (exitSuccessWorkers < workNum){
+        cond.wait(lck);
     }
 
     chakra::cluster::View::get()->stop();
     chakra::replica::Replica::get()->stop();
+    ev::get_default_loop().break_loop(ev::ALL);
 }
 
 chakra::serv::Chakra::~Chakra() {
@@ -202,15 +218,17 @@ void chakra::serv::Chakra::Worker::onAsync(ev::async &watcher, int event) {
     }
 }
 
-void chakra::serv::Chakra::Worker::stop() {
-    this->async.stop();
-    if (!this->links.empty()) {
-        for (auto link : this->links) {
+void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
+    auto worker = static_cast<chakra::serv::Chakra::Worker*>(watcher.data);
+    watcher.stop();
+    if (!worker->links.empty()){
+        for (auto link : worker->links)
             delete link;
-        }
     }
-    this->loop.break_loop(ev::ALL);
+    watcher.loop.break_loop(ev::ALL);
 }
+
+void chakra::serv::Chakra::Worker::stop() { this->stopAsnyc.send(); }
 
 chakra::serv::Chakra::Worker::~Worker() { stop(); }
 

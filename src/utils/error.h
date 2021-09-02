@@ -14,11 +14,14 @@ public:
     Error(const Error& err);
     explicit operator bool () const;
 
+    bool is(int code) const;
     int getCode() const;
     void setCode(int code);
     const std::string &getMsg() const;
     void setMsg(const std::string &msg);
     std::string toString();
+
+    const static int ERR_PACK_NOT_ENOUGH = 1;
 private:
     int code;
     std::string msg;

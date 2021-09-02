@@ -12,11 +12,10 @@
 void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data,
                                                 std::function<void(char *, size_t)> cbf) {
 
-    proto::peer::DBSetMessage dbSetMessage;
+    proto::peer::DBSetMessageRequest dbSetMessage;
     if (!chakra::net::Packet::deSerialize(req, reqLen, dbSetMessage)) return;
 
-    proto::types::Error reply;
-    chakra::net::Packet::fillError(reply, 0, "success");
+    proto::peer::DBSetMessageResponse dbSetMessageResponse;
 
     auto dbptr = database::FamilyDB::get();
     auto myself = cluster::View::get()->getMyself();
@@ -24,11 +23,15 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
         auto& db = dbSetMessage.dbs(i);
         if (dbptr->servedDB(db.name()) || myself->servedDB(db.name())){
-            continue;
+            chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "db has been served:" + db.name());
+            chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
+            return;
         }
+    }
 
+    for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
+        auto& db = dbSetMessage.dbs(i);
         dbptr->addDB(db.name());
-
         cluster::Peer::DB info;
         info.name = db.name();
         info.shard = db.shard();
@@ -38,5 +41,5 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         myself->setDB(db.name(), info);
     }
 
-    chakra::net::Packet::serialize(reply, proto::types::P_SET_DB, cbf);
+    chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
 }

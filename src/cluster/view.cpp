@@ -92,15 +92,14 @@ std::shared_ptr<chakra::cluster::View> chakra::cluster::View::get() {
 
 void chakra::cluster::View::startEv() {
     // ev listen and accept
-    int sd = -1;
-    auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sd);
-    if (err){
+    auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
+    if (err || sfd == -1){
         LOG(ERROR) << "View listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
     acceptIO.set<View, &View::onAccept>(this);
-    acceptIO.start(sd, ev::READ);
+    acceptIO.start(sfd, ev::READ);
 
     startPeersCron();
 }
@@ -242,6 +241,7 @@ void chakra::cluster::View::onAccept(ev::io &watcher, int event) {
 }
 
 void chakra::cluster::View::stop() {
+    if (sfd != -1) ::close(sfd);
     dumpPeers();
     acceptIO.stop();
     cronIO.stop();

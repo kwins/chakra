@@ -10,8 +10,8 @@
 #include <glog/logging.h>
 
 void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data, std::function<void(char *, size_t)> cbf) {
-    proto::peer::MeetMessage meet;
-    proto::peer::MeetMessageReply reply;
+    proto::peer::MeetMessageRequest meet;
+    proto::peer::MeetMessageResponse reply;
     if (!chakra::net::Packet::deSerialize(req, len, meet)){
         chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Message Parse Error");
         chakra::net::Packet::serialize(reply, proto::types::Type::P_MEET, cbf);

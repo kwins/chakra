@@ -31,7 +31,7 @@ public:
         int tcpBackLog;
         std::string dir;
         long replicaTimeoutMs = 10000; // 复制超时
-        float cronInterval = 0.1;
+        float cronInterval = 1;
         int replTimeoutRetrys = 10;
     };
 public:
@@ -52,6 +52,7 @@ private:
     size_t numWorker;
     ev::io replicaio;
     ev::timer cronIO;
+    int sfd = -1;
     // 复制的主节点链表
     std::list<std::shared_ptr<Link>> primaryDBLinks;
 

@@ -10,7 +10,7 @@ DEFINE_int32(cluster_port, 7291, "cluster port");                               
 DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");      /* NOLINT */
 DEFINE_int32(cluster_peer_timeout_ms, 10000, "cluster peer timeout ms");                /* NOLINT */
 DEFINE_int32(cluster_peer_link_retry_timeout_ms, 10000, "cluster peer link retry timeout ms"); /* NOLINT */
-DEFINE_double(cluster_cron_interval_sec, 0.1, "cluster cron interval sec");             /* NOLINT */
+DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");             /* NOLINT */
 DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                        /* NOLINT */
 
 
@@ -19,7 +19,7 @@ DEFINE_int32(replica_port, 7292, "replica port");                               
 DEFINE_string(replica_dir, "./test/node1", "replica dir");                               /* NOLINT */
 DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                        /* NOLINT */
 DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                         /* NOLINT */
-DEFINE_int32(replica_cron_interval_sec, 0.1, "replica cron interval sec, use double");  /* NOLINT */
+DEFINE_int32(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");  /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
 
 void parseOpts(chakra::serv::Chakra::Options& opts){

@@ -3,6 +3,7 @@
 //
 
 #include "packet.h"
+#include "utils/error.h"
 
 void
 chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::types::Type type, const std::function<void(char*, size_t)>& cbf) {
