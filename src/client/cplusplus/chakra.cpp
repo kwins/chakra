@@ -54,7 +54,20 @@ chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, in
 
 chakra::utils::Error
 chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
-    return chakra::utils::Error();
+    proto::client::GetMessageRequest getMessageRequest;
+    getMessageRequest.set_db_name(dbname);
+    getMessageRequest.set_key(key);
+    getMessageRequest.set_type(proto::types::D_STRING);
+
+    proto::client::GetMessageResponse getMessageResponse;
+
+    auto err = executeCmd(getMessageResponse, proto::types::P_SET_DB, getMessageResponse);
+    if (err) return err;
+    if (getMessageResponse.error().errcode() != 0){
+        return utils::Error(getMessageResponse.error().errcode(), getMessageResponse.error().errmsg());
+    }
+    value = getMessageResponse.value();
+    return err;
 }
 
 chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
