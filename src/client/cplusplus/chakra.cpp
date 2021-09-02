@@ -38,6 +38,24 @@ chakra::utils::Error chakra::client::Chakra::set(const std::string& dbname, cons
     return err;
 }
 
+chakra::utils::Error
+chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
+    proto::client::GetMessageRequest getMessageRequest;
+    getMessageRequest.set_db_name(dbname);
+    getMessageRequest.set_key(key);
+    getMessageRequest.set_type(proto::types::D_STRING);
+
+    proto::client::GetMessageResponse getMessageResponse;
+
+    auto err = executeCmd(getMessageResponse, proto::types::C_GET, getMessageResponse);
+    if (err) return err;
+    if (getMessageResponse.error().errcode() != 0){
+        return utils::Error(getMessageResponse.error().errcode(), getMessageResponse.error().errmsg());
+    }
+    value = getMessageResponse.value();
+    return err;
+}
+
 chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, int cached) {
     proto::peer::DBSetMessageRequest dbSetMessageRequest;
     auto db = dbSetMessageRequest.mutable_dbs()->Add();
@@ -49,24 +67,6 @@ chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, in
     if (dbSetMessageResponse.error().errcode() != 0){
         return utils::Error(dbSetMessageResponse.error().errcode(), dbSetMessageResponse.error().errmsg());
     }
-    return err;
-}
-
-chakra::utils::Error
-chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
-    proto::client::GetMessageRequest getMessageRequest;
-    getMessageRequest.set_db_name(dbname);
-    getMessageRequest.set_key(key);
-    getMessageRequest.set_type(proto::types::D_STRING);
-
-    proto::client::GetMessageResponse getMessageResponse;
-
-    auto err = executeCmd(getMessageResponse, proto::types::P_SET_DB, getMessageResponse);
-    if (err) return err;
-    if (getMessageResponse.error().errcode() != 0){
-        return utils::Error(getMessageResponse.error().errcode(), getMessageResponse.error().errmsg());
-    }
-    value = getMessageResponse.value();
     return err;
 }
 
