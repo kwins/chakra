@@ -9,7 +9,7 @@
 #include "net/packet.h"
 
 void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data,
-                                               std::function<void(char *, size_t)> reply) {
+                                               std::function<utils::Error(char *, size_t)> reply) {
 
     auto link = static_cast<replica::Link*>(data);
 

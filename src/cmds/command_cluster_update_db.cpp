@@ -9,11 +9,10 @@
 #include "cluster/view.h"
 
 void chakra::cmds::CommandPeerUpdateDB::execute(char *req, size_t reqLen, void *data,
-                                                std::function<void(char *, size_t)> cbf) {
+                                                std::function<utils::Error(char *, size_t)> cbf) {
     proto::peer::DBMessage dbMessage;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, dbMessage)){
-        return;
-    }
+    // TODO: change types
+    if (!chakra::net::Packet::deSerialize(req, reqLen, dbMessage, proto::types::P_UPDATE_DB).success()) return;
 
     auto sender = cluster::View::get()->getPeer(dbMessage.sender().name());
     if (!sender){

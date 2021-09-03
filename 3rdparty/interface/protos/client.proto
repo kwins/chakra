@@ -5,7 +5,7 @@ import "types.proto";
 
 message SetMessageRequest{
   string db_name = 1;
-  types.Type type = 2;
+  uint32 type = 2;
   string key = 3;
   string value = 4;
 }
@@ -16,12 +16,15 @@ message SetMessageResponse{
 
 message GetMessageRequest{
   string db_name = 1;
-  types.Type type = 2;
-  string key = 3;
+  string key = 2;
 }
 
 message GetMessageResponse{
   types.Error error = 1;
-  types.Type type = 2;
-  string value = 3;
+  uint32 type = 2;
+  oneof value{
+    string s = 3;
+    float f = 4;
+    int64 i = 5;
+  }
 }

@@ -104,9 +104,10 @@ void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv 
 void chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
     chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
         auto err = this->link->conn->send(data, len);
-        if (err){
+        if (!err.success()){
             LOG(ERROR) << "Send message to " << getName() << "[" << getIp() << ":" << getPort() << "] error " << strerror(errno);
         }
+        return err;
     });
 }
 
@@ -187,7 +188,7 @@ chakra::cluster::Peer::Link::Link(int sockfd) {
 chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::shared_ptr<Peer>& peer) {
     conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
     auto err = conn->connect();
-    if (err){
+    if (!err.success()){
         throw std::logic_error(err.toString());
     }
     reletedPeer = peer;
@@ -201,16 +202,17 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
         LOG(INFO) << "-- PEER received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-
-        cmdsptr->execute(req, reqlen, link, [&link](char *reply, size_t replylen) {
+        utils::Error err;
+        cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
             LOG(INFO) << "  PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-            link->conn->send(reply, replylen);
+            err = link->conn->send(reply, replylen);
+            return err;
         });
-
+        return err;
     });
 
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.toString();
         if (link->reletedPeer){ // active
             link->reletedPeer->linkFree();

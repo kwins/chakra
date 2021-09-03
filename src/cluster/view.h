@@ -80,7 +80,7 @@ public:
     void updateSender();
 
 private:
-    int initViewConfig();
+    utils::Error initViewConfig();
     void startEv();
     std::shared_ptr<Peer> randomPeer();
     void buildGossipSeader(proto::peer::GossipSender* sender, const std::string& data = "");

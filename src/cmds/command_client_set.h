@@ -9,7 +9,7 @@
 namespace chakra::cmds{
 class CommandClientSet : public Command {
 public:
-    void execute(char *req, size_t len, void *data, std::function<void(char *, size_t)> reply) override;
+    void execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) override;
     ~CommandClientSet() override = default;
 };
 

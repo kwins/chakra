@@ -7,13 +7,14 @@
 
 #include <string>
 #include <functional>
+#include "types.pb.h"
 
 namespace chakra::database{
 class Object{
 public:
     enum Type : uint8_t{
-        STRING,
-        ARRAY,
+        STRING = 0,
+        ARRAY = 1,
     };
 public:
     virtual Type type() = 0;

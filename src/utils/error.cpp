@@ -17,13 +17,15 @@ chakra::utils::Error::Error(const chakra::utils::Error &err) {
     this->msg = err.msg;
 }
 
-chakra::utils::Error::operator bool() const {
-    return code != 0;
-}
+//chakra::utils::Error::operator bool() const {
+//    return code != 0;
+//}
 
 bool chakra::utils::Error::is(int code) const {
     return Error::code == code;
 }
+
+bool chakra::utils::Error::success() const { return code == 0; }
 
 std::string chakra::utils::Error::toString() {
     return "(" + std::to_string(code) + ":" + msg + ")";

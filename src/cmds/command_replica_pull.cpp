@@ -8,17 +8,16 @@
 #include "net/packet.h"
 
 void chakra::cmds::CommandReplicaPull::execute(char *req, size_t reqLen, void *data,
-                                               std::function<void(char *resp, size_t respLen)> cbf) {
+                                               std::function<utils::Error(char *resp, size_t respLen)> cbf) {
+
     proto::replica::DeltaMessageRequest deltaMessageRequest;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest)){
-        return;
-    }
+    if (!chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_PULL).success()) return;
 
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     auto dbptr = database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
     auto err = dbptr->fetch(deltaMessageRequest.db_name(),deltaMessageRequest.seq(), &iter);
-    if (err){
+    if (!err.success()){
         chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), 1, err.toString());
     } else {
         int bytes = 0;

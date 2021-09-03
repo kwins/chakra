@@ -9,9 +9,9 @@
 #include "cluster/peer.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data, std::function<void(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data, std::function<utils::Error(char *, size_t)> reply) {
     proto::peer::GossipMessage gossip;
-    if (!chakra::net::Packet::deSerialize(req, len, gossip)){ return; }
+    if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG).success()) return;
 
     uint64_t todo = 0;
     std::shared_ptr<cluster::Peer> sender = cluster::View::get()->getPeer(gossip.sender().name());

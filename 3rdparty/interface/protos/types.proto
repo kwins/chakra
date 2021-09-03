@@ -11,6 +11,7 @@ enum Type{
   P_FAIL              = 5;
   P_SET_DB            = 6;            // 初始化 DB
   P_SET_EPOCH         = 7;            // 初始化节点 epoch
+  P_UPDATE_DB         = 8;
 
   // client
   C_GET               = 1000;

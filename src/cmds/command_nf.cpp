@@ -6,8 +6,8 @@
 #include "net/packet.h"
 #include "types.pb.h"
 
-void chakra::cmds::CommandNF::execute(char *req, size_t len,void* data, std::function<void(char *, size_t)> cbf) {
+void chakra::cmds::CommandNF::execute(char *req, size_t len,void* data, std::function<utils::Error(char *, size_t)> cbf) {
     proto::types::Error reply;
     chakra::net::Packet::fillError(reply, 1, "Command Not Define");
-    chakra::net::Packet::serialize(reply, chakra::net::Packet::getType(req,len), cbf);
+    chakra::net::Packet::serialize(reply, proto::types::NF, cbf);
 }

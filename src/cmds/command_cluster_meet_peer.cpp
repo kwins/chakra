@@ -7,9 +7,9 @@
 #include "net/packet.h"
 #include "cluster/view.h"
 
-void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, void* data, std::function<void(char *, size_t)> cbf) {
+void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, void* data, std::function<utils::Error(char *, size_t)> cbf) {
     proto::peer::GossipMessage gossip;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, gossip)) return;
+    if (!chakra::net::Packet::deSerialize(req, reqLen, gossip, proto::types::P_MEET_PEER).success()) return;
 
     uint64_t todo = 0;
     todo |= cluster::View::FLAG_SAVE_CONFIG;

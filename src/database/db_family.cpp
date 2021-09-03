@@ -16,7 +16,7 @@ void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::
     std::string filename = opts.dir + "/" + DB_FILE;
 
     auto err = utils::FileHelper::loadFile(filename, j);
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "DB load dbs config from " << filename << " :" << strerror(errno);
         return;
     }
@@ -58,6 +58,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
     auto bucket = std::make_shared<BucketDB>(bucketOpts);
     columnBuckets[next].emplace(std::make_pair(name, bucket));
     index = next;
+    dumpDBsFile();
     LOG(INFO) << "RocksDB add db " << name << " success.";
 }
 
@@ -74,7 +75,7 @@ void chakra::database::FamilyDB::dropDB(const std::string &name) {
         }
     }
     index = next;
-
+    dumpDBsFile();
     LOG(INFO) << "RocksDB drop column name " << name << " success.";
 }
 
@@ -131,24 +132,17 @@ size_t chakra::database::FamilyDB::dbSize(const std::string &name) {
 
 void chakra::database::FamilyDB::dumpDBsFile() const {
     std::string filename = opts.dir + "/" + DB_FILE;
-    std::string tmpfile = filename + ".tmp";
-    std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
-    if (!out.is_open()){
-        LOG(ERROR) << "DB dump dbs conf open file " << strerror(errno);
-        return;
-    }
-
     nlohmann::json j;
-    for (auto& it : columnBuckets[index]){
+    for (auto& it : columnBuckets[index.load()]){
         j["dbs"].push_back(it.second->dumpDB());
     }
-    out << j.dump(4);
-    if (::rename(tmpfile.c_str(), filename.c_str()) == -1){
+
+    auto err = utils::FileHelper::saveFile(j, filename);
+    if (!err.success()){
         LOG(ERROR) << "DB dump dbs error " << strerror(errno);
-        return;
+    } else {
+        LOG(INFO) << "DB dump dbs to filename " << filename << " success.";
     }
-    out.close();
-    LOG(INFO) << "DB dump dbs to filename " << filename << " success.";
 }
 
 chakra::utils::Error chakra::database::FamilyDB::restoreDB(const std::string &name) {

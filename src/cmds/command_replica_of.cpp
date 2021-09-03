@@ -10,11 +10,9 @@
 #include "cluster/view.h"
 
 void
-chakra::cmds::CommandReplicaOf::execute(char *req, size_t len, void *data, std::function<void(char *, size_t)> cbf) {
+chakra::cmds::CommandReplicaOf::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) {
     proto::replica::ReplicaOfMessage replicaOf;
-    if (!chakra::net::Packet::deSerialize(req, len, replicaOf)){
-        return;
-    }
+    if (!chakra::net::Packet::deSerialize(req, len, replicaOf, proto::types::R_REPLICA_OF).success()) return;
 
     auto replicaptr = chakra::replica::Replica::get();
     proto::types::Error reply;

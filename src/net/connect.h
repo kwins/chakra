@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include "utils/error.h"
 #include <functional>
+#include <array>
+#include <atomic>
 
 namespace chakra::net{
 
@@ -24,15 +26,15 @@ public:
     };
 
     struct Options{
-        int fd = -1;
-        std::string host = "";
+        std::string host;
         int port = 7290;
-        int bufSize = (1024*16);
+        int bufSize = (1024 * 4);
         milliseconds connectTimeOut { 100 };
         milliseconds readTimeOut { 100 };
         milliseconds writeTimeOut { 100 };
         bool block = false;
         int connectRetrys = 10;
+        int fd = -1;
     };
 
 public:
@@ -42,7 +44,7 @@ public:
     chakra::utils::Error send(const char* data, size_t len);
     // 服务端尽可能一次读完，如果读不完，等下次再度，可以有效减少IO次数.
     // 处理数据的 回调函数 一次只会处理一个 pack
-    chakra::utils::Error receivePack(const std::function<void(char* ptr, size_t len)>& process);
+    chakra::utils::Error receivePack(const std::function<utils::Error(char* ptr, size_t len)>& process);
     // 返回远端地址和端口
     std::string remoteAddr();
     State connState() const;
@@ -63,7 +65,7 @@ private:
     utils::Error checkConnectOK(int& completed);
     utils::Error checkSockErr();
 
-    void bufRange(int start, int end);
+    void moveBuf(int start, int end);
     static void toTimeVal(const milliseconds& duration, timeval& tv);
     static long toMsec(const milliseconds& duration);
 
@@ -74,17 +76,6 @@ private:
     static const int ERR_SEND = 5;
     static const int ERR_BAD_ARGS = 5;
 
-    template<typename T>
-    T readBuf(int idx = 0){
-        size_t len = sizeof(T);
-        if (bufLen < len) return 0;
-        char cr[len];
-        for (int i = idx; i < len; ++i) {
-            cr[i] = buf[i];
-        }
-        return *((T*)cr);
-    }
-
     Options opts {};
     int FD;
     sockaddr* sar;
@@ -93,9 +84,8 @@ private:
 
     char* buf;
     size_t bufFree; // 可用长度
-    size_t bufLen; // 已缓存长度
+    size_t bufLen;  // 已缓存长度
     size_t bufSize; // 缓存大小
-
     system_clock::time_point lastActive;
 };
 

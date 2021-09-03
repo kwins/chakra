@@ -34,16 +34,20 @@ void chakra::replica::Link::onProcessRecv(ev::io &watcher, int event) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
         LOG(INFO) << "-- REPL received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
+
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
 
-        cmdsptr->execute(req, reqLen, link, [&link](char *resp, size_t respLen) {
+        utils::Error err;
+        cmdsptr->execute(req, reqLen, link, [&link, &err](char *resp, size_t respLen) {
             proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
             LOG(INFO) << "  REPL reply message type " << proto::types::Type_Name(respType) << ":" << respType;
-            link->conn->send(resp, respLen);
+            err = link->conn->send(resp, respLen);
+            return err;
         });
+        return err;
     });
 
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << " " << err.toString();
         link->close();
     }
@@ -125,9 +129,10 @@ void chakra::replica::Link::onSendBulk(ev::io &watcher, int event) {
 
     chakra::net::Packet::serialize(bulkMessage, proto::types::R_BULK, [this](char* req, size_t reqLen){
         auto err = this->conn->send(req, reqLen);
-        if (err){
+        if (!err.success()){
             LOG(ERROR) << "REPL send bulk message to error " << strerror(errno);
         }
+        return err;
     });
 }
 
@@ -164,14 +169,11 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
 
 void chakra::replica::Link::onRecvBulk(ev::io &watcher, int event) {
     LOG(INFO) << "REPL recv bulk data ...";
-
-    conn->receivePack([this](char* data, size_t len){
-        if (chakra::net::Packet::getType(data, len) != proto::types::R_BULK)
-            return;
-
+    auto err = conn->receivePack([this](char* data, size_t len){
         proto::replica::BulkMessage bulkMessage;
-        if (!chakra::net::Packet::deSerialize(data, len, bulkMessage))
-            return;
+        auto err = chakra::net::Packet::deSerialize(data, len, bulkMessage, proto::types::R_BULK);
+        if (!err.success())
+            return err;
 
         auto dbptr = chakra::database::FamilyDB::get();
         rocksdb::WriteBatch batch;
@@ -185,7 +187,9 @@ void chakra::replica::Link::onRecvBulk(ev::io &watcher, int event) {
             deltaSeq = bulkMessage.seq();
             startPullDelta();
         }
+        return err;
     });
+    if (!err.success()) LOG(ERROR) << "REPL pull bulk error " << err.toString();
 }
 
 void chakra::replica::Link::onHandshake(ev::io &watcher, int event) {
@@ -198,8 +202,7 @@ void chakra::replica::Link::onHandshake(ev::io &watcher, int event) {
         ping.set_ping_ms(utils::Basic::getNowMillSec());
         ping.set_my_name("");
         chakra::net::Packet::serialize(ping, proto::types::R_PING, [this](char* req, size_t reqLen){
-            auto err = conn->send(req, reqLen);
-            if (err) LOG(ERROR) << err.toString();
+            return conn->send(req, reqLen);
         });
         return;
     }
@@ -210,13 +213,12 @@ void chakra::replica::Link::onHandshake(ev::io &watcher, int event) {
 
         proto::replica::PongMessage pong;
         auto err = conn->receivePack([this, &pong](char *resp, size_t respLen) {
-            if (chakra::net::Packet::deSerialize(resp, respLen, pong)) {
-                LOG(INFO) << "REPL primary replied to PING, replication can continue...";
-            }
+            return chakra::net::Packet::deSerialize(resp, respLen, pong, proto::types::R_PONG);
         });
-        if (err || pong.error().errcode() || !tryPartialReSync()){
+
+        if (!err.success() || pong.error().errcode() || !tryPartialReSync()){
             std::string errmsg;
-            if (err)
+            if (!err.success())
                 errmsg = err.toString();
             if (pong.error().errcode())
                 errmsg = pong.error().errmsg();
@@ -231,7 +233,7 @@ void chakra::replica::Link::connectPrimary() {
     conn = std::make_shared<net::Connect>(
             net::Connect::Options{ .host = ip, .port = port });
     auto err = conn->connect();
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "Link connect to primary " << ip << ":" << ip << " error " << err.toString();
         return;
     }
@@ -266,8 +268,7 @@ void chakra::replica::Link::heartBeat() const {
     heart.set_heartbeat_ms(utils::Basic::getNowMillSec());
     heart.set_seq(deltaSeq);
     chakra::net::Packet::serialize(heart, proto::types::R_HEARTBEAT, [this](char* data, size_t len){
-        auto err = conn->send(data, len);
-        if (err) LOG(ERROR) << err.toString();
+        return conn->send(data, len);
     });
 }
 
@@ -308,17 +309,15 @@ bool chakra::replica::Link::tryPartialReSync() {
 
 void chakra::replica::Link::sendSyncMsg(google::protobuf::Message &msg, proto::types::Type type,
                                         google::protobuf::Message &reply) {
-    chakra::net::Packet::serialize(msg, type, [this, &reply](char* req, size_t reqLen){
+    chakra::net::Packet::serialize(msg, type, [this, &reply, type](char* req, size_t reqLen){
         auto err = this->conn->send(req, reqLen);
-        if (!err){
-            this->conn->receivePack([&reply](char *resp, size_t respLen) {
-                if (!chakra::net::Packet::deSerialize(resp, respLen, reply)) {
-                    LOG(ERROR) << "REPL deSerialize error";
-                }
+        if (err.success()){
+            return this->conn->receivePack([&reply, type](char *resp, size_t respLen) {
+                return chakra::net::Packet::deSerialize(resp, respLen, reply, type);
             });
-        }else{
-            LOG(ERROR) << "REPL send message to [" << opts.ip << ":" << opts.port << "] error " << strerror(errno);
         }
+        LOG(ERROR) << "REPL send message to [" << opts.ip << ":" << opts.port << "] error " << strerror(errno);
+        return err;
     });
 }
 

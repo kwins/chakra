@@ -59,8 +59,8 @@ chakra::utils::Error chakra::net::Connect::send(const char *data, size_t len) {
     return utils::Error();
 }
 
-chakra::utils::Error chakra::net::Connect::receivePack(const std::function< void (char* ptr, size_t len)>& process) {
-    ssize_t readn = ::read(fd(), &buf[bufLen], this->bufSize);
+chakra::utils::Error chakra::net::Connect::receivePack(const std::function< utils::Error (char* ptr, size_t len)>& process) {
+    ssize_t readn = ::read(fd(), &buf[bufLen], this->bufFree);
     if (readn == 0){
         return setError(ERR_RECEIVE, "connect closed");
     } else if (readn < 0){
@@ -78,17 +78,17 @@ chakra::utils::Error chakra::net::Connect::receivePack(const std::function< void
     }
 
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
-    if (packSize > 0 && bufLen < packSize){
+    if ((packSize == 0) || (packSize > 0 && bufLen < packSize)){
         return utils::Error(utils::Error::ERR_PACK_NOT_ENOUGH, "pack not enough");
     }
 
     // 处理整个包
-    process(buf, packSize);
-
     // 从缓冲区中删除已经读取的内容
-    // 剩下的为未读取
-    bufRange(packSize, -1);
-    return utils::Error();
+    // 剩下的为未读取, 移动到缓存最前端
+    // 如果包解析失败，则丢弃
+    auto err = process(buf, packSize);
+    moveBuf(packSize, -1);
+    return err;
 }
 
 std::string chakra::net::Connect::remoteAddr()  {
@@ -145,10 +145,11 @@ chakra::utils::Error chakra::net::Connect::connect() {
         return setError("connect");
     }
 
-    utils::Error err;
-    if ((err = setBlock(false)))
+    auto err = setBlock(false);
+    if (!err.success())
         return err;
-    if ((err = setConnectTimeout()))
+    err = setConnectTimeout();
+    if (!err.success())
         return err;
     state = State::CONNECTED;
     return err;
@@ -232,7 +233,7 @@ chakra::utils::Error chakra::net::Connect::waitConnectReady(long msec) {
         return setError( "ETIMEDOUT", true);
     }
 
-    if (!checkConnectOK(res) || res == 0){
+    if (!checkConnectOK(res).success() || res == 0){
         return checkSockErr();
     }
 
@@ -285,7 +286,7 @@ long chakra::net::Connect::lastActiveTime() { return lastActive.time_since_epoch
 
 int chakra::net::Connect::reconnect() {
     Connect conn(opts);
-    if (conn.connect()){
+    if (!conn.connect().success()){
         return -1;
     }
     swap(*this, conn);
@@ -317,7 +318,7 @@ void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexc
     std::swap(lc.lastActive, rc.lastActive);
 }
 
-void chakra::net::Connect::bufRange(int start, int end) {
+void chakra::net::Connect::moveBuf(int start, int end) {
     int len = bufLen;
     int newLen = 0;
     if (len == 0) return;

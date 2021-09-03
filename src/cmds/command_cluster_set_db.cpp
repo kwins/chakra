@@ -10,10 +10,10 @@
 #include "types.pb.h"
 
 void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data,
-                                                std::function<void(char *, size_t)> cbf) {
+                                                std::function<utils::Error(char *, size_t)> cbf) {
 
     proto::peer::DBSetMessageRequest dbSetMessage;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, dbSetMessage)) return;
+    if (!chakra::net::Packet::deSerialize(req, reqLen, dbSetMessage, proto::types::P_SET_DB).success()) return;
 
     proto::peer::DBSetMessageResponse dbSetMessageResponse;
 

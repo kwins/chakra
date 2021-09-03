@@ -9,11 +9,9 @@
 #include "cluster/peer.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data, std::function<void(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> reply) {
     proto::peer::FailMessage failMessage;
-    if (!chakra::net::Packet::deSerialize(req, len, failMessage)){
-        return;
-    }
+    if (!chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL).success()) return;
 
     uint64_t todo = 0;
     std::shared_ptr<cluster::Peer> sender = cluster::View::get()->getPeer(failMessage.sender().name());

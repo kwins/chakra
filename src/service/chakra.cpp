@@ -62,14 +62,13 @@ void chakra::serv::Chakra::initLibev() {
     // listen
     sfd = -1;
     auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
-    if (err || sfd == -1){
+    if (!err.success() || sfd == -1){
         LOG(ERROR) << "Chakra listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
     acceptIO.set<Chakra, &Chakra::onAccept>(this);
     acceptIO.start(sfd, ev::READ);
-    LOG(ERROR) << "Chakra listen on " << this->opts.ip << ":" << this->opts.port << " success.";
 
     // signal
     sigint.set<&chakra::serv::Chakra::onSignal>(this);
@@ -105,6 +104,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
     long index = (connNums++) % workNum;
     auto link = new chakra::serv::Chakra::Link(sockfd);
     workers[index]->links.push_back(link);
+    workers[index]->async.send();
     LOG(INFO) << "Chakra accept OK, dispatch connect to work " << index << " addr:" << link->conn->remoteAddr();
 }
 
@@ -120,6 +120,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
 }
 
 void chakra::serv::Chakra::startUp() {
+    LOG(ERROR) << "Chakra start and listen on " << opts.ip << ":" << opts.port << " success.";
     ev::get_default_loop().loop();
 }
 
@@ -162,21 +163,24 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
         LOG(INFO) << "-- CLIENT received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-
-        cmdsptr->execute(req, reqlen, link, [&link](char *reply, size_t replylen) {
+        utils::Error err;
+        cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
             LOG(INFO) << "  CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-            link->conn->send(reply, replylen);
+            err = link->conn->send(reply, replylen);
+            return err;
         });
+        return err;
     });
 
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.toString();
         delete link;
     }
 }
 
 void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worker) {
+    LOG(INFO) << "Chakra Link start read in worker " << workID;
     rio = std::make_shared<ev::io>();
     rio->set<&chakra::serv::Chakra::Link::onPeerRead>(this);
     rio->set(worker->loop);

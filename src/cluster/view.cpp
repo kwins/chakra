@@ -13,6 +13,7 @@
 #include <chrono>
 #include "peer.pb.h"
 #include <random>
+#include "utils/file_helper.h"
 
 void chakra::cluster::View::initView(chakra::cluster::View::Options options) {
     LOG(INFO) << "View init";
@@ -21,7 +22,9 @@ void chakra::cluster::View::initView(chakra::cluster::View::Options options) {
     this->cronLoops = 0;
     this->peers = {};
     this->seed = std::make_shared<std::default_random_engine>(time(nullptr));
-    if (initViewConfig() != 0){
+
+    auto err = initViewConfig();
+    if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
         // 第一次初始化
         this->myself = std::make_shared<Peer>();
         this->myself->setIp(this->opts.ip);
@@ -30,25 +33,21 @@ void chakra::cluster::View::initView(chakra::cluster::View::Options options) {
         this->myself->setFlag(Peer::FLAG_MYSELF);
         this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
         LOG(INFO) << "View init first, peers size:" << this->peers.size();
+    } else {
+        LOG(ERROR) << "View exit with error " << err.toString();
+        exit(-1);
     }
+
     startEv();
     LOG(INFO) << "View listen in " << this->opts.ip << ":" << this->opts.port << " success, myself is " << this->myself->getName();
 }
 
-int chakra::cluster::View::initViewConfig() {
+chakra::utils::Error chakra::cluster::View::initViewConfig() {
     nlohmann::json j;
     std::string filename = this->opts.dir + "/" + configFile;
-    std::ifstream fileStream(filename);
-    if (!fileStream.is_open()){
-        if (errno == ENOENT){
-            return -1;
-        } else{
-            LOG(ERROR) << "View load cluster peers config from " << filename << " :" << strerror(errno);
-            exit(1);
-        }
-    }
-    LOG(INFO) << "View load from config file " << filename;
-    fileStream >> j;
+    auto err = utils::FileHelper::loadFile(filename, j);
+    if (!err.success()) return err;
+
     this->currentEpoch = j.at("current_epoch").get<int>();
     this->state = j.at("state").get<int>();
     auto jps = j.at("peers");
@@ -80,8 +79,7 @@ int chakra::cluster::View::initViewConfig() {
 
         if (peer->isMyself()){ this->myself = peer; }
     }
-    fileStream.close();
-    return 0;
+    return err;
 }
 
 // 初次调用 必 需要先调用 initView
@@ -93,7 +91,7 @@ std::shared_ptr<chakra::cluster::View> chakra::cluster::View::get() {
 void chakra::cluster::View::startEv() {
     // ev listen and accept
     auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
-    if (err || sfd == -1){
+    if (!err.success() || sfd == -1){
         LOG(ERROR) << "View listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
         exit(1);
     }
@@ -105,7 +103,7 @@ void chakra::cluster::View::startEv() {
 }
 
 void chakra::cluster::View::startPeersCron() {
-    LOG(INFO) << "View start peer cron interval " << opts.cronIntervalSec;
+//    LOG(INFO) << "View start peer cron interval " << opts.cronIntervalSec;
     cronIO.set<chakra::cluster::View, &chakra::cluster::View::onPeersCron>(this);
     cronIO.set(ev::get_default_loop());
     cronIO.start(opts.cronIntervalSec);
@@ -113,7 +111,7 @@ void chakra::cluster::View::startPeersCron() {
 
 
 void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
-    LOG(INFO) << "### On peers cron, peers count " << peers.size();
+//    LOG(INFO) << "### On peers cron, peers count " << peers.size();
     iteraion++;
     long nowMillSec = utils::Basic::getNowMillSec();
 

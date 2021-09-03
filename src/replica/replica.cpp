@@ -15,10 +15,10 @@ void chakra::replica::Replica::initReplica(chakra::replica::Replica::Options opt
     LOG(INFO) << "Replica init";
     opts = std::move(options);
     auto err = loadLinks();
-    if (err) LOG(WARNING) << "REPL load links " << err.toString();
+    if (!err.success()) LOG(WARNING) << "REPL load links " << err.toString();
 
     err = net::Network::tpcListen(opts.port, opts.tcpBackLog, sfd);
-    if (err || sfd == -1){
+    if (!err.success() || sfd == -1){
         LOG(ERROR) << "REPL listen on " << this->opts.ip << ":" << this->opts.port << " " << strerror(errno);
         exit(1);
     }
@@ -40,7 +40,7 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
     nlohmann::json j;
    std::string filename = this->opts.dir + "/" + REPLICA_FILE_NAME;
     auto err = utils::FileHelper::loadFile(filename, j);
-    if (err){
+    if (!err.success()){
         // TODO: error code judge
         return err;
     }
@@ -67,7 +67,7 @@ std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
 // 这样做的方式简化了集群的操作。
 // 如果采用选举的方式，则需要在拿到首次全量后，还要进行各节点之间沟通，获取到首次全量之后的增量位置信息，这增加了复杂度。
 void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
-    LOG(INFO) << "REPL cron...";
+//    LOG(INFO) << "REPL cron...";
     cronLoops++;
     for(auto& link : primaryDBLinks){
         link->replicaEventLoop();
@@ -93,7 +93,7 @@ void chakra::replica::Replica::dumpLinks() {
         j["replicas"].push_back(link->dumpLink());
     }
     auto err = chakra::utils::FileHelper::saveFile(j, tofile);
-    if (err){
+    if (!err.success()){
         LOG(ERROR) << "## REPL dump links error " << err.toString();
     } else {
         LOG(INFO) << "### REPL dump links to filename " << tofile << " success.";

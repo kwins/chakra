@@ -9,10 +9,11 @@
 #include "cluster/view.h"
 
 void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, void *data,
-                                                   std::function<void(char *, size_t)> cbf) {
+                                                   std::function<utils::Error(char *, size_t)> cbf) {
 
     proto::peer::EpochMessage epochMessage;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, epochMessage)) return;
+    if (!chakra::net::Packet::deSerialize(req, reqLen, epochMessage, proto::types::P_SET_EPOCH).success()) return;
+
     proto::types::Error reply;
     auto myself = cluster::View::get()->getMyself();
     if (epochMessage.epoch() < 0){

@@ -10,7 +10,7 @@
 namespace chakra::cmds{
 class CommandClusterSetDB : public Command {
 public:
-    void execute(char *req, size_t reqLen, void *data, std::function<void(char *, size_t)> cbf) override;
+    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *, size_t)> cbf) override;
 
     ~CommandClusterSetDB() override = default;
 };

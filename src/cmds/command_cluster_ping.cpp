@@ -7,9 +7,9 @@
 #include "cluster/view.h"
 #include "net/packet.h"
 
-void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data, std::function<void(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data, std::function<utils::Error(char *, size_t)> reply) {
     proto::peer::GossipMessage gossip;
-    if (!chakra::net::Packet::deSerialize(req, len, gossip)) return;
+    if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PING).success()) return;
 
     uint64_t todo = 0;
     auto clsptr = cluster::View::get();

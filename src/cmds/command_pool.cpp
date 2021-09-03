@@ -14,7 +14,7 @@
 #include "command_cluster_update_db.h"
 
 #include "command_client_set.h"
-
+#include "command_client_get.h"
 #include "command_replica_of.h"
 #include "command_replica_ping.h"
 #include "command_replica_pull.h"
@@ -33,6 +33,7 @@ chakra::cmds::CommandPool::CommandPool() {
 
     // client
     regCmd(proto::types::C_SET, std::make_shared<CommandClientSet>());
+    regCmd(proto::types::C_GET, std::make_shared<CommandClientGet>());
 
     // replica
     regCmd(proto::types::R_REPLICA_OF, std::make_shared<CommandReplicaOf>());

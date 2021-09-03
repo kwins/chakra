@@ -4,9 +4,9 @@
 
 #include "packet.h"
 #include "utils/error.h"
-
-void
-chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::types::Type type, const std::function<void(char*, size_t)>& cbf) {
+#include <glog/logging.h>
+chakra::utils::Error
+chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::types::Type type, const std::function<utils::Error(char*, size_t)>& cbf) {
     size_t bodySize = msg.ByteSizeLong();
     uint64_t packSize = HEAD_LEN + FLAG_LEN + TYPE_LEN + bodySize;
     char reply[packSize];
@@ -14,17 +14,27 @@ chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::type
     append<uint32_t>(reply, FLAG_IDX, (uint32_t)0);
     append<uint32_t>(reply, TYPE_IDX, (uint32_t)type);
     msg.SerializeToArray(&reply[BODY_IDX], bodySize);
-    cbf(reply, packSize);
+    LOG(INFO) << "reqtype:" << (uint32_t)type;
+    return cbf(reply, packSize);
 }
 
-bool chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg) {
+chakra::utils::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg, proto::types::Type type) {
+    proto::types::Type reqtype;
+    if ((reqtype = chakra::net::Packet::getType(src, srcLen)) != type){
+        return utils::Error(utils::Error::ERR_PACK_TYPE, "pack type not match(" + std::to_string(reqtype) + ":" + std::to_string(type) + ")");
+    }
+
     auto packSize = read<uint64_t>(src, srcLen, 0);
     if (packSize < (HEAD_LEN + FLAG_LEN + TYPE_LEN)){
-        return false;
+        return utils::Error(utils::Error::ERR_PACK_NOT_ENOUGH, "pack head size too small");
     }
 
     uint64_t bodyLen = packSize - HEAD_LEN - FLAG_LEN - TYPE_LEN;
-    return msg.ParseFromArray(&src[BODY_IDX], bodyLen);
+    auto ok = msg.ParseFromArray(&src[BODY_IDX], bodyLen);
+    if (!ok){
+        return utils::Error(utils::Error::ERR_PACK_PARSE, "pack parse error");
+    }
+    return utils::Error();
 }
 
 
