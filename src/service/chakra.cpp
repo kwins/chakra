@@ -28,7 +28,7 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
         std::thread([this, i]{
             std::unique_lock<std::mutex> lck(mutex);
             this->successWorkers++;
-            this->mutex.unlock();
+            lck.unlock();
             workers[i]->workID = i;
             workers[i]->async.set<&chakra::serv::Chakra::Worker::onAsync>(workers[i]);
             workers[i]->async.set(workers[i]->loop);
@@ -42,6 +42,7 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
 
             std::unique_lock<std::mutex> lck1(mutex);
             this->exitSuccessWorkers++;
+            lck1.unlock();
             this->cond.notify_one();
 
         }).detach();
