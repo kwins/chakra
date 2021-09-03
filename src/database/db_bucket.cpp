@@ -10,7 +10,6 @@
 
 chakra::database::BucketDB::BucketDB(Options options) {
     this->opts = std::move(options);
-    blocks.reserve(opts.blocktSize);
     rocksdb::Options rocksOpts;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
@@ -28,7 +27,7 @@ chakra::database::BucketDB::BucketDB(Options options) {
     self = std::shared_ptr<rocksdb::DB>(dbSelf);
     dbptr = std::shared_ptr<rocksdb::DB>(db);
     for (int i = 0; i < opts.blocktSize; ++i) {
-        blocks[i] = std::make_shared<BlockDB>(self, dbptr, opts.blockCapaticy);
+        blocks.push_back(std::make_shared<BlockDB>(self, dbptr, opts.blockCapaticy));
     }
 
     // 加载一些热数据
@@ -48,7 +47,8 @@ chakra::database::BucketDB::BucketDB(Options options) {
 std::shared_ptr<chakra::database::Element>
 chakra::database::BucketDB::get(const std::string &key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return blocks[hashed % opts.blocktSize]->get(key);
+    blocks.at(hashed % opts.blocktSize)->get(key);
+//    return blocks[]->get(key);
 }
 
 void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Element> val, bool dbput) {
