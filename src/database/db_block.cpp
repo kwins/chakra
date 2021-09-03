@@ -15,7 +15,6 @@ chakra::database::BlockDB::BlockDB(std::shared_ptr<rocksdb::DB> dbw, std::shared
 
 std::shared_ptr<chakra::database::Element> chakra::database::BlockDB::get(const std::string &key) {
     std::lock_guard guard(mutex);
-
     auto it = k2iter.find(key);
     if (it == k2iter.end()){ // cache 不存在
         std::string str;
@@ -34,6 +33,7 @@ std::shared_ptr<chakra::database::Element> chakra::database::BlockDB::get(const 
         elements.erase(it->second);
         elements.push_front(*it->second);
     }
+
     // 更新索引中的位置
     auto begin = elements.begin();
     k2iter[begin->first] = begin;

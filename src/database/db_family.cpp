@@ -10,18 +10,23 @@
 #include <zlib.h>
 #include "utils/file_helper.h"
 
+std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() {
+    static auto familyDBPtr = std::make_shared<FamilyDB>();
+    return familyDBPtr;
+}
+
 void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
     opts = familyOpts;
     nlohmann::json j;
     std::string filename = opts.dir + "/" + DB_FILE;
-
     auto err = utils::FileHelper::loadFile(filename, j);
     if (!err.success()){
-        LOG(ERROR) << "DB load dbs config from " << filename << " :" << strerror(errno);
+        if (!err.is(utils::Error::ERR_FILE_NOT_EXIST)){
+            LOG(ERROR) << "DB load dbs config from " << filename << " :" << strerror(errno);
+            exit(-1);
+        }
         return;
     }
-
-    LOG(INFO) << "DB load dbs from config file " << filename;
     index = 0;
     auto dbs = j.at("dbs");
     for (int i = 0; i < dbs.size(); ++i) {
@@ -36,6 +41,7 @@ void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
         columnBuckets[index].emplace(std::make_pair(name, bucket));
     }
+    LOG(INFO) << "Load DB config from " << filename << " success.";
 }
 
 void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, opts.blockSize, opts.blockCapacity); }
@@ -80,7 +86,7 @@ void chakra::database::FamilyDB::dropDB(const std::string &name) {
 }
 
 std::shared_ptr<chakra::database::Element> chakra::database::FamilyDB::get(const std::string& name, const std::string &key) {
-    int pos = index;
+    int pos = index.load();
     auto it = columnBuckets[pos].find(name);
     if (it == columnBuckets[pos].end()){
         return nullptr;
@@ -90,7 +96,7 @@ std::shared_ptr<chakra::database::Element> chakra::database::FamilyDB::get(const
 
 void
 chakra::database::FamilyDB::put(const std::string& name, const std::string &key, std::shared_ptr<Element> val) {
-    int pos = index;
+    int pos = index.load();
     auto it = columnBuckets[pos].find(name);
     if (it == columnBuckets[pos].end()){
         return;
@@ -105,11 +111,6 @@ void chakra::database::FamilyDB::put(const std::string& name, rocksdb::WriteBatc
         return;
     }
     it->second->put(batch);
-}
-
-std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() {
-    static auto familyDBPtr = std::make_shared<FamilyDB>();
-    return familyDBPtr;
 }
 
 void chakra::database::FamilyDB::del(const std::string &name, const std::string &key) {

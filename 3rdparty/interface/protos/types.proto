@@ -19,12 +19,6 @@ enum Type{
   C_MGET              = 1002;
   C_MSET              = 1003;
 
-  // data
-  D_STRING            = 2001;
-  D_INTEGER           = 2002;
-  D_FLOAT             = 2003;
-  D_ARRAY             = 2004;         // array string
-
   // replica
   R_PING              = 3001;
   R_PONG              = 3002;

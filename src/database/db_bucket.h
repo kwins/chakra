@@ -14,7 +14,7 @@
 
 namespace chakra::database{
 
-class BucketDB : public utils::UnCopyable, rocksdb::WriteBatch::Handler{
+class BucketDB : public rocksdb::WriteBatch::Handler{
 public:
     struct Options{
         std::string name;
@@ -39,8 +39,8 @@ private:
     void Delete(const rocksdb::Slice &key) override;
 
     Options opts = {};
-    std::shared_ptr<rocksdb::DB> self = nullptr; // 当前节点只写数据，用户复制
-    std::shared_ptr<rocksdb::DB> dbptr = nullptr; // 全量
+    std::shared_ptr<rocksdb::DB> self; // 当前节点只写数据，用户复制
+    std::shared_ptr<rocksdb::DB> dbptr; // 全量
     std::vector<std::shared_ptr<BlockDB>> blocks;
 };
 

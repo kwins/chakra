@@ -24,18 +24,20 @@ void chakra::cluster::View::initView(chakra::cluster::View::Options options) {
     this->seed = std::make_shared<std::default_random_engine>(time(nullptr));
 
     auto err = initViewConfig();
-    if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-        // 第一次初始化
-        this->myself = std::make_shared<Peer>();
-        this->myself->setIp(this->opts.ip);
-        this->myself->setPort(this->opts.port);
-        this->myself->setName(utils::Basic::genRandomID());
-        this->myself->setFlag(Peer::FLAG_MYSELF);
-        this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
-        LOG(INFO) << "View init first, peers size:" << this->peers.size();
-    } else {
-        LOG(ERROR) << "View exit with error " << err.toString();
-        exit(-1);
+    if (!err.success()){
+        if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
+            // 第一次初始化
+            this->myself = std::make_shared<Peer>();
+            this->myself->setIp(this->opts.ip);
+            this->myself->setPort(this->opts.port);
+            this->myself->setName(utils::Basic::genRandomID());
+            this->myself->setFlag(Peer::FLAG_MYSELF);
+            this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
+            LOG(INFO) << "View init first, peers size:" << this->peers.size();
+        } else {
+            LOG(ERROR) << "View exit with error " << err.toString();
+            exit(-1);
+        }
     }
 
     startEv();

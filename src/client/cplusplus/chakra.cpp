@@ -6,6 +6,7 @@
 #include "net/packet.h"
 #include "client.pb.h"
 #include <glog/logging.h>
+#include "database/db_object.h"
 
 chakra::client::Chakra::Chakra(chakra::net::Connect::Options options) {
     conn = std::make_shared<net::Connect>(options);
@@ -27,7 +28,7 @@ chakra::utils::Error chakra::client::Chakra::set(const std::string& dbname, cons
     setMessageRequest.set_db_name(dbname);
     setMessageRequest.set_key(key);
     setMessageRequest.set_value(value);
-    setMessageRequest.set_type(proto::types::D_STRING);
+    setMessageRequest.set_type(database::Object::Type::STRING);
 
     proto::client::SetMessageResponse setMessageResponse;
     auto err = executeCmd(setMessageRequest, proto::types::C_SET, setMessageResponse);
@@ -47,7 +48,7 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, s
 
     proto::client::GetMessageResponse getMessageResponse;
 
-    auto err = executeCmd(getMessageResponse, proto::types::C_GET, getMessageResponse);
+    auto err = executeCmd(getMessageRequest, proto::types::C_GET, getMessageResponse);
     if (!err.success()) return err;
     if (getMessageResponse.error().errcode() != 0){
         return utils::Error(getMessageResponse.error().errcode(), getMessageResponse.error().errmsg());

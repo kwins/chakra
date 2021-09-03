@@ -16,8 +16,6 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
     proto::client::SetMessageRequest setMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, len, setMessageRequest, proto::types::C_SET);
     if (!err.success()){
-
-        LOG(INFO) << "receive type:" <<  chakra::net::Packet::read<uint32_t>(req, len, 12);
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else {
         auto dbptr = chakra::database::FamilyDB::get();
@@ -27,7 +25,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
         element->setUpdated(element->getCreate());
         element->setLastVisit(-1);
 
-        if (setMessageRequest.type() == proto::types::D_STRING){
+        if (setMessageRequest.type() == database::Object::Type::STRING){
             auto obj = std::make_shared<chakra::database::String>();
             obj->deSeralize(setMessageRequest.value().data(), setMessageRequest.value().size());
             element->setObject(obj);

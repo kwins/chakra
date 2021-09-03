@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include "replica/replica.h"
 #include "net/network.h"
+#include "database/db_family.h"
 
 // Chakra
 std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
@@ -52,6 +53,7 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
         cond.wait(lck2);
     }
 
+    chakra::database::FamilyDB::get()->initFamilyDB(opts.dbOpts);
     chakra::cluster::View::get()->initView(opts.clusterOpts);
     chakra::replica::Replica::get()->initReplica(opts.replicaOpts);
     // sig

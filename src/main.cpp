@@ -22,6 +22,8 @@ DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                 
 DEFINE_int32(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");  /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
 
+DEFINE_string(db_dir, "./test/node1", "rocksdb save dir");
+
 void parseOpts(chakra::serv::Chakra::Options& opts){
     opts.ip = FLAGS_server_ip;
     opts.port = FLAGS_server_port;
@@ -31,6 +33,8 @@ void parseOpts(chakra::serv::Chakra::Options& opts){
     opts.replicaOpts.ip = FLAGS_replica_ip;
     opts.replicaOpts.port = FLAGS_replica_port;
     opts.replicaOpts.dir = FLAGS_replica_dir;
+
+    opts.dbOpts.dir = FLAGS_db_dir;
 }
 
 int main(int argc, char* argv[]) {

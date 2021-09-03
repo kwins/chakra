@@ -11,6 +11,7 @@
 #include <mutex>
 #include "replica/replica.h"
 #include <condition_variable>
+#include "database/db_family.h"
 
 namespace chakra::serv{
 class Chakra : public utils::UnCopyable {
@@ -21,6 +22,7 @@ public:
         int tcpBackLog = 512;
         std::string ip = "127.0.0.1";
         float cronInterval = 1;
+        chakra::database::FamilyDB::Options dbOpts;
         chakra::cluster::View::Options clusterOpts;
         chakra::replica::Replica::Options replicaOpts;
     };

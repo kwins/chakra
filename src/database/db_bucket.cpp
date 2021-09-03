@@ -6,6 +6,7 @@
 #include <zlib.h>
 #include <rocksdb/db.h>
 #include <rocksdb/utilities/write_batch_with_index.h>
+#include <glog/logging.h>
 
 chakra::database::BucketDB::BucketDB(Options options) {
     this->opts = std::move(options);
@@ -14,12 +15,12 @@ chakra::database::BucketDB::BucketDB(Options options) {
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
     rocksdb::DB* dbSelf;
-    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + opts.name + ".self", &dbSelf);
+    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbSelf);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
     rocksdb::DB* db;
-    s = rocksdb::DB::Open(rocksOpts, opts.dir + opts.name, &db);
+    s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &db);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
@@ -86,8 +87,6 @@ chakra::database::BucketDB::~BucketDB() {
         self->Close();
     if (dbptr)
         dbptr->Close();
-    self = nullptr;
-    dbptr = nullptr;
 }
 
 void chakra::database::BucketDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
