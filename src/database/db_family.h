@@ -57,6 +57,7 @@ public:
 
     // 写全量rocksDB
     void put(const std::string& name, rocksdb::WriteBatch& batch);
+    ~FamilyDB();
 private:
     mutable std::mutex mutex;
     Options opts = {};

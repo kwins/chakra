@@ -7,9 +7,9 @@
 #include "type_string.h"
 #include "utils/basic.h"
 
-chakra::database::BlockDB::BlockDB(std::shared_ptr<rocksdb::DB> dbw, std::shared_ptr<rocksdb::DB> db,size_t capacity) {
+chakra::database::BlockDB::BlockDB(std::shared_ptr<rocksdb::DB> dbself, std::shared_ptr<rocksdb::DB> db, size_t capacity) {
     this->capacity = capacity;
-    this->self = dbw;
+    this->self = dbself;
     this->dbptr = db;
 }
 
@@ -82,4 +82,5 @@ size_t chakra::database::BlockDB::size() {
 }
 
 chakra::database::BlockDB::~BlockDB() {
+    LOG(INFO) << "~BlockDB 1";
 }

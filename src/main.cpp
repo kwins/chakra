@@ -1,5 +1,6 @@
 #include "service/chakra.h"
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 DEFINE_string(server_ip, "127.0.0.1", "server ip");                                     /* NOLINT */
 DEFINE_int32(server_port, 7290, "listen port");                                         /* NOLINT */
@@ -22,7 +23,7 @@ DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                 
 DEFINE_int32(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");  /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
 
-DEFINE_string(db_dir, "./test/node1", "rocksdb save dir");
+DEFINE_string(db_dir, "./test/node1", "rocksdb save dir");                              /* NOLINT */
 
 void parseOpts(chakra::serv::Chakra::Options& opts){
     opts.ip = FLAGS_server_ip;
@@ -47,5 +48,6 @@ int main(int argc, char* argv[]) {
 
     serv->initCharka(opts);
     serv->startUp();
+    LOG(INFO) << "end";
     return 0;
 }

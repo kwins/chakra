@@ -20,16 +20,15 @@ std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
 }
 
 void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts) {
-    // workers
     this->opts = opts;
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 2;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
+        workers[i] = new chakra::serv::Chakra::Worker();
         std::thread([this, i]{
             std::unique_lock<std::mutex> lck(mutex);
             this->successWorkers++;
             this->mutex.unlock();
-            workers[i] = new chakra::serv::Chakra::Worker();
             workers[i]->workID = i;
             workers[i]->async.set<&chakra::serv::Chakra::Worker::onAsync>(workers[i]);
             workers[i]->async.set(workers[i]->loop);
@@ -146,6 +145,7 @@ void chakra::serv::Chakra::stop() {
 }
 
 chakra::serv::Chakra::~Chakra() {
+    LOG(INFO) << "~Chakra";
     for(auto worker : workers){
         delete worker;
     }
@@ -236,6 +236,9 @@ void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
 
 void chakra::serv::Chakra::Worker::stop() { this->stopAsnyc.send(); }
 
-chakra::serv::Chakra::Worker::~Worker() { stop(); }
+chakra::serv::Chakra::Worker::~Worker() {
+    LOG(INFO) << "~Worker";
+    stop();
+}
 
 

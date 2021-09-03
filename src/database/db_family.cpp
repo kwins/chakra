@@ -11,8 +11,8 @@
 #include "utils/file_helper.h"
 
 std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() {
-    static auto familyDBPtr = std::make_shared<FamilyDB>();
-    return familyDBPtr;
+    static auto dbptr = std::make_shared<FamilyDB>();
+    return dbptr;
 }
 
 void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
@@ -39,7 +39,7 @@ void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::
         bucketOpts.blockCapaticy = cached;
         bucketOpts.blocktSize = blockSize;
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
-        columnBuckets[index].emplace(std::make_pair(name, bucket));
+        columnBuckets[index.load()].emplace(std::make_pair(name, bucket));
     }
     LOG(INFO) << "Load DB config from " << filename << " success.";
 }
@@ -226,6 +226,10 @@ chakra::database::FamilyDB::snapshot(const std::string &name, rocksdb::Iterator 
     seq = snapshot->GetSequenceNumber();
     (*iter) = it->second->getRocksDB()->NewIterator(readOptions);
     return utils::Error();
+}
+
+chakra::database::FamilyDB::~FamilyDB() {
+    LOG(INFO) << "~FamilyDB";
 }
 
 const std::string  chakra::database::FamilyDB::DB_FILE = "dbs.json";

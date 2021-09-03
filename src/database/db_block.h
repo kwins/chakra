@@ -21,7 +21,7 @@ public:
     using PairIter = typename std::list<std::pair<std::string, std::shared_ptr<Element>>>::iterator;
 public:
     // assimilate
-    explicit BlockDB(std::shared_ptr<rocksdb::DB> dbw, std::shared_ptr<rocksdb::DB> db,size_t capacity);
+    explicit BlockDB(std::shared_ptr<rocksdb::DB> dbself, std::shared_ptr<rocksdb::DB> db, size_t capacity);
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     void del(const std::string& key, bool dbdel = true);
@@ -30,8 +30,8 @@ public:
 private:
 
     mutable std::mutex mutex;
-    std::shared_ptr<rocksdb::DB> self = nullptr; // 当前节点只写数据，用户复制
-    std::shared_ptr<rocksdb::DB> dbptr = nullptr; // 全量
+    std::shared_ptr<rocksdb::DB> self; // 当前节点只写数据，用户复制
+    std::shared_ptr<rocksdb::DB> dbptr; // 全量
     size_t capacity;
     std::list<std::pair<std::string, std::shared_ptr<Element>>> elements;
     std::unordered_map<std::string, PairIter> k2iter;

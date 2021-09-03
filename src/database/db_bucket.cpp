@@ -11,21 +11,24 @@
 chakra::database::BucketDB::BucketDB(Options options) {
     this->opts = std::move(options);
     rocksdb::Options rocksOpts;
+    rocksOpts.allow_mmap_writes = true;
+    rocksOpts.use_adaptive_mutex = true;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
-    rocksdb::DB* dbSelf;
-    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbSelf);
+    rocksdb::DB* dbself;
+    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbself);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
+    self = std::shared_ptr<rocksdb::DB>(dbself);
+
     rocksdb::DB* db;
     s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &db);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
-
-    self = std::shared_ptr<rocksdb::DB>(dbSelf);
     dbptr = std::shared_ptr<rocksdb::DB>(db);
+
     for (int i = 0; i < opts.blocktSize; ++i) {
         blocks.push_back(std::make_shared<BlockDB>(self, dbptr, opts.blockCapaticy));
     }
@@ -47,8 +50,7 @@ chakra::database::BucketDB::BucketDB(Options options) {
 std::shared_ptr<chakra::database::Element>
 chakra::database::BucketDB::get(const std::string &key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks.at(hashed % opts.blocktSize)->get(key);
-//    return blocks[]->get(key);
+    return blocks.at(hashed % opts.blocktSize)->get(key);
 }
 
 void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Element> val, bool dbput) {
@@ -83,10 +85,18 @@ nlohmann::json chakra::database::BucketDB::dumpDB() {
 }
 
 chakra::database::BucketDB::~BucketDB() {
-    if (self)
+    LOG(INFO) << "~BucketDB 1";
+    if (self){
+        LOG(INFO) << "~BucketDB 2";
         self->Close();
-    if (dbptr)
+        LOG(INFO) << "~BucketDB 3 ";
+    }
+    LOG(INFO) << "~BucketDB 5";
+    if (dbptr){
+        LOG(INFO) << "~BucketDB 6";
         dbptr->Close();
+        LOG(INFO) << "~BucketDB 7";
+    }
 }
 
 void chakra::database::BucketDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {

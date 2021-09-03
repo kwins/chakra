@@ -38,13 +38,13 @@ protected:
 };
 
 TEST_F(TestChakra, client){
-//    auto err = cluster->setdb("test_db", 100000);
-//    if (!err.success()) LOG(ERROR) << "setdb:" << err.toString();
-//
-//     err = client->set("test_db", "key_1", "value_1");
-//    if (!err.success()) LOG(ERROR) << "set:" << err.toString();
+    auto err = cluster->setdb("test_db", 100000);
+    if (!err.success()) LOG(ERROR) << "setdb:" << err.toString();
+
+    err = client->set("test_db", "key_1", "value_1");
+    if (!err.success()) LOG(ERROR) << "set:" << err.toString();
     std::string str;
-    auto err = client->get("test_db", "key_1",str);
+    err = client->get("test_db", "key_1",str);
     if (!err.success()) LOG(ERROR) << "get:" << err.toString();
     else{
         LOG(INFO) << "get value:" << str;

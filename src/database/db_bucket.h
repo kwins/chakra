@@ -31,7 +31,7 @@ public:
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     void put(rocksdb::WriteBatch &batch);
     void del(const std::string& key, bool dbdel = true);
-    ~BucketDB() override;
+    ~BucketDB();
 
 private:
     // implement rocksdb WriteBatch Handler interface
@@ -39,7 +39,7 @@ private:
     void Delete(const rocksdb::Slice &key) override;
 
     Options opts = {};
-    std::shared_ptr<rocksdb::DB> self; // 当前节点只写数据，用户复制
+    std::shared_ptr<rocksdb::DB> self;  // 当前节点只写数据，用户复制
     std::shared_ptr<rocksdb::DB> dbptr; // 全量
     std::vector<std::shared_ptr<BlockDB>> blocks;
 };
