@@ -14,24 +14,37 @@
 
 namespace chakra::database{
 
-class BucketDB : public rocksdb::WriteBatch::Handler{
+class BucketDB :public rocksdb::WriteBatch::Handler{
 public:
     struct Options{
         std::string name;
         std::string dir;
         size_t blocktSize;
         size_t blockCapaticy;
+        long dbWALTTLSeconds = 86400;
+    };
+
+    struct RestoreDB{
+        rocksdb::SequenceNumber seq;
+        std::string filepath;
     };
 public:
     explicit BucketDB(Options options);
     size_t size();
-    std::shared_ptr<rocksdb::DB> getRocksDB();
     nlohmann::json dumpDB();
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     void put(rocksdb::WriteBatch &batch);
     void del(const std::string& key, bool dbdel = true);
-    ~BucketDB();
+
+    utils::Error restoreDB();
+    RestoreDB getLastRestoreDB();
+    utils::Error fetch(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
+    // 获取 db 的一个快照 和 快照对应增量 seq
+    utils::Error snapshot(rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
+    rocksdb::SequenceNumber getLastSeqNumber();
+
+    ~BucketDB() override;
 
 private:
     // implement rocksdb WriteBatch Handler interface
@@ -39,8 +52,9 @@ private:
     void Delete(const rocksdb::Slice &key) override;
 
     Options opts = {};
-    std::shared_ptr<rocksdb::DB> self;  // 当前节点只写数据，用户复制
-    std::shared_ptr<rocksdb::DB> dbptr; // 全量
+    RestoreDB lastRestore;
+    rocksdb::DB* self;                      // 节点写增量
+    rocksdb::DB* dbptr;                     // 全量
     std::vector<std::shared_ptr<BlockDB>> blocks;
 };
 

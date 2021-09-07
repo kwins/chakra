@@ -57,6 +57,8 @@ protected:
         db->Put(rocksdb::WriteOptions(), key, rocksdb::Slice("haha_1_value"));
         db->Put(rocksdb::WriteOptions(), key2, rocksdb::Slice("haha_2_value"));
         auto seq = db->GetLatestSequenceNumber();
+        db->Close();
+        delete db;
         LOG(INFO) << "after put seq: " << seq;
     }
 
@@ -340,9 +342,10 @@ protected:
 };
 
 TEST_F(RocksDBTest, basicOp){
+    testSeq();
 //    testRestore();
 //testWriteBatch();
-    testReplica();
+//    testReplica();
 //testBackUpReplica();
 //    testTTLRocksDB();
 //    testIterator();

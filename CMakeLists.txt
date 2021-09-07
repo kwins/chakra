@@ -51,6 +51,7 @@ add_executable(ut samples/unittest/ut_main.cpp
         ${CLIENT_SRC}
         ${NET_SRC}
         ${UTILS_SRC}
+        ${DATABASE_SRC}
         )
 set_target_properties(ut PROPERTIES
         INSTALL_RPATH ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)

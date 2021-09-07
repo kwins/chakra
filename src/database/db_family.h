@@ -5,14 +5,11 @@
 #ifndef CHAKRA_DB_FAMILY_H
 #define CHAKRA_DB_FAMILY_H
 
-#include <rocksdb/db.h>
 #include <array>
 #include <unordered_map>
-
 #include "db_bucket.h"
 #include "utils/nocopy.h"
 #include "utils/error.h"
-#include <rocksdb/utilities/backupable_db.h>
 
 namespace chakra::database{
 

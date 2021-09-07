@@ -53,9 +53,12 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
         cond.wait(lck2);
     }
 
-    chakra::database::FamilyDB::get()->initFamilyDB(opts.dbOpts);
-    chakra::cluster::View::get()->initView(opts.clusterOpts);
-    chakra::replica::Replica::get()->initReplica(opts.replicaOpts);
+    auto dbptr = chakra::database::FamilyDB::get();
+    dbptr->initFamilyDB(opts.dbOpts);
+    auto viewptr = chakra::cluster::View::get();
+    viewptr->initView(opts.clusterOpts);
+    auto replcaptr = chakra::replica::Replica::get();
+    replcaptr->initReplica(opts.replicaOpts);
     // sig
     initLibev();
 }

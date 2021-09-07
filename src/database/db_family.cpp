@@ -153,35 +153,7 @@ chakra::utils::Error chakra::database::FamilyDB::restoreDB(const std::string &na
         return utils::Error(1, "DB " + name + " not found");
     }
 
-    // backup
-    rocksdb::BackupEngine* backupEngine;
-    std::string backupdir = opts.backUpDir + "/" + name;
-    auto s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), rocksdb::BackupableDBOptions(backupdir), &backupEngine);
-    if (!s.ok()){
-        return utils::Error(1, s.ToString());
-    }
-    s = backupEngine->CreateNewBackup(it->second->getRocksDB().get());
-    if (!s.ok()){
-        return utils::Error(1, s.ToString());
-    }
-    delete backupEngine;
-
-    // restore
-    rocksdb::BackupEngineReadOnly* restore;
-    std::string restoredir = opts.restoreDir + "/" + name;
-    s = rocksdb::BackupEngineReadOnly::Open(rocksdb::Env::Default(),rocksdb::BackupableDBOptions(restoredir), &restore);
-    if (!s.ok()){
-        return utils::Error(1, s.ToString());
-    }
-    s = restore->RestoreDBFromLatestBackup(restoredir, restoredir);
-    if (!s.ok()){
-        return utils::Error(1, s.ToString());
-    }
-    delete restore;
-    lastRestore.seq = it->second->getRocksDB()->GetLatestSequenceNumber();
-
-    // 压缩
-    return utils::Error();
+    return it->second->restoreDB();
 }
 
 chakra::database::FamilyDB::RestoreDB chakra::database::FamilyDB::getLastRestoreDB() { return lastRestore; }
@@ -193,7 +165,7 @@ chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::S
     if (it == columnBuckets[pos].end()){
         return utils::Error(1, "DB " + name + " not found");
     }
-    seq = it->second->getRocksDB()->GetLatestSequenceNumber();
+    seq = it->second->getLastSeqNumber();
     return utils::Error();
 }
 
@@ -205,11 +177,8 @@ chakra::database::FamilyDB::fetch(const std::string &name, rocksdb::SequenceNumb
     if (it == columnBuckets[pos].end()){
         return utils::Error(1, "DB " + name + " not found");
     }
-    auto s = it->second->getRocksDB()->GetUpdatesSince(seq, iter);
-    if (!s.ok()){
-        return utils::Error(1,s.ToString());
-    }
-    return utils::Error();
+
+    return it->second->fetch(seq, iter);
 }
 
 chakra::utils::Error
@@ -219,13 +188,7 @@ chakra::database::FamilyDB::snapshot(const std::string &name, rocksdb::Iterator 
     if (it == columnBuckets[pos].end()){
         return utils::Error(1, "DB " + name + " not found");
     }
-
-    auto snapshot = it->second->getRocksDB()->GetSnapshot();
-    rocksdb::ReadOptions readOptions;
-    readOptions.snapshot = snapshot;
-    seq = snapshot->GetSequenceNumber();
-    (*iter) = it->second->getRocksDB()->NewIterator(readOptions);
-    return utils::Error();
+    return it->second->snapshot(iter, seq);
 }
 
 chakra::database::FamilyDB::~FamilyDB() {

@@ -5,10 +5,11 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 
-#include "ut_client.h"
+//#include "ut_client.h"
 //#include "ut_utils.h"
 //#include "ut_lru.h"
-//#include "ut_rocksdb.h"
+#include "ut_rocksdb.h"
+//#include "ut_bucket.h"
 
 int main(int argc, char* argv[]){
     gflags::ParseCommandLineFlags(&argc, &argv, true);
