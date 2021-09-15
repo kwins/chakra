@@ -6,6 +6,7 @@
 #define CHAKRA_DB_FAMILY_H
 
 #include <array>
+#include <vector>
 #include <unordered_map>
 #include "db_bucket.h"
 #include "utils/nocopy.h"
@@ -27,11 +28,10 @@ public:
         std::string filepath;
     };
 public:
-    using ColumnName = std::string;
-    using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;
-public:
+    explicit FamilyDB(const Options& familyOpts);
     static std::shared_ptr<FamilyDB> get(); // 全局指针
-    void initFamilyDB(const Options& familyOpts);
+    static void initFamilyDB(const Options& familyOpts);
+
     bool servedDB(const std::string& name);
     void addDB(const std::string& name);
     void addDB(const std::string& name, size_t blocktSize, size_t blocktCapacity);
@@ -56,12 +56,16 @@ public:
     void put(const std::string& name, rocksdb::WriteBatch& batch);
     ~FamilyDB();
 private:
-    mutable std::mutex mutex;
+    using ColumnName = std::string;
+    using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;
+
     Options opts = {};
-    std::array<ColumnBuckets, 2> columnBuckets{};
-    RestoreDB lastRestore;
     std::atomic<int> index = 0;
+    std::array<ColumnBuckets, 2> columnBuckets;
+    RestoreDB lastRestore;
+//    BucketDB* bucket;
     static const std::string DB_FILE;
+    static std::shared_ptr<FamilyDB> familyptr;
 };
 
 }

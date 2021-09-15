@@ -19,8 +19,8 @@ public:
     struct Options{
         std::string name;
         std::string dir;
-        size_t blocktSize;
-        size_t blockCapaticy;
+        size_t blocktSize = 0;
+        size_t blockCapaticy = 0;
         long dbWALTTLSeconds = 86400;
     };
 
@@ -53,8 +53,8 @@ private:
 
     Options opts = {};
     RestoreDB lastRestore;
-    rocksdb::DB* self;                      // 节点写增量
-    rocksdb::DB* dbptr;                     // 全量
+    std::shared_ptr<rocksdb::DB> self;                      // 节点写增量
+    std::shared_ptr<rocksdb::DB> dbptr;                     // 全量
     std::vector<std::shared_ptr<BlockDB>> blocks;
 };
 

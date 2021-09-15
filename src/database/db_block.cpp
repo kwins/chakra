@@ -64,6 +64,5 @@ size_t chakra::database::BlockDB::size() {
     return num;
 }
 
-chakra::database::BlockDB::~BlockDB() {
-    LOG(INFO) << "~BlockDB 1";
-}
+//chakra::database::BlockDB::~BlockDB() {
+//}

@@ -24,7 +24,7 @@ public:
     void put(const std::string& key, std::shared_ptr<Element> val);
     void del(const std::string& key);
     size_t size();
-    ~BlockDB();
+//    ~BlockDB();
 private:
 
     mutable std::mutex mutex;

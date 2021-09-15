@@ -54,6 +54,7 @@ protected:
         }
         rocksdb::Slice key = "haha_1";
         rocksdb::Slice key2 = "haha_2";
+
         db->Put(rocksdb::WriteOptions(), key, rocksdb::Slice("haha_1_value"));
         db->Put(rocksdb::WriteOptions(), key2, rocksdb::Slice("haha_2_value"));
         auto seq = db->GetLatestSequenceNumber();
@@ -91,6 +92,7 @@ protected:
             LOG(ERROR) << "RocksDB open " << status.ToString();
             return;
         }
+
         rocksdb::Slice key = "haha_1";
         std::string str;
         status = dbRestore->Get(rocksdb::ReadOptions(), cfsRestore[0], key, &str);

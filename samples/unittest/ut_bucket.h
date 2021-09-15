@@ -4,17 +4,35 @@
 
 #ifndef CHAKRA_UT_BUCKET_H
 #define CHAKRA_UT_BUCKET_H
-#include "database/db_bucket.h"
-
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 
-TEST(Bucket, test){
-    chakra::database::BucketDB::Options options;
-    options.dir = ".";
-    options.name = "test";
-    auto bucket = chakra::database::BucketDB(options);
-    LOG(INFO) << "seq:" << bucket.getLastSeqNumber();
+#include "database/db_bucket.h"
+
+class BucketTest : public ::testing::Test{
+public:
+protected:
+    void SetUp() override {
+        chakra::database::BucketDB::Options options;
+        options.dir = "./test/node1";
+        options.name = "test_db";
+        options.blocktSize = 256;
+        options.blockCapaticy = 100000;
+        bucket = new chakra::database::BucketDB(options);
+    }
+
+    void TearDown() override {
+        delete bucket;
+    }
+
+    chakra::database::BucketDB* bucket;
+};
+
+TEST_F(BucketTest, test){
+    auto value = bucket->get("key_1");
+    if (value){
+        value->getObject()->debugString();
+    }
 }
 
 #endif //CHAKRA_UT_BUCKET_H

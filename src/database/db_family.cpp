@@ -10,12 +10,7 @@
 #include <zlib.h>
 #include "utils/file_helper.h"
 
-std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() {
-    static auto dbptr = std::make_shared<FamilyDB>();
-    return dbptr;
-}
-
-void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
+chakra::database::FamilyDB::FamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
     opts = familyOpts;
     nlohmann::json j;
     std::string filename = opts.dir + "/" + DB_FILE;
@@ -27,6 +22,7 @@ void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::
         }
         return;
     }
+
     index = 0;
     auto dbs = j.at("dbs");
     for (int i = 0; i < dbs.size(); ++i) {
@@ -41,7 +37,19 @@ void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
         columnBuckets[index.load()].emplace(std::make_pair(name, bucket));
     }
+//    BucketDB::Options bucketOpts;
+//    bucketOpts.dir = opts.dir;
+//    bucketOpts.name = "test_db";
+//    bucketOpts.blockCapaticy = 100000;
+//    bucketOpts.blocktSize = 256;
+//    bucket = new BucketDB(bucketOpts);
     LOG(INFO) << "Load DB config from " << filename << " success.";
+}
+
+std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() { return familyptr; }
+
+void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
+    familyptr = std::make_shared<FamilyDB>(familyOpts);
 }
 
 void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, opts.blockSize, opts.blockCapacity); }
@@ -51,7 +59,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
 
     int next = index == 0 ? 1 : 0;
     columnBuckets[next].clear();
-    for(auto & bucket : columnBuckets[index]){
+    for(auto & bucket : columnBuckets[index.load()]){
         columnBuckets[next].emplace(std::make_pair(bucket.first, bucket.second));
     }
 
@@ -69,7 +77,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
 }
 
 bool chakra::database::FamilyDB::servedDB(const std::string &name) {
-    return columnBuckets[index].count(name) > 0;
+    return columnBuckets[index.load()].count(name) > 0;
 }
 
 void chakra::database::FamilyDB::dropDB(const std::string &name) {
@@ -160,7 +168,7 @@ chakra::database::FamilyDB::RestoreDB chakra::database::FamilyDB::getLastRestore
 
 chakra::utils::Error
 chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::SequenceNumber &seq) {
-    int pos = index;
+    int pos = index.load();
     auto it = columnBuckets[pos].find(name);
     if (it == columnBuckets[pos].end()){
         return utils::Error(1, "DB " + name + " not found");
@@ -195,4 +203,5 @@ chakra::database::FamilyDB::~FamilyDB() {
     LOG(INFO) << "~FamilyDB";
 }
 
+std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::familyptr = nullptr;
 const std::string  chakra::database::FamilyDB::DB_FILE = "dbs.json";

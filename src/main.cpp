@@ -48,6 +48,8 @@ int main(int argc, char* argv[]) {
 
     serv->initCharka(opts);
     serv->startUp();
+//    auto dbptr = chakra::database::FamilyDB::get();
+//    dbptr->initFamilyDB(opts.dbOpts);
     LOG(INFO) << "end";
     return 0;
 }
