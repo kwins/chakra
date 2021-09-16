@@ -6,7 +6,7 @@
 #include "net/packet.h"
 #include "peer.pb.h"
 #include "database/db_family.h"
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 #include "types.pb.h"
 
 void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data,
@@ -17,12 +17,12 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
 
     proto::peer::DBSetMessageResponse dbSetMessageResponse;
 
-    auto dbptr = database::FamilyDB::get();
-    auto myself = cluster::View::get()->getMyself();
+    auto& dbptr = database::FamilyDB::get();
+    auto myself = cluster::Cluster::get()->getMyself();
 
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
         auto& db = dbSetMessage.dbs(i);
-        if (dbptr->servedDB(db.name()) || myself->servedDB(db.name())){
+        if (dbptr.servedDB(db.name()) || myself->servedDB(db.name())){
             chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "db has been served:" + db.name());
             chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
             return;
@@ -31,7 +31,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
 
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
         auto& db = dbSetMessage.dbs(i);
-        dbptr->addDB(db.name());
+        dbptr.addDB(db.name());
         cluster::Peer::DB info;
         info.name = db.name();
         info.shard = db.shard();

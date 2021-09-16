@@ -29,7 +29,7 @@ public:
     const static int ERR_DATA_TYPE = 5;
     const static int ERR_FILE_NOT_EXIST = 6;
     const static int ERR_FILE_RENAME = 7;
-
+    const static int ERR_FILE_CREATE = 8;
     const static int ERR_ERRNO = 999;
 private:
     int code;

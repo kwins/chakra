@@ -14,18 +14,14 @@ chakra::database::BucketDB::BucketDB(Options options) {
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
     rocksOpts.WAL_ttl_seconds = options.dbWALTTLSeconds;
-    rocksdb::DB* dbself;
-    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbself);
+    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &self);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
-    self = std::shared_ptr<rocksdb::DB>(dbself);
-    rocksdb::DB* db;
-    s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &db);
+    s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &dbptr);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
-    dbptr = std::shared_ptr<rocksdb::DB>(db);
     for (int i = 0; i < opts.blocktSize; ++i) {
         blocks.push_back(std::make_shared<BlockDB>());
     }
@@ -110,7 +106,7 @@ chakra::utils::Error chakra::database::BucketDB::restoreDB() {
     if (!s.ok()){
         return utils::Error(1, s.ToString());
     }
-    s = backupEngine->CreateNewBackup(self.get());
+    s = backupEngine->CreateNewBackup(self);
     if (!s.ok()){
         return utils::Error(1, s.ToString());
     }
@@ -162,19 +158,15 @@ rocksdb::SequenceNumber chakra::database::BucketDB::getLastSeqNumber() {
 chakra::database::BucketDB::~BucketDB() {
     LOG(INFO) << "~BucketDB 1";
     if (self){
-        LOG(INFO) << "~BucketDB 2";
-        // TODO: fix pthread lock: Invalid argument error
+        // TODO: it will generate error like pthread lock: Invalid argument error
+        //      when use static pointer hold this bucket object
         self->Close();
-        LOG(INFO) << "~BucketDB 3";
-//        delete self;
-        LOG(INFO) << "~BucketDB 4";
+        delete self;
     }
+
     if (dbptr){
-        LOG(INFO) << "~BucketDB 5";
         dbptr->Close();
-        LOG(INFO) << "~BucketDB 6";
-//        delete dbptr;
-        LOG(INFO) << "~BucketDB 7";
+        delete dbptr;
     }
 }
 

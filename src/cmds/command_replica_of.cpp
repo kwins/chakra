@@ -7,7 +7,7 @@
 #include "replica/replica.h"
 #include "net/packet.h"
 #include "types.pb.h"
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 
 void
 chakra::cmds::CommandReplicaOf::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) {
@@ -20,7 +20,7 @@ chakra::cmds::CommandReplicaOf::execute(char *req, size_t len, void *data, std::
         chakra::net::Packet::fillError(reply, 1, "DB name Or Ip empty Or Bad Port");
     } else {
         // TODO: sforce
-        auto clusptr = cluster::View::get();
+        auto clusptr = cluster::Cluster::get();
         // find all db peers
         auto peers = clusptr->getPeers(replicaOf.db_name());
         for(auto& peer: peers){

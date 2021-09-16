@@ -25,17 +25,7 @@ namespace chakra::replica{
 
 class Replica : public utils::UnCopyable{
 public:
-    struct Options{
-        std::string ip;
-        int port;
-        int tcpBackLog;
-        std::string dir;
-        long replicaTimeoutMs = 10000; // 复制超时
-        float cronInterval = 1;
-        int replTimeoutRetrys = 10;
-    };
-public:
-    void initReplica(Options options);
+    Replica();
     void onAccept(ev::io& watcher, int event);
     utils::Error loadLinks();
     static std::shared_ptr<Replica> get();
@@ -46,10 +36,9 @@ public:
     void stop();
 private:
     // 本机 bin log
-    Options opts{};
     uint64_t cronLoops = 0;
-    std::atomic_int index;
-    size_t numWorker;
+    std::atomic_int index{};
+    size_t numWorker{};
     ev::io replicaio;
     ev::timer cronIO;
     int sfd = -1;

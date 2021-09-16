@@ -16,30 +16,8 @@
 namespace chakra::cluster{
 using namespace std::chrono;
 
-class View {
+class Cluster {
 public:
-    struct Options{
-        std::string dir;
-        std::string ip;
-        int port;
-        long handshakeTimeoutMs = 60000;
-        long peerTimeoutMs = 60000;
-        int peerLinkRetryTimeoutMs = 60000;
-        double cronIntervalSec = 1;
-        int tcpBackLog = 512;
-    };
-
-    friend std::ostream& operator<<(std::ostream& out, const Options& opts) {
-        out << "configPath=" << opts.dir
-            << " host=" << opts.ip << ":" << opts.port
-            << " handshakeTimeoutMs=" << opts.handshakeTimeoutMs
-            << " peerTimeoutMs=" << opts.peerTimeoutMs
-            << " cronIntervalMs=" << opts.cronIntervalSec
-            << " peerLinkRetryTimeoutMs=" << opts.peerLinkRetryTimeoutMs
-            << " tcpBackLog=" << opts.tcpBackLog;
-        return out;
-    }
-
     static const int STATE_OK = 0;
     static const int STATE_FAIL = 1;
 
@@ -47,8 +25,8 @@ public:
     static const uint64_t FLAG_UPDATE_STATE = (1<<2);
 
 public:
-    static std::shared_ptr<View> get();
-    void initView(Options options);
+    Cluster();
+    static std::shared_ptr<Cluster> get();
 
     void startPeersCron();
     void onPeersCron(ev::timer& watcher, int event);
@@ -80,17 +58,16 @@ public:
     void updateSender();
 
 private:
-    utils::Error initViewConfig();
+    utils::Error loadConfigFile();
     void startEv();
     std::shared_ptr<Peer> randomPeer();
     void buildGossipSeader(proto::peer::GossipSender* sender, const std::string& data = "");
-    Options opts{};
 
     ev::io acceptIO;
     int sfd = -1;
     ev::timer cronIO;
     long iteraion = 0;
-    const std::string configFile = "peers.json";
+    const std::string PEERS_FILE = "peers.json";
     int currentEpoch = 0;
     // 集群上线时间
     system_clock::time_point onlineTime{};
@@ -98,14 +75,13 @@ private:
 
     // 集群当前的状态：是在线还是下线
     int state = 0;
-
     std::shared_ptr<std::default_random_engine> seed;
     std::unordered_map<std::string, std::shared_ptr<Peer>> peers = {};
 
     // key DB name， val 指向 负责DB的Peers
 //    std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>> dbPeers;
     uint64_t cronLoops = 0;
-    uint64_t cronTodo;
+    uint64_t cronTodo = 0;
 };
 
 

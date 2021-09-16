@@ -7,21 +7,21 @@
 #include "net/packet.h"
 #include "cmds/command_pool.h"
 #include <thread>
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 #include <netinet/in.h>
 #include "replica/replica.h"
 #include "net/network.h"
 #include "database/db_family.h"
+#include <gflags/gflags.h>
 
-// Chakra
-std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
-    auto chakraptr = std::make_shared<chakra::serv::Chakra>();
-    return chakraptr;
-}
+DEFINE_string(server_ip, "127.0.0.1", "chakra server ip");                                     /* NOLINT */
+DEFINE_int32(server_port, 7290, "chakra server listen port");                                  /* NOLINT */
+DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                           /* NOLINT */
+DEFINE_double(server_cron_interval_sec, 1.0, "chakra server tcp back log");                    /* NOLINT */
 
-void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts) {
-    this->opts = opts;
-    workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 2;
+
+chakra::serv::Chakra::Chakra() {
+    workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
         workers[i] = new chakra::serv::Chakra::Worker();
@@ -53,22 +53,27 @@ void chakra::serv::Chakra::initCharka(const chakra::serv::Chakra::Options &opts)
         cond.wait(lck2);
     }
 
-    auto dbptr = chakra::database::FamilyDB::get();
-    dbptr->initFamilyDB(opts.dbOpts);
-    auto viewptr = chakra::cluster::View::get();
-    viewptr->initView(opts.clusterOpts);
-    auto replcaptr = chakra::replica::Replica::get();
-    replcaptr->initReplica(opts.replicaOpts);
+    // 初始化
+    chakra::database::FamilyDB::get();
+    chakra::cluster::Cluster::get();
+    chakra::replica::Replica::get();
+
     // sig
     initLibev();
+}
+
+// Chakra
+std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
+    auto chakraptr = std::make_shared<chakra::serv::Chakra>();
+    return chakraptr;
 }
 
 void chakra::serv::Chakra::initLibev() {
     // listen
     sfd = -1;
-    auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
+    auto err = net::Network::tpcListen(FLAGS_server_port ,FLAGS_server_tcp_backlog, sfd);
     if (!err.success() || sfd == -1){
-        LOG(ERROR) << "Chakra listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
+        LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.toString();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -116,7 +121,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
 void chakra::serv::Chakra::startServCron() {
     cronIO.set<Chakra, &chakra::serv::Chakra::onServCron>(this);
     cronIO.set(ev::get_default_loop());
-    cronIO.start(opts.cronInterval);
+    cronIO.start(FLAGS_server_cron_interval_sec);
 }
 
 void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
@@ -125,7 +130,9 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
 }
 
 void chakra::serv::Chakra::startUp() {
-    LOG(ERROR) << "Chakra start and listen on " << opts.ip << ":" << opts.port << " success.";
+    LOG(INFO) << "Chakra start works " << workNum;
+    LOG(INFO) << "Chakra start and listen on "
+              << FLAGS_server_ip << ":" << FLAGS_server_port << " success.";
     ev::get_default_loop().loop();
 }
 
@@ -143,7 +150,7 @@ void chakra::serv::Chakra::stop() {
         cond.wait(lck);
     }
 
-    chakra::cluster::View::get()->stop();
+    chakra::cluster::Cluster::get()->stop();
     chakra::replica::Replica::get()->stop();
     ev::get_default_loop().break_loop(ev::ALL);
 }

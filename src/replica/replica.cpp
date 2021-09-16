@@ -9,17 +9,27 @@
 #include <netinet/in.h>
 #include "net/network.h"
 #include "utils/file_helper.h"
+#include <gflags/gflags.h>
 
-// replica
-void chakra::replica::Replica::initReplica(chakra::replica::Replica::Options options) {
+DEFINE_string(replica_dir, "data", "replica dir");                               /* NOLINT */
+DEFINE_string(replica_ip, "127.0.0.1", "replica ip");                                   /* NOLINT */
+DEFINE_int32(replica_port, 7292, "replica port");                                       /* NOLINT */
+DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                        /* NOLINT */
+DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                         /* NOLINT */
+DEFINE_int32(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");  /* NOLINT */
+DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
+
+chakra::replica::Replica::Replica() {
     LOG(INFO) << "Replica init";
-    opts = std::move(options);
     auto err = loadLinks();
-    if (!err.success()) LOG(WARNING) << "REPL load links " << err.toString();
+    if (!err.success() && !err.is(utils::Error::ERR_FILE_NOT_EXIST)){
+        LOG(ERROR) << "REPL load links error " << err.toString();
+        exit(-1);
+    }
 
-    err = net::Network::tpcListen(opts.port, opts.tcpBackLog, sfd);
-    if (!err.success() || sfd == -1){
-        LOG(ERROR) << "REPL listen on " << this->opts.ip << ":" << this->opts.port << " " << strerror(errno);
+    err = net::Network::tpcListen(FLAGS_replica_port, FLAGS_replica_tcp_back_log, sfd);
+    if (!err.success()){
+        LOG(ERROR) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_replica_port << " " << err.toString();
         exit(1);
     }
 
@@ -32,14 +42,19 @@ void chakra::replica::Replica::initReplica(chakra::replica::Replica::Options opt
 void chakra::replica::Replica::startReplicaCron() {
     cronIO.set<chakra::replica::Replica, &chakra::replica::Replica::onReplicaCron>(this);
     cronIO.set(ev::get_default_loop());
-    cronIO.start(opts.cronInterval);
+    cronIO.start(FLAGS_replica_cron_interval_sec);
 }
 
 chakra::utils::Error chakra::replica::Replica::loadLinks() {
     LOG(INFO) << "REPL load";
+    auto err = utils::FileHelper::mkDir(FLAGS_replica_dir);
+    if (!err.success()){
+        LOG(ERROR) << "REPL mkdir dir error " << err.toString();
+        exit(-1);
+    }
     nlohmann::json j;
-   std::string filename = this->opts.dir + "/" + REPLICA_FILE_NAME;
-    auto err = utils::FileHelper::loadFile(filename, j);
+    std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
+    err = utils::FileHelper::loadFile(filename, j);
     if (!err.success()){
         // TODO: error code judge
         return err;
@@ -87,7 +102,7 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 void chakra::replica::Replica::dumpLinks() {
     if (primaryDBLinks.empty()) return;
 
-    std::string tofile = this->opts.dir + "/" + REPLICA_FILE_NAME;
+    std::string tofile = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     nlohmann::json j;
     for(auto& link : primaryDBLinks){
         j["replicas"].push_back(link->dumpLink());
@@ -105,9 +120,9 @@ void chakra::replica::Replica::setReplicateDB(const std::string &name, const std
     options.ip = ip;
     options.port = port;
     options.dbName = name;
-    options.cronInterval = opts.cronInterval;
-    options.replicaTimeoutMs = opts.replicaTimeoutMs;
-    options.dir = opts.dir;
+    options.cronInterval = FLAGS_replica_cron_interval_sec;
+    options.replicaTimeoutMs = FLAGS_replica_timeout_ms;
+    options.dir = FLAGS_replica_dir;
     auto link = std::make_shared<chakra::replica::Link>(options);
     primaryDBLinks.push_back(link);
 }
@@ -123,7 +138,7 @@ void chakra::replica::Replica::onAccept(ev::io &watcher, int event) {
 
     chakra::replica::Link::Options options;
     options.sockfd = sockfd;
-    options.dir = opts.dir;
+    options.dir = FLAGS_replica_dir;
     auto link = new Link(options);
     link->startReplicaRecv();
     replicaLinks.push_back(link);

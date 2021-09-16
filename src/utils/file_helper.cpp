@@ -3,7 +3,10 @@
 //
 
 #include "file_helper.h"
-#include <fstream>
+#include <iostream>
+#include <cstdio>
+#include <unistd.h>
+#include <sys/stat.h>
 
 size_t chakra::utils::FileHelper::size(const std::string &dir, const std::string &name) {
     std::string filepath;
@@ -54,5 +57,23 @@ chakra::utils::Error chakra::utils::FileHelper::loadFile(const std::string &from
     }
     fileStream >> j;
     fileStream.close();
+    return utils::Error();
+}
+
+chakra::utils::Error chakra::utils::FileHelper::mkDir(const std::string &path) {
+    std::string str = path;
+    std::string str1;
+    int pos = 0;
+    while (pos >= 0){
+        pos = str.find('/');
+        str1 += str.substr(0, pos) + "/";
+        if (::access(str1.c_str(), 0) != 0){
+            int ret = ::mkdir(str1.c_str(), S_IRWXU);
+            if (ret != 0){
+                return utils::Error(utils::Error::ERR_FILE_CREATE, strerror(errno));
+            }
+        }
+        str = str.substr(pos + 1, str.size());
+    }
     return utils::Error();
 }

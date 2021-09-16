@@ -6,7 +6,7 @@
 #include "peer.pb.h"
 #include "net/packet.h"
 #include "types.pb.h"
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 #include <glog/logging.h>
 
 void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data, std::function<utils::Error(char *, size_t)> cbf) {
@@ -22,7 +22,7 @@ void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data
     if (meet.ip().empty() || meet.port() <= 0){
         chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Ip empty Or Bad Port");
     } else{
-        chakra::cluster::View::get()->addPeer(meet.ip(), meet.port());
+        chakra::cluster::Cluster::get()->addPeer(meet.ip(), meet.port());
     }
     chakra::net::Packet::serialize(reply, proto::types::Type::P_MEET, cbf);
 }

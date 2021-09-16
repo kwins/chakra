@@ -149,7 +149,7 @@ void chakra::replica::Link::startPullDelta() {
 }
 
 void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
-    auto dbptr = database::FamilyDB::get();
+    auto& dbptr = database::FamilyDB::get();
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     deltaMessageRequest.set_db_name(dbName);
     deltaMessageRequest.set_seq(deltaSeq);
@@ -160,7 +160,7 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
     for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
         auto& seq = deltaMessageResponse.seqs(i);
         rocksdb::WriteBatch batch(seq.data());
-        dbptr->put(dbName, batch);
+        dbptr.put(dbName, batch);
         deltaSeq = seq.seq();
     }
 
@@ -175,12 +175,12 @@ void chakra::replica::Link::onRecvBulk(ev::io &watcher, int event) {
         if (!err.success())
             return err;
 
-        auto dbptr = chakra::database::FamilyDB::get();
+        auto& dbptr = chakra::database::FamilyDB::get();
         rocksdb::WriteBatch batch;
         for(auto& it : bulkMessage.kvs()){
             batch.Put(it.key(), it.value());
         }
-        dbptr->put(dbName, batch);
+        dbptr.put(dbName, batch);
 
         if (bulkMessage.end()){
             state = State::CONNECTED;

@@ -18,7 +18,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
     if (!err.success()){
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else {
-        auto dbptr = chakra::database::FamilyDB::get();
+        auto& dbptr = chakra::database::FamilyDB::get();
         auto element = std::make_shared<chakra::database::Element>();
         element->setUpdated(true);
         element->setCreate(utils::Basic::getNowMillSec());
@@ -29,7 +29,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
             auto obj = std::make_shared<chakra::database::String>();
             obj->deSeralize(setMessageRequest.value().data(), setMessageRequest.value().size());
             element->setObject(obj);
-            dbptr->put(setMessageRequest.db_name(), setMessageRequest.key(), element);
+            dbptr.put(setMessageRequest.db_name(), setMessageRequest.key(), element);
         } else {
             chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "Data type Not support");
         }

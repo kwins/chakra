@@ -2,10 +2,9 @@
 // Created by kwins on 2021/5/17.
 //
 
-#include "view.h"
+#include "cluster.h"
 #include "utils/basic.h"
 #include <nlohmann/json.hpp>
-#include <fstream>
 #include <glog/logging.h>
 #include "net/network.h"
 #include <netinet/in.h>
@@ -14,39 +13,48 @@
 #include "peer.pb.h"
 #include <random>
 #include "utils/file_helper.h"
+#include <gflags/gflags.h>
 
-void chakra::cluster::View::initView(chakra::cluster::View::Options options) {
+DEFINE_string(cluster_dir, "data", "cluster dir");                                      /* NOLINT */
+DEFINE_string(cluster_ip, "127.0.0.1", "cluster ip");                                           /* NOLINT */
+DEFINE_int32(cluster_port, 7291, "cluster port");                                               /* NOLINT */
+DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");              /* NOLINT */
+DEFINE_int32(cluster_peer_timeout_ms, 10000, "cluster peer timeout ms");                        /* NOLINT */
+DEFINE_int32(cluster_peer_link_retry_timeout_ms, 10000, "cluster peer link retry timeout ms");  /* NOLINT */
+DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");                     /* NOLINT */
+DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                                /* NOLINT */
+
+chakra::cluster::Cluster::Cluster() {
     LOG(INFO) << "View init";
-    this->opts = std::move(options);
-    this->state = STATE_FAIL;
-    this->cronLoops = 0;
-    this->peers = {};
-    this->seed = std::make_shared<std::default_random_engine>(time(nullptr));
-
-    auto err = initViewConfig();
-    if (!err.success()){
-        if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-            // 第一次初始化
-            this->myself = std::make_shared<Peer>();
-            this->myself->setIp(this->opts.ip);
-            this->myself->setPort(this->opts.port);
-            this->myself->setName(utils::Basic::genRandomID());
-            this->myself->setFlag(Peer::FLAG_MYSELF);
-            this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
-            LOG(INFO) << "View init first, peers size:" << this->peers.size();
-        } else {
-            LOG(ERROR) << "View exit with error " << err.toString();
+    state = STATE_FAIL;
+    cronLoops = 0;
+    seed = std::make_shared<std::default_random_engine>(time(nullptr));
+    auto err = loadConfigFile();
+    if (!err.success() && !err.is(utils::Error::ERR_FILE_NOT_EXIST)){
+        LOG(ERROR) << "View exit with error " << err.toString();
+        exit(-1);
+    } else if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
+        err = utils::FileHelper::mkDir(FLAGS_cluster_dir);
+        if (!err.success()){
+            LOG(ERROR) << "Cluster mkdir dir error " << err.toString();
             exit(-1);
         }
+        // 第一次初始化
+        this->myself = std::make_shared<Peer>();
+        this->myself->setIp(FLAGS_cluster_ip);
+        this->myself->setPort(FLAGS_cluster_port);
+        this->myself->setName(utils::Basic::genRandomID());
+        this->myself->setFlag(Peer::FLAG_MYSELF);
+        this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
+        LOG(INFO) << "View init first, peers size:" << this->peers.size();
     }
-
     startEv();
-    LOG(INFO) << "View listen in " << this->opts.ip << ":" << this->opts.port << " success, myself is " << this->myself->getName();
+    LOG(INFO) << "View listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
 }
 
-chakra::utils::Error chakra::cluster::View::initViewConfig() {
+chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
     nlohmann::json j;
-    std::string filename = this->opts.dir + "/" + configFile;
+    std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
     auto err = utils::FileHelper::loadFile(filename, j);
     if (!err.success()) return err;
 
@@ -85,34 +93,34 @@ chakra::utils::Error chakra::cluster::View::initViewConfig() {
 }
 
 // 初次调用 必 需要先调用 initView
-std::shared_ptr<chakra::cluster::View> chakra::cluster::View::get() {
-    static std::shared_ptr<View> viewptr = std::make_shared<View>();
+std::shared_ptr<chakra::cluster::Cluster> chakra::cluster::Cluster::get() {
+    static std::shared_ptr<Cluster> viewptr = std::make_shared<Cluster>();
     return viewptr;
 }
 
-void chakra::cluster::View::startEv() {
+void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
-    auto err = net::Network::tpcListen(this->opts.port ,this->opts.tcpBackLog, sfd);
+    auto err = net::Network::tpcListen(FLAGS_cluster_port ,FLAGS_cluster_tcp_back_log, sfd);
     if (!err.success() || sfd == -1){
-        LOG(ERROR) << "View listen on " << this->opts.ip << ":" << this->opts.port << " " << err.toString();
+        LOG(ERROR) << "View listen on " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " " << err.toString();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
-    acceptIO.set<View, &View::onAccept>(this);
+    acceptIO.set<Cluster, &Cluster::onAccept>(this);
     acceptIO.start(sfd, ev::READ);
 
     startPeersCron();
 }
 
-void chakra::cluster::View::startPeersCron() {
+void chakra::cluster::Cluster::startPeersCron() {
 //    LOG(INFO) << "View start peer cron interval " << opts.cronIntervalSec;
-    cronIO.set<chakra::cluster::View, &chakra::cluster::View::onPeersCron>(this);
+    cronIO.set<chakra::cluster::Cluster, &chakra::cluster::Cluster::onPeersCron>(this);
     cronIO.set(ev::get_default_loop());
-    cronIO.start(opts.cronIntervalSec);
+    cronIO.start(FLAGS_cluster_cron_interval_sec);
 }
 
 
-void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
+void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
 //    LOG(INFO) << "### On peers cron, peers count " << peers.size();
     iteraion++;
     long nowMillSec = utils::Basic::getNowMillSec();
@@ -128,7 +136,7 @@ void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
         // 如果 handshake 节点已超时，释放它
         auto spends = nowMillSec - peer->createTimeMs();
         if (it->second->isHandShake() &&
-            spends > opts.handshakeTimeoutMs){
+            spends > FLAGS_cluster_handshake_timeout_ms){
             peers.erase(it++);
             LOG(WARNING) << "Peer connect " << peer->getIp() + ":" << peer->getPort() << " timeout, delete peer from view.";
             continue;
@@ -181,10 +189,10 @@ void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
         // 如果等到 PONG 到达的时间超过了 node timeout 一半的连接
         // 因为尽管节点依然正常，但连接可能已经出问题了
         if (peer->connected() /* 连接正常 */
-                && nowMillSec - peer->createTimeMs() > opts.peerTimeoutMs /* 没有重连 */
+                && nowMillSec - peer->createTimeMs() > FLAGS_cluster_peer_timeout_ms /* 没有重连 */
                 && peer->getLastPingSend() /* 发送过Ping */
                 && peer->getLastPongRecv() < peer->getLastPingSend() /* 等待Pong中 */
-                && nowMillSec - peer->getLastPingSend() > opts.peerTimeoutMs/2){ /* 等待Pong超过超时的一半时间 */
+                && nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms/2){ /* 等待Pong超过超时的一半时间 */
             LOG(INFO) << "### Free peer " << peer->getName();
             peer->linkFree(); // 下次重连
         }
@@ -195,7 +203,7 @@ void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
         // （因为一部分节点可能一直没有被随机中）
         if (peer->connected()
                 && peer->getLastPingSend() == 0
-                && (nowMillSec - peer->getLastPongRecv()) > opts.peerTimeoutMs/2){
+                && (nowMillSec - peer->getLastPongRecv()) > FLAGS_cluster_peer_timeout_ms/2){
             sendPingOrMeet(peer, proto::types::P_PING);
             continue;
         }
@@ -204,11 +212,11 @@ void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
         // 重连失败超时
         long delay = nowMillSec - peer->getLastPingSend();
         long retryDelay = nowMillSec - peer->getRetryLinkTime();
-        if ((peer->getLastPingSend() && delay > opts.peerTimeoutMs)
-                || (peer->getRetryLinkTime() && retryDelay > opts.peerLinkRetryTimeoutMs)) {
+        if ((peer->getLastPingSend() && delay > FLAGS_cluster_peer_timeout_ms)
+                || (peer->getRetryLinkTime() && retryDelay > FLAGS_cluster_peer_link_retry_timeout_ms)) {
             if (!peer->isFail() && !peer->isPfail()) {
                 LOG(WARNING) << "*** Peer " << peer->getName() << " possibly failing delay=" << delay
-                             << "ms, peer time out config is " << opts.peerTimeoutMs;
+                             << "ms, peer time out config is " << FLAGS_cluster_peer_timeout_ms;
                 peer->setFlag(Peer::FLAG_PFAIL);
                 cronTodo |= (FLAG_UPDATE_STATE | FLAG_SAVE_CONFIG);
             }
@@ -228,7 +236,7 @@ void chakra::cluster::View::onPeersCron(ev::timer &watcher, int event) {
     startPeersCron();
 }
 
-void chakra::cluster::View::onAccept(ev::io &watcher, int event) {
+void chakra::cluster::Cluster::onAccept(ev::io &watcher, int event) {
     sockaddr_in addr{};
     socklen_t slen = sizeof(addr);
     int sd = ::accept(watcher.fd, (sockaddr*)&addr, &slen);
@@ -240,7 +248,7 @@ void chakra::cluster::View::onAccept(ev::io &watcher, int event) {
     (new chakra::cluster::Peer::Link(sd))->startEvRead();
 }
 
-void chakra::cluster::View::stop() {
+void chakra::cluster::Cluster::stop() {
     if (sfd != -1) ::close(sfd);
     dumpPeers();
     acceptIO.stop();
@@ -251,7 +259,7 @@ void chakra::cluster::View::stop() {
         myself = nullptr;
 }
 
-void chakra::cluster::View::addPeer(const std::string &ip, int port) {
+void chakra::cluster::Cluster::addPeer(const std::string &ip, int port) {
     std::shared_ptr<Peer> peer = std::make_shared<Peer>();
     peer->setName(utils::Basic::genRandomID()); // 先随机一个名字，后续握手时再更新其正在的名字
     peer->setIp(ip);
@@ -264,8 +272,8 @@ void chakra::cluster::View::addPeer(const std::string &ip, int port) {
     peers.emplace(peer->getName(), peer);
 }
 
-bool chakra::cluster::View::dumpPeers() {
-    std::string filename = this->opts.dir + "/" + configFile;
+bool chakra::cluster::Cluster::dumpPeers() {
+    std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
     std::string tmpfile = filename + ".tmp";
     std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
     if (!out.is_open()){
@@ -289,15 +297,15 @@ bool chakra::cluster::View::dumpPeers() {
     return true;
 }
 
-int chakra::cluster::View::getCurrentEpoch() const { return currentEpoch; }
+int chakra::cluster::Cluster::getCurrentEpoch() const { return currentEpoch; }
 
-void chakra::cluster::View::setCurrentEpoch(int epoch) { currentEpoch = epoch; }
+void chakra::cluster::Cluster::setCurrentEpoch(int epoch) { currentEpoch = epoch; }
 
-int chakra::cluster::View::getState() const { return state; }
+int chakra::cluster::Cluster::getState() const { return state; }
 
-void chakra::cluster::View::setState(int state) { View::state = state; }
+void chakra::cluster::Cluster::setState(int state) { Cluster::state = state; }
 
-void chakra::cluster::View::buildGossipSeader(proto::peer::GossipSender *sender, const std::string& data) {
+void chakra::cluster::Cluster::buildGossipSeader(proto::peer::GossipSender *sender, const std::string& data) {
     sender->set_ip(myself->getIp());
     sender->set_name(myself->getName());
     sender->set_data(data);
@@ -316,7 +324,7 @@ void chakra::cluster::View::buildGossipSeader(proto::peer::GossipSender *sender,
     }
 }
 
-void chakra::cluster::View::buildGossipMessage(proto::peer::GossipMessage &gossip, const std::string& data) {
+void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &gossip, const std::string& data) {
     auto sender = gossip.mutable_sender();
     buildGossipSeader(sender, data);
 
@@ -351,7 +359,7 @@ void chakra::cluster::View::buildGossipMessage(proto::peer::GossipMessage &gossi
     }
 }
 
-void chakra::cluster::View::sendPingOrMeet(std::shared_ptr<Peer> peer, proto::types::Type type) {
+void chakra::cluster::Cluster::sendPingOrMeet(std::shared_ptr<Peer> peer, proto::types::Type type) {
     proto::peer::GossipMessage gossip;
 
     if (type == proto::types::P_MEET_PEER){
@@ -370,13 +378,13 @@ void chakra::cluster::View::sendPingOrMeet(std::shared_ptr<Peer> peer, proto::ty
     peer->sendMsg(gossip, type);
 }
 
-std::shared_ptr<chakra::cluster::Peer> chakra::cluster::View::randomPeer() {
+std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::randomPeer() {
     std::uniform_int_distribution<int> dist(0, peers.size()-1);
     int step = dist(*this->seed);
     return std::next(peers.begin(), step)->second;
 }
 
-void chakra::cluster::View::updateClusterState() {
+void chakra::cluster::Cluster::updateClusterState() {
     int newState = STATE_OK, emptyPeer = 0, unReachablePeer = 0, size = 0;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>>  dbPeers;
     for (auto& it : peers){
@@ -415,13 +423,13 @@ void chakra::cluster::View::updateClusterState() {
     }
 }
 
-std::shared_ptr<chakra::cluster::Peer> chakra::cluster::View::getPeer(const std::string& name) {
+std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getPeer(const std::string& name) {
     auto it =  peers.find(name);
     if (it != peers.end()) return it->second;
     return nullptr;
 }
 
-std::vector<std::shared_ptr<chakra::cluster::Peer>> chakra::cluster::View::getPeers(const std::string &dbName) {
+std::vector<std::shared_ptr<chakra::cluster::Peer>> chakra::cluster::Cluster::getPeers(const std::string &dbName) {
     std::vector<std::shared_ptr<chakra::cluster::Peer>> dbPeers;
     for(auto& it : peers){
         if (it.second->servedDB(dbName)){
@@ -431,10 +439,10 @@ std::vector<std::shared_ptr<chakra::cluster::Peer>> chakra::cluster::View::getPe
     return std::move(dbPeers);
 }
 
-size_t chakra::cluster::View::size() { return peers.size(); }
+size_t chakra::cluster::Cluster::size() { return peers.size(); }
 
 // 分析并取出消息中的 gossip 节点信息, 非sender
-void chakra::cluster::View::processGossip(const proto::peer::GossipMessage &gsp) {
+void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &gsp) {
     auto sender = getPeer(gsp.sender().name());
 
     for (int i = 0; i < gsp.peers_size(); ++i) {
@@ -475,12 +483,12 @@ void chakra::cluster::View::processGossip(const proto::peer::GossipMessage &gsp)
     }
 }
 
-void chakra::cluster::View::tryMarkFailPeer(const std::shared_ptr<Peer> &peer) {
+void chakra::cluster::Cluster::tryMarkFailPeer(const std::shared_ptr<Peer> &peer) {
     if (peer->isPfail()) return;
     if (peer->isFail()) return;
 
     int needQuorum = peers.size()/2+1;
-    size_t failCount = peer->cleanFailReport(opts.peerTimeoutMs);
+    size_t failCount = peer->cleanFailReport(FLAGS_cluster_peer_timeout_ms);
 
     // 当前节点也算在内
     if (failCount + 1 < needQuorum) return;
@@ -494,14 +502,14 @@ void chakra::cluster::View::tryMarkFailPeer(const std::shared_ptr<Peer> &peer) {
     sendFail(peer->getName());
 }
 
-void chakra::cluster::View::sendFail(const std::string &failPeerName) {
+void chakra::cluster::Cluster::sendFail(const std::string &failPeerName) {
     proto::peer::FailMessage failMessage;
     buildGossipSeader(failMessage.mutable_sender());
     failMessage.set_fail_peer_name(failPeerName);
     broadcastMessage(failMessage, proto::types::P_FAIL);
 }
 
-void chakra::cluster::View::broadcastMessage(google::protobuf::Message &peerMsg, proto::types::Type type) {
+void chakra::cluster::Cluster::broadcastMessage(google::protobuf::Message &peerMsg, proto::types::Type type) {
     for (auto& it : peers){
         if (!it.second->connected()) continue;
         if (it.second->isMyself() || it.second->isHandShake()) continue;
@@ -510,7 +518,7 @@ void chakra::cluster::View::broadcastMessage(google::protobuf::Message &peerMsg,
     }
 }
 
-std::shared_ptr<chakra::cluster::Peer> chakra::cluster::View::renamePeer(const std::string &random, const std::string &real) {
+std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::renamePeer(const std::string &random, const std::string &real) {
     auto it = peers.find(random);
     if (it == peers.end()) return nullptr;
 
@@ -526,6 +534,6 @@ std::shared_ptr<chakra::cluster::Peer> chakra::cluster::View::renamePeer(const s
     return peer;
 }
 
-std::shared_ptr<chakra::cluster::Peer> chakra::cluster::View::getMyself() { return myself; }
+std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getMyself() { return myself; }
 
-void chakra::cluster::View::setCronTODO(uint64_t todo) { cronTodo |= todo; }
+void chakra::cluster::Cluster::setCronTODO(uint64_t todo) { cronTodo |= todo; }

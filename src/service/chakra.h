@@ -4,7 +4,7 @@
 
 #ifndef CHAKRA_CHAKRA_H
 #define CHAKRA_CHAKRA_H
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 #include <ev++.h>
 #include "utils/nocopy.h"
 #include <list>
@@ -16,17 +16,6 @@
 namespace chakra::serv{
 class Chakra : public utils::UnCopyable {
 public:
-    struct Options{
-        // server
-        int port = 7290;
-        int tcpBackLog = 512;
-        std::string ip = "127.0.0.1";
-        float cronInterval = 1;
-        chakra::database::FamilyDB::Options dbOpts;
-        chakra::cluster::View::Options clusterOpts;
-        chakra::replica::Replica::Options replicaOpts;
-    };
-
     struct Worker;
     struct Link{ // 在不同的线程中
         explicit Link(int sockfd);
@@ -56,8 +45,8 @@ public:
         long linkNums;
     };
 public:
+    Chakra();
     static std::shared_ptr<Chakra> get();
-    void initCharka(const Options& opts);
     void onAccept(ev::io& watcher, int event);
     void startServCron();
     void onServCron(ev::timer& watcher, int event);
@@ -68,7 +57,6 @@ public:
 
 private:
     void initLibev();
-    Options opts = {};
     std::vector<Worker*> workers = {};
     long connNums = 0;
 

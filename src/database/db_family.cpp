@@ -9,15 +9,26 @@
 #include <fstream>
 #include <zlib.h>
 #include "utils/file_helper.h"
+#include <gflags/gflags.h>
 
-chakra::database::FamilyDB::FamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
-    opts = familyOpts;
+DEFINE_string(db_dir, "data", "rocksdb save dir");                                      /* NOLINT */
+DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                           /* NOLINT */
+DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                             /* NOLINT */
+DEFINE_int32(db_block_size, 256, "rocksdb cached block size");                          /* NOLINT */
+DEFINE_int32(db_block_capacity, 100000, "rocksdb block capacity");                      /* NOLINT */
+
+chakra::database::FamilyDB::FamilyDB() {
+    auto err = utils::FileHelper::mkDir(FLAGS_db_dir);
+    if (!err.success()){
+        LOG(ERROR) << "FamilyDB mkdir dir error " << err.toString();
+        exit(-1);
+    }
     nlohmann::json j;
-    std::string filename = opts.dir + "/" + DB_FILE;
-    auto err = utils::FileHelper::loadFile(filename, j);
+    std::string filename = FLAGS_db_dir + "/" + DB_FILE;
+    err = utils::FileHelper::loadFile(filename, j);
     if (!err.success()){
         if (!err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-            LOG(ERROR) << "DB load dbs config from " << filename << " :" << strerror(errno);
+            LOG(INFO) << "FamilyDB load dbs.json error " << err.success();
             exit(-1);
         }
         return;
@@ -30,29 +41,21 @@ chakra::database::FamilyDB::FamilyDB(const chakra::database::FamilyDB::Options &
         auto cached = dbs[i].at("cached").get<int64_t>();
         auto blockSize = dbs[i].at("block_size").get<int64_t>();
         BucketDB::Options bucketOpts;
-        bucketOpts.dir = opts.dir;
+        bucketOpts.dir = FLAGS_db_dir;
         bucketOpts.name = name;
         bucketOpts.blockCapaticy = cached;
         bucketOpts.blocktSize = blockSize;
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
         columnBuckets[index.load()].emplace(std::make_pair(name, bucket));
     }
-//    BucketDB::Options bucketOpts;
-//    bucketOpts.dir = opts.dir;
-//    bucketOpts.name = "test_db";
-//    bucketOpts.blockCapaticy = 100000;
-//    bucketOpts.blocktSize = 256;
-//    bucket = new BucketDB(bucketOpts);
-    LOG(INFO) << "Load DB config from " << filename << " success.";
 }
 
-std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::get() { return familyptr; }
-
-void chakra::database::FamilyDB::initFamilyDB(const chakra::database::FamilyDB::Options &familyOpts) {
-    familyptr = std::make_shared<FamilyDB>(familyOpts);
+chakra::database::FamilyDB &chakra::database::FamilyDB::get() {
+    static chakra::database::FamilyDB familyDb;
+    return familyDb;
 }
 
-void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, opts.blockSize, opts.blockCapacity); }
+void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, FLAGS_db_block_size, FLAGS_db_block_capacity); }
 
 void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize, size_t blocktCapacity) {
     if (servedDB(name)) return;
@@ -65,7 +68,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
 
     // 添加新的 bucket
     BucketDB::Options bucketOpts;
-    bucketOpts.dir = opts.dir;
+    bucketOpts.dir = FLAGS_db_dir;
     bucketOpts.name = name;
     bucketOpts.blocktSize = blockSize;
     bucketOpts.blockCapaticy = blocktCapacity;
@@ -140,7 +143,7 @@ size_t chakra::database::FamilyDB::dbSize(const std::string &name) {
 }
 
 void chakra::database::FamilyDB::dumpDBsFile() const {
-    std::string filename = opts.dir + "/" + DB_FILE;
+    std::string filename = FLAGS_db_dir + "/" + DB_FILE;
     nlohmann::json j;
     for (auto& it : columnBuckets[index.load()]){
         j["dbs"].push_back(it.second->dumpDB());
@@ -203,5 +206,4 @@ chakra::database::FamilyDB::~FamilyDB() {
     LOG(INFO) << "~FamilyDB";
 }
 
-std::shared_ptr<chakra::database::FamilyDB> chakra::database::FamilyDB::familyptr = nullptr;
-const std::string  chakra::database::FamilyDB::DB_FILE = "dbs.json";
+const std::string chakra::database::FamilyDB::DB_FILE = "dbs.json";

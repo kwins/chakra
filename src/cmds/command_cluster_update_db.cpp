@@ -6,7 +6,7 @@
 #include "net/packet.h"
 #include "peer.pb.h"
 #include "cluster/peer.h"
-#include "cluster/view.h"
+#include "cluster/cluster.h"
 
 void chakra::cmds::CommandPeerUpdateDB::execute(char *req, size_t reqLen, void *data,
                                                 std::function<utils::Error(char *, size_t)> cbf) {
@@ -14,12 +14,12 @@ void chakra::cmds::CommandPeerUpdateDB::execute(char *req, size_t reqLen, void *
     // TODO: change types
     if (!chakra::net::Packet::deSerialize(req, reqLen, dbMessage, proto::types::P_UPDATE_DB).success()) return;
 
-    auto sender = cluster::View::get()->getPeer(dbMessage.sender().name());
+    auto sender = cluster::Cluster::get()->getPeer(dbMessage.sender().name());
     if (!sender){
         LOG(WARNING) << "Not found peer when update peer DB " << dbMessage.sender().name() << " host " << dbMessage.sender().ip() << ":" << dbMessage.sender().port();
         return;
     }
-    auto peer = cluster::View::get()->getPeer(dbMessage.name());
+    auto peer = cluster::Cluster::get()->getPeer(dbMessage.name());
     if (!peer) return;
 
     if (dbMessage.action() == proto::peer::DBAction::ADD){

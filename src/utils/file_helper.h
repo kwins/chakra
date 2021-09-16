@@ -17,6 +17,7 @@ public:
     static size_t size(const std::string& filepath);
     static utils::Error saveFile(const nlohmann::json& j, const std::string& tofile);
     static utils::Error loadFile(const std::string& fromfile, nlohmann::json& j);
+    static utils::Error mkDir(const std::string& path);
 };
 
 }

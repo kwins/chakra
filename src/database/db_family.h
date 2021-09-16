@@ -16,21 +16,13 @@ namespace chakra::database{
 
 class FamilyDB : public utils::UnCopyable{
 public:
-    struct Options{
-        std::string dir;                            // rocks db dir
-        std::string backUpDir;                      // 备份rocksdb使用的目录
-        std::string restoreDir;                     // 复制使用
-        size_t blockSize = 256;
-        size_t blockCapacity = 100000;
-    };
     struct RestoreDB{
         rocksdb::SequenceNumber seq;
         std::string filepath;
     };
 public:
-    explicit FamilyDB(const Options& familyOpts);
-    static std::shared_ptr<FamilyDB> get(); // 全局指针
-    static void initFamilyDB(const Options& familyOpts);
+    FamilyDB();
+    static FamilyDB& get();
 
     bool servedDB(const std::string& name);
     void addDB(const std::string& name);
@@ -59,13 +51,10 @@ private:
     using ColumnName = std::string;
     using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;
 
-    Options opts = {};
     std::atomic<int> index = 0;
     std::array<ColumnBuckets, 2> columnBuckets;
     RestoreDB lastRestore;
-//    BucketDB* bucket;
     static const std::string DB_FILE;
-    static std::shared_ptr<FamilyDB> familyptr;
 };
 
 }
