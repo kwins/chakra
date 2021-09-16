@@ -15,7 +15,7 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 
-DEFINE_string(cluster_dir, "data", "cluster dir");                                      /* NOLINT */
+DEFINE_string(cluster_dir, "data", "cluster dir");                                              /* NOLINT */
 DEFINE_string(cluster_ip, "127.0.0.1", "cluster ip");                                           /* NOLINT */
 DEFINE_int32(cluster_port, 7291, "cluster port");                                               /* NOLINT */
 DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");              /* NOLINT */
@@ -25,13 +25,13 @@ DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");     
 DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                                /* NOLINT */
 
 chakra::cluster::Cluster::Cluster() {
-    LOG(INFO) << "View init";
+    LOG(INFO) << "Cluster init";
     state = STATE_FAIL;
     cronLoops = 0;
     seed = std::make_shared<std::default_random_engine>(time(nullptr));
     auto err = loadConfigFile();
     if (!err.success() && !err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-        LOG(ERROR) << "View exit with error " << err.toString();
+        LOG(ERROR) << "Cluster exit with error " << err.toString();
         exit(-1);
     } else if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
         err = utils::FileHelper::mkDir(FLAGS_cluster_dir);
@@ -46,10 +46,10 @@ chakra::cluster::Cluster::Cluster() {
         this->myself->setName(utils::Basic::genRandomID());
         this->myself->setFlag(Peer::FLAG_MYSELF);
         this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
-        LOG(INFO) << "View init first, peers size:" << this->peers.size();
+        LOG(INFO) << "Cluster init first, peers size:" << this->peers.size();
     }
     startEv();
-    LOG(INFO) << "View listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
+    LOG(INFO) << "Cluster listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
 }
 
 chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
@@ -65,7 +65,7 @@ chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
         auto name = jps[i].at("name").get<std::string>();
         auto it = peers.find(name);
         if (it != peers.end()){ //finded
-            LOG(WARNING) << "View init duplicate peer " << name;
+            LOG(WARNING) << "Cluster init duplicate peer " << name;
             continue;
         }
 
@@ -102,7 +102,7 @@ void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
     auto err = net::Network::tpcListen(FLAGS_cluster_port ,FLAGS_cluster_tcp_back_log, sfd);
     if (!err.success() || sfd == -1){
-        LOG(ERROR) << "View listen on " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " " << err.toString();
+        LOG(ERROR) << "Cluster listen on " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " " << err.toString();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -241,7 +241,7 @@ void chakra::cluster::Cluster::onAccept(ev::io &watcher, int event) {
     socklen_t slen = sizeof(addr);
     int sd = ::accept(watcher.fd, (sockaddr*)&addr, &slen);
     if (sd < 0){
-        LOG(ERROR) << "View on read peer error" << strerror(errno);
+        LOG(ERROR) << "Cluster on read peer error" << strerror(errno);
         return;
     }
 
@@ -274,26 +274,18 @@ void chakra::cluster::Cluster::addPeer(const std::string &ip, int port) {
 
 bool chakra::cluster::Cluster::dumpPeers() {
     std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
-    std::string tmpfile = filename + ".tmp";
-    std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
-    if (!out.is_open()){
-        LOG(ERROR) << "View dump peers open file " << strerror(errno);
-        return false;
-    }
-
     nlohmann::json j;
     j["current_epoch"] = this->currentEpoch;
     j["state"] = this->state;
     for (auto& it : peers){
         j["peers"].push_back(it.second->dumpPeer());
     }
-    out << j.dump(4);
-    if (::rename(tmpfile.c_str(), filename.c_str()) == -1){
-        LOG(ERROR) << "View dum peers error " << strerror(errno);
-        return false;
+    auto err = utils::FileHelper::saveFile(j, filename);
+    if (!err.success()){
+        LOG(ERROR) << "Cluster dump dbs error " << strerror(errno);
+    } else {
+        LOG(INFO) << "Cluster dump dbs to filename " << filename << " success.";
     }
-    out.close();
-    LOG(INFO) << "### dumpPeers to filename " << filename << " success.";
     return true;
 }
 
@@ -487,7 +479,7 @@ void chakra::cluster::Cluster::tryMarkFailPeer(const std::shared_ptr<Peer> &peer
     if (peer->isPfail()) return;
     if (peer->isFail()) return;
 
-    int needQuorum = peers.size()/2+1;
+    size_t needQuorum = peers.size()/2+1;
     size_t failCount = peer->cleanFailReport(FLAGS_cluster_peer_timeout_ms);
 
     // 当前节点也算在内
