@@ -181,15 +181,15 @@ chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::S
 }
 
 chakra::utils::Error
-chakra::database::FamilyDB::fetch(const std::string &name, rocksdb::SequenceNumber seq,
-                                                       std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
+chakra::database::FamilyDB::getUpdateSince(const std::string &name, rocksdb::SequenceNumber seq,
+                                           std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
     int pos = index.load();
     auto it = columnBuckets[pos].find(name);
     if (it == columnBuckets[pos].end()){
         return utils::Error(1, "DB " + name + " not found");
     }
 
-    return it->second->fetch(seq, iter);
+    return it->second->getUpdateSince(seq, iter);
 }
 
 chakra::utils::Error

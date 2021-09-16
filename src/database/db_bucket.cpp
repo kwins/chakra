@@ -132,8 +132,8 @@ chakra::database::BucketDB::RestoreDB chakra::database::BucketDB::getLastRestore
     return chakra::database::BucketDB::RestoreDB();
 }
 
-chakra::utils::Error chakra::database::BucketDB::fetch(rocksdb::SequenceNumber seq,
-                                                       std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
+chakra::utils::Error chakra::database::BucketDB::getUpdateSince(rocksdb::SequenceNumber seq,
+                                                                std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
     auto s = self->GetUpdatesSince(seq, iter);
     if (!s.ok()){
         return utils::Error(1, s.ToString());

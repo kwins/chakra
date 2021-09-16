@@ -34,8 +34,8 @@ public:
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpLinks();
     void stop();
+    
 private:
-    // 本机 bin log
     uint64_t cronLoops = 0;
     std::atomic_int index{};
     size_t numWorker{};

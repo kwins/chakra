@@ -31,7 +31,7 @@ public:
     void dumpDBsFile() const;
     utils::Error restoreDB(const std::string& name);
     RestoreDB getLastRestoreDB();
-    utils::Error fetch(const std::string& name,  rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
+    utils::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
     // 获取 db 的一个快照 和 快照对应增量 seq
     utils::Error snapshot(const std::string& name, rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
     utils::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);

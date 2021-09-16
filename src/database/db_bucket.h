@@ -39,7 +39,7 @@ public:
 
     utils::Error restoreDB();
     RestoreDB getLastRestoreDB();
-    utils::Error fetch(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
+    utils::Error getUpdateSince(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
     // 获取 db 的一个快照 和 快照对应增量 seq
     utils::Error snapshot(rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
     rocksdb::SequenceNumber getLastSeqNumber();

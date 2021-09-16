@@ -16,7 +16,7 @@ void chakra::cmds::CommandReplicaPull::execute(char *req, size_t reqLen, void *d
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     auto& dbptr = database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-    auto err = dbptr.fetch(deltaMessageRequest.db_name(),deltaMessageRequest.seq(), &iter);
+    auto err = dbptr.getUpdateSince(deltaMessageRequest.db_name(), deltaMessageRequest.seq(), &iter);
     if (!err.success()){
         chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), 1, err.toString());
     } else {
