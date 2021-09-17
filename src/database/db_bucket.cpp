@@ -164,13 +164,12 @@ chakra::database::BucketDB::~BucketDB() {
     if (self){
         // TODO: it will generate error like pthread lock: Invalid argument error
         //      when use static pointer hold this bucket object
+        //      why?
         self->Close();
-//        delete self;
     }
 
     if (dbptr){
         dbptr->Close();
-//        delete dbptr;
     }
 }
 

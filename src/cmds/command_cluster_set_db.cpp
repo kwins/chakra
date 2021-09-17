@@ -21,11 +21,15 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         return;
     }
 
-    LOG(INFO) << "cluster set db " << dbSetMessage.DebugString();
-
     auto& dbptr = database::FamilyDB::get();
     auto clsptr = cluster::Cluster::get();
     auto myself = cluster::Cluster::get()->getMyself();
+
+    if (dbSetMessage.dbs_size() == 0){
+        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "request db size is zero");
+        chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
+        return;
+    }
 
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
         auto& db = dbSetMessage.dbs(i);
@@ -34,12 +38,6 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
             chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
             return;
         }
-    }
-
-    if (dbSetMessage.dbs_size() == 0){
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "request db size is zero");
-        chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
-        return;
     }
 
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
@@ -54,12 +52,9 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         myself->setDB(db.name(), info);
     }
 
-
     int maxEpoch = clsptr->getMaxEpoch();
-    LOG(INFO) << "before set db get max epoch is " << maxEpoch << " CurrentEpoch=" << clsptr->getCurrentEpoch() << " myself epoch=" << myself->getEpoch();
     clsptr->setCurrentEpoch(maxEpoch + 1);
     myself->setEpoch(maxEpoch + 1);
-    LOG(INFO) << "after set db get max epoch is " << maxEpoch << " CurrentEpoch=" << clsptr->getCurrentEpoch() << " myself epoch=" << myself->getEpoch();
     clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG);
     chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
 }
