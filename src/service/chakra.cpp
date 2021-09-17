@@ -72,7 +72,7 @@ void chakra::serv::Chakra::initLibev() {
     // listen
     sfd = -1;
     auto err = net::Network::tpcListen(FLAGS_server_port ,FLAGS_server_tcp_backlog, sfd);
-    if (!err.success() || sfd == -1){
+    if (!err.success()){
         LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.toString();
         exit(1);
     }

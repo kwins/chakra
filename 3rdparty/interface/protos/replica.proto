@@ -3,9 +3,13 @@ package proto.replica;
 
 import "types.proto";
 
-message ReplicaOfMessage{
+message ReplicaOfRequest{
   string db_name = 1;
   bool force = 2; // 如果之前正在复制，则断开之前的复制，强制新的
+}
+
+message ReplicaOfResponse{
+  types.Error error = 1;
 }
 
 message SyncMessageRequest{

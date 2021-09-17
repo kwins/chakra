@@ -233,6 +233,20 @@ bool chakra::cluster::Peer::Link::connected() const {
     return conn != nullptr && conn->connState() == chakra::net::Connect::State::CONNECTED;
 }
 
+void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) {
+    setEpoch(sender.config_epoch());
+    for(auto& metadb : sender.meta_dbs()){
+        chakra::cluster::Peer::DB db;
+        db.name = metadb.name();
+        db.cached = metadb.cached();
+        db.memory = metadb.memory();
+        db.shardSize = metadb.shard_size();
+        db.shard = metadb.shard();
+        LOG(INFO) << "sender " << getName() << " set db " << db.name;
+        setDB(db.name, db);
+    }
+}
+
 void chakra::cluster::Peer::Link::close() const {
     LOG(INFO) << "### chakra::cluster::Peer::Link close";
     if (rio){

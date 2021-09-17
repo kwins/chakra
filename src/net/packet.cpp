@@ -14,7 +14,6 @@ chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::type
     append<uint32_t>(reply, FLAG_IDX, (uint32_t)0);
     append<uint32_t>(reply, TYPE_IDX, (uint32_t)type);
     msg.SerializeToArray(&reply[BODY_IDX], bodySize);
-    LOG(INFO) << "reqtype:" << (uint32_t)type;
     return cbf(reply, packSize);
 }
 

@@ -17,10 +17,10 @@ public:
         ARRAY = 1,
     };
 public:
-    virtual Type type() = 0;
-    virtual void serialize(const std::function<void(char* ptr, size_t len)>& f) = 0;
-    virtual void deSeralize(const char* ptr, size_t len) = 0;
-    virtual void debugString() = 0;
+    virtual Type type() {return STRING;};
+    virtual void serialize(const std::function<void(char* ptr, size_t len)>& f) {};
+    virtual void deSeralize(const char* ptr, size_t len) {};
+    virtual void debugString() {};
     virtual ~Object() = default;
 };
 }

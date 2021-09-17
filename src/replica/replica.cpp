@@ -11,12 +11,12 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 
-DEFINE_string(replica_dir, "data", "replica dir");                               /* NOLINT */
+DEFINE_string(replica_dir, "data", "replica dir");                                      /* NOLINT */
 DEFINE_string(replica_ip, "127.0.0.1", "replica ip");                                   /* NOLINT */
 DEFINE_int32(replica_port, 7292, "replica port");                                       /* NOLINT */
 DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                        /* NOLINT */
 DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                         /* NOLINT */
-DEFINE_int32(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");  /* NOLINT */
+DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double"); /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
 
 chakra::replica::Replica::Replica() {

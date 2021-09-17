@@ -11,17 +11,20 @@ void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data
     proto::peer::GossipMessage gossip;
     if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PING).success()) return;
 
-    uint64_t todo = 0;
+    LOG(INFO) << "Receive ping message " << gossip.DebugString();
     auto clsptr = cluster::Cluster::get();
     std::shared_ptr<cluster::Peer> sender = clsptr->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()){
-        // 更新纪元
-        if (sender->getEpoch() < gossip.sender().config_epoch())
-            sender->setEpoch(gossip.sender().config_epoch());
+        // 更新对 sender 节点的认知
+        LOG(INFO) << "recv ping sender->getEpoch()=" << sender->getEpoch() << " gossip.sender().config_epoch()=" << gossip.sender().config_epoch();
+        if (sender->getEpoch() < gossip.sender().config_epoch()){
+            sender->updateSelf(gossip.sender());
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+        }
 
-        if (cluster::Cluster::get()->getCurrentEpoch() < gossip.sender().current_epoch()){
-            cluster::Cluster::get()->setCurrentEpoch(gossip.sender().current_epoch());
-            todo |= (cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+        if (clsptr->getCurrentEpoch() < gossip.sender().current_epoch()){
+            clsptr->setCurrentEpoch(gossip.sender().current_epoch());
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
 
@@ -30,6 +33,4 @@ void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data
     proto::peer::GossipMessage pong;
     cluster::Cluster::get()->buildGossipMessage(pong);
     chakra::net::Packet::serialize(pong, proto::types::P_PONG, reply);
-
-    if (todo) cluster::Cluster::get()->setCronTODO(todo);
 }

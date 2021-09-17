@@ -60,7 +60,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, FL
 void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize, size_t blocktCapacity) {
     if (servedDB(name)) return;
 
-    int next = index == 0 ? 1 : 0;
+    int next = (index == 0 ? 1 : 0);
     columnBuckets[next].clear();
     for(auto & bucket : columnBuckets[index.load()]){
         columnBuckets[next].emplace(std::make_pair(bucket.first, bucket.second));

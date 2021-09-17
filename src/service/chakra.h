@@ -65,7 +65,7 @@ private:
     ev::sig sigkill;
     ev::timer cronIO;
     ev::io acceptIO;
-    int sfd;
+    int sfd = -1;
 
     long workNum = 0;
     int successWorkers = 0;

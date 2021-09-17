@@ -13,6 +13,7 @@
 #include "types.pb.h"
 #include <google/protobuf/message.h>
 #include <ev++.h>
+#include "peer.pb.h"
 
 namespace chakra::cluster{
 using namespace std::chrono;
@@ -100,7 +101,7 @@ public:
     void addFailReport(const std::shared_ptr<Peer>& sender);
     bool delFailReport(const std::shared_ptr<Peer>& sender);
     size_t cleanFailReport(long timeOutMillSec);
-
+    void updateSelf(const proto::peer::GossipSender& sender);
     void sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     ~Peer();
 private:

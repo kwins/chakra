@@ -34,6 +34,7 @@ public:
     void stop();
 
     void addPeer(const std::string& ip, int port);
+    std::shared_ptr<Peer> getPeer(const std::string& ip, int port);
     std::shared_ptr<Peer> getPeer(const std::string& name);
     std::vector<std::shared_ptr<Peer>> getPeers(const std::string& dbName);
     size_t size();
@@ -42,6 +43,7 @@ public:
     void setCurrentEpoch(int epoch);
     int getState() const;
     void setState(int state);
+    uint64_t getMaxEpoch();
 
     bool dumpPeers();
     // 1、如果集群任意节点挂掉，且节点上的某个DB没有副本 或者其他副本也全部挂掉，则集群进入fail状态
@@ -76,10 +78,10 @@ private:
     // 集群当前的状态：是在线还是下线
     int state = 0;
     std::shared_ptr<std::default_random_engine> seed;
+    // 节点名称索引
     std::unordered_map<std::string, std::shared_ptr<Peer>> peers = {};
-
-    // key DB name， val 指向 负责DB的Peers
-//    std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>> dbPeers;
+//    // 节点DB索引
+//    std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>> dbPeers{};
     uint64_t cronLoops = 0;
     uint64_t cronTodo = 0;
 };

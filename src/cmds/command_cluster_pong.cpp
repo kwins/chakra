@@ -13,16 +13,18 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
     proto::peer::GossipMessage gossip;
     if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG).success()) return;
 
-    uint64_t todo = 0;
+    auto clsptr = cluster::Cluster::get();
     std::shared_ptr<cluster::Peer> sender = cluster::Cluster::get()->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()){
         // 更新纪元
-        if (sender->getEpoch() < gossip.sender().config_epoch())
-            sender->setEpoch(gossip.sender().config_epoch());
+        if (sender->getEpoch() < gossip.sender().config_epoch()){
+            sender->updateSelf(gossip.sender());
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+        }
 
-        if (cluster::Cluster::get()->getCurrentEpoch() < gossip.sender().current_epoch()){
-            cluster::Cluster::get()->setCurrentEpoch(gossip.sender().current_epoch());
-            todo |= (cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+        if (clsptr->getCurrentEpoch() < gossip.sender().current_epoch()){
+            clsptr->setCurrentEpoch(gossip.sender().current_epoch());
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
 
@@ -30,7 +32,7 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
         auto peer = cluster::Cluster::get()->renamePeer(gossip.sender().data(), gossip.sender().name());
         if (peer){
             peer->delFlag(cluster::Peer::FLAG_HANDSHAKE);
-            todo |= (cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
             LOG(INFO) << "Handshake with peer " << gossip.sender().name() << " completed.";
         }
     }
@@ -47,10 +49,8 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
                 sender->delFlag(cluster::Peer::FLAG_FAIL);
                 LOG(INFO) << "%%" << sender->getName() << " remove FAIL flag.";
             }
-            todo |= (cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
-
-    if (todo) cluster::Cluster::get()->setCronTODO(todo);
 }
 

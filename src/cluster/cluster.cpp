@@ -25,7 +25,7 @@ DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");     
 DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                                /* NOLINT */
 
 chakra::cluster::Cluster::Cluster() {
-    LOG(INFO) << "Cluster init";
+    LOG(INFO) << "Cluster init dir " << FLAGS_cluster_dir;
     state = STATE_FAIL;
     cronLoops = 0;
     seed = std::make_shared<std::default_random_engine>(time(nullptr));
@@ -68,25 +68,24 @@ chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
             LOG(WARNING) << "Cluster init duplicate peer " << name;
             continue;
         }
-
-        std::shared_ptr<Peer> peer = std::make_shared<Peer>();
+        auto peer = std::make_shared<Peer>();
         peer->setName(name);
         peer->setIp(jps[i].at("ip").get<std::string>());
         peer->setPort(jps[i].at("port").get<int>());
         peer->setEpoch(jps[i].at("epoch").get<uint64_t>());
         peer->setFlag(jps[i].at("flag").get<uint64_t>());
-        auto slots = jps[i].at("slots");
+        LOG(INFO) << "load peer " << name << " epoch=" << peer->getEpoch();
+        nlohmann::json slots = jps[i].at("slots");
         for (int k = 0; k < slots.size(); ++k) {
             Peer::DB st;
-            st.name = slots[i].at("name").get<std::string>();
-            st.memory = slots[i].at("memory").get<bool>();
-            st.shard = slots[i].at("shard").get<int>();
-            st.shardSize = slots[i].at("shard_size").get<int>();
-            st.cached = slots[i].at("cached").get<long>();
+            st.name = slots[k].at("name").get<std::string>();
+            st.memory = slots[k].at("memory").get<bool>();
+            st.shard = slots[k].at("shard").get<int>();
+            st.shardSize = slots[k].at("shard_size").get<int>();
+            st.cached = slots[k].at("cached").get<long>();
             peer->setDB(st.name, st);
         }
         peers.emplace(name, peer);
-
         if (peer->isMyself()){ this->myself = peer; }
     }
     return err;
@@ -113,7 +112,6 @@ void chakra::cluster::Cluster::startEv() {
 }
 
 void chakra::cluster::Cluster::startPeersCron() {
-//    LOG(INFO) << "View start peer cron interval " << opts.cronIntervalSec;
     cronIO.set<chakra::cluster::Cluster, &chakra::cluster::Cluster::onPeersCron>(this);
     cronIO.set(ev::get_default_loop());
     cronIO.start(FLAGS_cluster_cron_interval_sec);
@@ -283,7 +281,8 @@ bool chakra::cluster::Cluster::dumpPeers() {
     auto err = utils::FileHelper::saveFile(j, filename);
     if (!err.success()){
         LOG(ERROR) << "Cluster dump dbs error " << strerror(errno);
-    } else {
+    }
+    else {
         LOG(INFO) << "Cluster dump dbs to filename " << filename << " success.";
     }
     return true;
@@ -292,6 +291,16 @@ bool chakra::cluster::Cluster::dumpPeers() {
 int chakra::cluster::Cluster::getCurrentEpoch() const { return currentEpoch; }
 
 void chakra::cluster::Cluster::setCurrentEpoch(int epoch) { currentEpoch = epoch; }
+
+uint64_t chakra::cluster::Cluster::getMaxEpoch() {
+    uint64_t epoch = 0;
+    for(auto& peer : peers){
+        if (epoch < peer.second->getEpoch()){
+            epoch = peer.second->getEpoch();
+        }
+    }
+    return epoch;
+}
 
 int chakra::cluster::Cluster::getState() const { return state; }
 
@@ -347,6 +356,15 @@ void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &go
         gossipPeer->set_port(randPeer->getPort());
         gossipPeer->set_last_ping_send(randPeer->getLastPingSend());
         gossipPeer->set_last_pong_recved(randPeer->getLastPongRecv());
+        gossipPeer->set_config_epoch(randPeer->getEpoch());
+        for(auto& it : randPeer->getPeerDBs()){
+            auto db = gossipPeer->mutable_meta_dbs()->Add();
+            db->set_name(it.second.name);
+            db->set_shard(it.second.shard);
+            db->set_shard_size(it.second.shardSize);
+            db->set_cached(it.second.cached);
+            db->set_memory(it.second.memory);
+        }
         gossipcount++;
     }
 }
@@ -366,6 +384,7 @@ void chakra::cluster::Cluster::sendPingOrMeet(std::shared_ptr<Peer> peer, proto:
         peer->setLastPingSend(millSec);
     }
 
+    LOG(INFO) << "Send message " << gossip.DebugString();
     // 发送消息
     peer->sendMsg(gossip, type);
 }
@@ -418,6 +437,15 @@ void chakra::cluster::Cluster::updateClusterState() {
 std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getPeer(const std::string& name) {
     auto it =  peers.find(name);
     if (it != peers.end()) return it->second;
+    return nullptr;
+}
+
+std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getPeer(const std::string &ip, int port) {
+    for(auto& peer : peers){
+        if (peer.second->getIp() == ip && peer.second->getPort() == port){
+            return peer.second;
+        }
+    }
     return nullptr;
 }
 

@@ -13,10 +13,11 @@ namespace chakra::client{
 class Chakra {
 public:
     explicit Chakra(net::Connect::Options options);
-    utils::Error meet(const std::string& ip, int port, proto::peer::MeetMessageResponse& response);
+    utils::Error meet(const std::string& ip, int port);
     utils::Error set(const std::string& dbname, const std::string& key, const std::string& value);
     utils::Error get(const std::string& dbname, const std::string& key, std::string& value);
     utils::Error setdb(const std::string& dbname, int cached);
+    utils::Error replicaof(const std::string& dbname);
     void close();
 private:
     utils::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);

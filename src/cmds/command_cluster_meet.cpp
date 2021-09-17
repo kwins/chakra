@@ -19,10 +19,16 @@ void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data
         return;
     }
 
+    auto clsptr = chakra::cluster::Cluster::get();
     if (meet.ip().empty() || meet.port() <= 0){
         chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Ip empty Or Bad Port");
     } else{
-        chakra::cluster::Cluster::get()->addPeer(meet.ip(), meet.port());
+        auto peer = clsptr->getPeer(meet.ip(), meet.port());
+        if (peer){
+            chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Peer has exist in cluster");
+        } else {
+            clsptr->addPeer(meet.ip(), meet.port());
+        }
     }
     chakra::net::Packet::serialize(reply, proto::types::Type::P_MEET, cbf);
 }

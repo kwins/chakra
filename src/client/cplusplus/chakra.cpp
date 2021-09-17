@@ -7,6 +7,7 @@
 #include "client.pb.h"
 #include <glog/logging.h>
 #include "database/db_object.h"
+#include "replica.pb.h"
 
 chakra::client::Chakra::Chakra(chakra::net::Connect::Options options) {
     conn = std::make_shared<net::Connect>(options);
@@ -16,11 +17,18 @@ chakra::client::Chakra::Chakra(chakra::net::Connect::Options options) {
     }
 }
 
-chakra::utils::Error chakra::client::Chakra::meet(const std::string &ip, int port, proto::peer::MeetMessageResponse& response) {
+chakra::utils::Error chakra::client::Chakra::meet(const std::string &ip, int port) {
     proto::peer::MeetMessageRequest meet;
     meet.set_port(port);
     meet.set_ip(ip);
-    return executeCmd(meet, proto::types::P_MEET, response);
+
+    proto::peer::MeetMessageResponse meetMessageResponse;
+    auto err = executeCmd(meet, proto::types::P_MEET, meetMessageResponse);
+    if (!err.success()) return err;
+    if (meetMessageResponse.error().errcode() != 0){
+        return utils::Error(meetMessageResponse.error().errcode(), meetMessageResponse.error().errmsg());
+    }
+    return err;
 }
 
 chakra::utils::Error chakra::client::Chakra::set(const std::string& dbname, const std::string &key, const std::string &value) {
@@ -90,6 +98,19 @@ chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Messag
         }
         return err;
     });
+}
+
+chakra::utils::Error chakra::client::Chakra::replicaof(const std::string &dbname) {
+    proto::replica::ReplicaOfRequest replicaOfRequest;
+    replicaOfRequest.set_db_name(dbname);
+
+    proto::replica::ReplicaOfResponse replicaOfResponse;
+    auto err = executeCmd(replicaOfRequest, proto::types::R_REPLICA_OF, replicaOfResponse);
+    if (!err.success()) return err;
+    if (replicaOfResponse.error().errcode() != 0){
+        return utils::Error(replicaOfResponse.error().errcode(), replicaOfResponse.error().errmsg());
+    }
+    return err;
 }
 
 void chakra::client::Chakra::close() {
