@@ -14,14 +14,18 @@ chakra::database::BucketDB::BucketDB(Options options) {
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
     rocksOpts.WAL_ttl_seconds = options.dbWALTTLSeconds;
-    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &self);
+    rocksdb::DB* dbself;
+    auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbself);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
-    s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &dbptr);
+    self = std::shared_ptr<rocksdb::DB>(dbself);
+    rocksdb::DB* db;
+    s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" + opts.name, &db);
     if (!s.ok()){
         throw std::logic_error(s.ToString());
     }
+    dbptr = std::shared_ptr<rocksdb::DB>(db);
     for (int i = 0; i < opts.blocktSize; ++i) {
         blocks.push_back(std::make_shared<BlockDB>());
     }
@@ -106,7 +110,7 @@ chakra::utils::Error chakra::database::BucketDB::restoreDB() {
     if (!s.ok()){
         return utils::Error(1, s.ToString());
     }
-    s = backupEngine->CreateNewBackup(self);
+    s = backupEngine->CreateNewBackup(self.get());
     if (!s.ok()){
         return utils::Error(1, s.ToString());
     }
@@ -161,12 +165,12 @@ chakra::database::BucketDB::~BucketDB() {
         // TODO: it will generate error like pthread lock: Invalid argument error
         //      when use static pointer hold this bucket object
         self->Close();
-        delete self;
+//        delete self;
     }
 
     if (dbptr){
         dbptr->Close();
-        delete dbptr;
+//        delete dbptr;
     }
 }
 

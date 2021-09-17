@@ -53,8 +53,8 @@ private:
 
     Options opts = {};
     RestoreDB lastRestore;
-    rocksdb::DB* self = nullptr;                      // 节点写增量
-    rocksdb::DB* dbptr = nullptr;                     // 全量
+    std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
+    std::shared_ptr<rocksdb::DB> dbptr = nullptr;                     // 全量
     std::vector<std::shared_ptr<BlockDB>> blocks;
 };
 
