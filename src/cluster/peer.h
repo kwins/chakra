@@ -32,6 +32,7 @@ public:
         std::shared_ptr<net::Connect> conn;
         std::shared_ptr<ev::io> rio;
         std::shared_ptr<Peer> reletedPeer;
+
     };
 
     struct FailReport{
@@ -86,13 +87,18 @@ public:
     void setLastPongRecv(long lastPongRecv);
     long createTimeMs();
     void setCreatTimeMs(long millsec);
-    nlohmann::json dumpPeer();
+    void dumpPeer(proto::peer::PeerState& peerState);
 
     bool isMyself() const;
+    static bool isMyself(uint64_t flag);
     bool isHandShake() const;
+    static bool isHandShake(uint64_t flag);
     bool isMeet() const;
+    static bool isMeet(uint64_t flag);
     bool isPfail() const;
+    static bool isPfail(uint64_t flag);
     bool isFail() const;
+    static bool isFail(uint64_t flag);
     bool connected() const;
     bool connect();
 
@@ -102,7 +108,7 @@ public:
     bool delFailReport(const std::shared_ptr<Peer>& sender);
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
-    void sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     ~Peer();
 private:
 
@@ -115,7 +121,7 @@ private:
     long ctime = 0;
     long failTime = 0;
     uint64_t epoch = 0;
-    long retryLinkTime = 0; // 重试连接peer时间
+    long retryLinkTime = 0; // 首次重试连接peer时间
     Link* link = nullptr;
     std::unordered_map<std::string,std::shared_ptr<FailReport>> failReports{};
 

@@ -11,7 +11,7 @@ void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, voi
     proto::peer::GossipMessage gossip;
     if (!chakra::net::Packet::deSerialize(req, reqLen, gossip, proto::types::P_MEET_PEER).success()) return;
 
-    LOG(INFO) << "Receive meet peer message " << gossip.DebugString();
+//    LOG(INFO) << "Receive meet peer message " << gossip.DebugString();
 
     auto clsptr = cluster::Cluster::get();
     clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG);

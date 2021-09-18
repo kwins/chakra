@@ -7,6 +7,8 @@
 #include "type_string.h"
 #include "utils/basic.h"
 
+chakra::database::BlockDB::BlockDB(size_t capacity):capacity(capacity) {}
+
 std::shared_ptr<chakra::database::Element> chakra::database::BlockDB::get(const std::string &key, std::function<bool(const std::string& key, std::string& value)> loadf) {
     std::lock_guard guard(mutex);
     auto it = k2iter.find(key);

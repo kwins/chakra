@@ -39,13 +39,12 @@ chakra::cluster::Cluster::Cluster() {
             LOG(ERROR) << "Cluster mkdir dir error " << err.toString();
             exit(-1);
         }
-        // 第一次初始化
-        this->myself = std::make_shared<Peer>();
-        this->myself->setIp(FLAGS_cluster_ip);
-        this->myself->setPort(FLAGS_cluster_port);
-        this->myself->setName(utils::Basic::genRandomID());
-        this->myself->setFlag(Peer::FLAG_MYSELF);
-        this->peers.insert(std::make_pair(this->myself->getName(), this->myself));
+        myself = std::make_shared<Peer>(); // 第一次初始化
+        myself->setIp(FLAGS_cluster_ip);
+        myself->setPort(FLAGS_cluster_port);
+        myself->setName(utils::Basic::genRandomID());
+        myself->setFlag(Peer::FLAG_MYSELF);
+        peers.insert(std::make_pair(this->myself->getName(), this->myself));
         LOG(INFO) << "Cluster init first, peers size:" << this->peers.size();
     }
     startEv();
@@ -53,40 +52,39 @@ chakra::cluster::Cluster::Cluster() {
 }
 
 chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
-    nlohmann::json j;
     std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
-    auto err = utils::FileHelper::loadFile(filename, j);
+    proto::peer::ClusterState clusterState;
+    auto err = utils::FileHelper::loadFile(filename, clusterState);
     if (!err.success()) return err;
 
-    this->currentEpoch = j.at("current_epoch").get<int>();
-    this->state = j.at("state").get<int>();
-    auto jps = j.at("peers");
-    for (int i = 0; i < jps.size(); ++i) {
-        auto name = jps[i].at("name").get<std::string>();
-        auto it = peers.find(name);
-        if (it != peers.end()){ //finded
-            LOG(WARNING) << "Cluster init duplicate peer " << name;
+    LOG(INFO) << "clusterState :" << clusterState.DebugString();
+
+    currentEpoch = clusterState.current_epoch();
+    state = clusterState.state();
+    for(auto& info : clusterState.peers()){
+        auto it = peers.find(info.name());
+        if (it != peers.end()){
+            LOG(WARNING) << "Cluster init duplicate peer " << info.name();
             continue;
         }
         auto peer = std::make_shared<Peer>();
-        peer->setName(name);
-        peer->setIp(jps[i].at("ip").get<std::string>());
-        peer->setPort(jps[i].at("port").get<int>());
-        peer->setEpoch(jps[i].at("epoch").get<uint64_t>());
-        peer->setFlag(jps[i].at("flag").get<uint64_t>());
-        LOG(INFO) << "load peer " << name << " epoch=" << peer->getEpoch();
-        nlohmann::json slots = jps[i].at("slots");
-        for (int k = 0; k < slots.size(); ++k) {
-            Peer::DB st;
-            st.name = slots[k].at("name").get<std::string>();
-            st.memory = slots[k].at("memory").get<bool>();
-            st.shard = slots[k].at("shard").get<int>();
-            st.shardSize = slots[k].at("shard_size").get<int>();
-            st.cached = slots[k].at("cached").get<long>();
-            peer->setDB(st.name, st);
+        peer->setName(info.name());
+        peer->setIp(info.ip());
+        peer->setPort(info.port());
+        peer->setEpoch(info.epoch());
+        peer->setFlag(info.flag());
+        for(auto& dbinfo : info.dbs()){
+            Peer::DB db;
+            db.name = dbinfo.name();
+            db.memory = dbinfo.memory();
+            db.shard = dbinfo.shard();
+            db.shardSize = dbinfo.shard_size();
+            db.cached = dbinfo.cached();
+            peer->setDB(db.name, db);
         }
-        peers.emplace(name, peer);
-        if (peer->isMyself()){ this->myself = peer; }
+
+        peers.emplace(info.name(), peer);
+        if (peer->isMyself()) { myself = peer; }
     }
     return err;
 }
@@ -107,7 +105,6 @@ void chakra::cluster::Cluster::startEv() {
     acceptIO.set(ev::get_default_loop());
     acceptIO.set<Cluster, &Cluster::onAccept>(this);
     acceptIO.start(sfd, ev::READ);
-
     startPeersCron();
 }
 
@@ -119,10 +116,8 @@ void chakra::cluster::Cluster::startPeersCron() {
 
 
 void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
-//    LOG(INFO) << "### On peers cron, peers count " << peers.size();
     iteraion++;
     long nowMillSec = utils::Basic::getNowMillSec();
-
     // 向集群中的所有断线或者未连接节点发送消息
     for(auto it = peers.begin(); it != peers.end();){
         auto peer = it->second;
@@ -133,10 +128,10 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
 
         // 如果 handshake 节点已超时，释放它
         auto spends = nowMillSec - peer->createTimeMs();
-        if (it->second->isHandShake() &&
-            spends > FLAGS_cluster_handshake_timeout_ms){
+        if (it->second->isHandShake() && spends > FLAGS_cluster_handshake_timeout_ms){
             peers.erase(it++);
-            LOG(WARNING) << "Peer connect " << peer->getIp() + ":" << peer->getPort() << " timeout, delete peer from view.";
+            LOG(WARNING) << "Connect peer " << peer->getIp() + ":" << peer->getPort()
+                         << " timeout, delete peer from cluster.";
             continue;
         }
 
@@ -149,7 +144,9 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
                 peer->setLastPingSend(oldPingSent);
             }
             peer->delFlag(Peer::FLAG_MEET);
-            LOG(INFO) << "Connecting with peer " << peer->getName() << " at " << peer->getIp() << ":" << peer->getPort();
+            LOG(INFO) << "Connecting peer " << peer->getName()
+                      << " at " << peer->getIp() << ":" << peer->getPort()
+                      << " success, send handshake message to it.";
         }
         it++;
     }
@@ -188,10 +185,13 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         // 因为尽管节点依然正常，但连接可能已经出问题了
         if (peer->connected() /* 连接正常 */
                 && nowMillSec - peer->createTimeMs() > FLAGS_cluster_peer_timeout_ms /* 没有重连 */
-                && peer->getLastPingSend() /* 发送过Ping */
-                && peer->getLastPongRecv() < peer->getLastPingSend() /* 等待Pong中 */
+                && peer->getLastPingSend() /* 发送过 PING */
+                && peer->getLastPongRecv() < peer->getLastPingSend() /* 等待 PONG 中 */
                 && nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms/2){ /* 等待Pong超过超时的一半时间 */
-            LOG(INFO) << "### Free peer " << peer->getName();
+            LOG(WARNING) << "*** NOTE peer "
+                         << peer->getName()
+                         << " connect ok, but always not received pong since " << peer->getLastPongRecv()
+                         << ", try free link and reconnect";
             peer->linkFree(); // 下次重连
         }
 
@@ -200,12 +200,15 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         // 那么向节点发送一个 PING ，确保节点的信息不会太旧
         // （因为一部分节点可能一直没有被随机中）
         if (peer->connected()
-                && peer->getLastPingSend() == 0
+                && peer->getLastPingSend() == 0 /* 没发送PING */
                 && (nowMillSec - peer->getLastPongRecv()) > FLAGS_cluster_peer_timeout_ms/2){
             sendPingOrMeet(peer, proto::types::P_PING);
+            LOG(WARNING) << "*** NOTE peer "
+                         << peer->getName()
+                         << " connect ok, but not send PING for a long time " << peer->getLastPongRecv()
+                         << ", try to send ping to weak up it.(" << (nowMillSec - peer->getLastPongRecv()) << ")";
             continue;
         }
-
         // PING 等到 PONG 超时
         // 重连失败超时
         long delay = nowMillSec - peer->getLastPingSend();
@@ -213,10 +216,10 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         if ((peer->getLastPingSend() && delay > FLAGS_cluster_peer_timeout_ms)
                 || (peer->getRetryLinkTime() && retryDelay > FLAGS_cluster_peer_link_retry_timeout_ms)) {
             if (!peer->isFail() && !peer->isPfail()) {
-                LOG(WARNING) << "*** Peer " << peer->getName() << " possibly failing delay=" << delay
-                             << "ms, peer time out config is " << FLAGS_cluster_peer_timeout_ms;
+                LOG(INFO) << "*** NOTE peer " << peer->getName() << " possibly failing delay=" << delay
+                             << "ms, peer time out config is " << FLAGS_cluster_peer_timeout_ms << " ms.";
                 peer->setFlag(Peer::FLAG_PFAIL);
-                cronTodo |= (FLAG_UPDATE_STATE | FLAG_SAVE_CONFIG);
+                setCronTODO(FLAG_UPDATE_STATE | FLAG_SAVE_CONFIG);
             }
         }
     }
@@ -230,7 +233,6 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         if(dumpPeers())
             cronTodo &= ~FLAG_SAVE_CONFIG;
     }
-
     startPeersCron();
 }
 
@@ -272,13 +274,15 @@ void chakra::cluster::Cluster::addPeer(const std::string &ip, int port) {
 
 bool chakra::cluster::Cluster::dumpPeers() {
     std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
-    nlohmann::json j;
-    j["current_epoch"] = this->currentEpoch;
-    j["state"] = this->state;
+    proto::peer::ClusterState clusterState;
+    clusterState.set_current_epoch(currentEpoch);
+    clusterState.set_state(state);
     for (auto& it : peers){
-        j["peers"].push_back(it.second->dumpPeer());
+        auto info = clusterState.mutable_peers()->Add();
+        it.second->dumpPeer(*info);
     }
-    auto err = utils::FileHelper::saveFile(j, filename);
+
+    auto err = utils::FileHelper::saveFile(clusterState, filename);
     if (!err.success()){
         LOG(ERROR) << "Cluster dump dbs error " << strerror(errno);
     }
@@ -333,9 +337,10 @@ void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &go
     int gossipcount = 0;
     while (freshnodes > 0 && gossipcount < 3){
         auto randPeer = randomPeer();
+//        LOG(INFO) << "## random name "<< randPeer->getName() << " condition=" << (!randPeer->connected() && randPeer->getPeerDBs().empty() && !randPeer->isPfail() && !randPeer->isFail());
         if (randPeer == myself
             || randPeer->isHandShake()
-            || (!randPeer->connected() && randPeer->getPeerDBs().empty())){
+            || (!randPeer->connected() && randPeer->getPeerDBs().empty() && !randPeer->isPfail() && !randPeer->isFail())){
             freshnodes--;
             continue;
         }
@@ -357,6 +362,7 @@ void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &go
         gossipPeer->set_last_ping_send(randPeer->getLastPingSend());
         gossipPeer->set_last_pong_recved(randPeer->getLastPongRecv());
         gossipPeer->set_config_epoch(randPeer->getEpoch());
+        gossipPeer->set_flag(randPeer->getFg());
         for(auto& it : randPeer->getPeerDBs()){
             auto db = gossipPeer->mutable_meta_dbs()->Add();
             db->set_name(it.second.name);
@@ -384,7 +390,7 @@ void chakra::cluster::Cluster::sendPingOrMeet(std::shared_ptr<Peer> peer, proto:
         peer->setLastPingSend(millSec);
     }
 
-    LOG(INFO) << "Send message " << gossip.DebugString();
+//    LOG(INFO) << "Send message " << gossip.DebugString();
     // 发送消息
     peer->sendMsg(gossip, type);
 }
@@ -468,26 +474,30 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
     for (int i = 0; i < gsp.peers_size(); ++i) {
         auto peer = getPeer(gsp.peers(i).peer_name());
         if (peer){ // 已存在
+            // 报告节点处于 FAIL 或者 PFAIL 状态
+            // 尝试将 node 标记为 FAIL
             if (sender && peer != myself){
-                // 报告节点处于 FAIL 或者 PFAIL 状态
-                if ((uint64_t)gsp.peers(i).flag() & (Peer::FLAG_PFAIL | Peer::FLAG_FAIL)){
-                    peer->addFailReport(sender);
-                    LOG(WARNING) << "## Peer " << sender->getName() << " report peer " << peer->getName() << " as not reachable.";
-                    // 尝试将 node 标记为 FAIL
+                if (Peer::isPfail(gsp.peers(i).flag()) || Peer::isFail(gsp.peers(i).flag())){
+                    peer->addFailReport(sender); // sender report peer fail and add to fail report list.
                     tryMarkFailPeer(peer);
+                    setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
+                    LOG(WARNING) << "*** NOTE sender " << sender->getName() << " report peer " << peer->getName() << " as not reachable.";
                 } else{
-                    if (peer->delFailReport(sender))
-                        LOG(INFO) << "## Peer " << sender->getName() << " reported peer " << peer->getName() << " is back online.";
+                    if (peer->delFailReport(sender)){
+                        setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
+                        LOG(INFO) << "*** NOTE sender " << sender->getName() << " reported peer " << peer->getName() << " is back online.";
+                    }
                 }
             }
 
             // 如果节点之前处于 PFAIL 或者 FAIL 状态
             // 并且该节点的 IP 或者端口号已经发生变化
             // 那么可能是节点换了新地址，尝试对它进行握手
-            if (((uint64_t)gsp.peers(i).flag() & (Peer::FLAG_PFAIL | Peer::FLAG_FAIL))
+            if ((Peer::isPfail(gsp.peers(i).flag()) || Peer::isFail(gsp.peers(i).flag()))
                     && (peer->getIp() != gsp.peers(i).ip() || peer->getPort() != gsp.peers(i).port())){
                 // start handshake
                 addPeer(gsp.peers(i).ip(), gsp.peers(i).port());
+                setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
             }
 
         } else{
@@ -497,6 +507,7 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
             // start handshake
             if (sender){
                 addPeer(gsp.peers(i).ip(), gsp.peers(i).port());
+                setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
                 LOG(INFO) << "Gossip message ADD peer " << gsp.peers(i).peer_name() << "[" + gsp.peers(i).ip() + ":" << gsp.peers(i).port() << "]";
             }
         }
@@ -504,9 +515,8 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
 }
 
 void chakra::cluster::Cluster::tryMarkFailPeer(const std::shared_ptr<Peer> &peer) {
-    if (peer->isPfail()) return;
+    LOG(INFO) << "Try mark peer " << peer->getName() << " fail(" << peer->isFail() << ").";
     if (peer->isFail()) return;
-
     size_t needQuorum = peers.size()/2+1;
     size_t failCount = peer->cleanFailReport(FLAGS_cluster_peer_timeout_ms);
 

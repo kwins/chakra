@@ -27,7 +27,7 @@ chakra::database::BucketDB::BucketDB(Options options) {
     }
     dbptr = std::shared_ptr<rocksdb::DB>(db);
     for (int i = 0; i < opts.blocktSize; ++i) {
-        blocks.push_back(std::make_shared<BlockDB>());
+        blocks.push_back(std::make_shared<BlockDB>(opts.cached));
     }
 
     // 加载一些热数据
@@ -38,7 +38,7 @@ chakra::database::BucketDB::BucketDB(Options options) {
         element->deSeralize(iter->value().data(), iter->value().size());
         element->setUpdated(false);
         put(iter->key().ToString(), element, false);
-        if (++num >= opts.blockCapaticy * 0.5){
+        if (++num >= opts.cached * 0.5){
             break;
         }
     }
@@ -94,12 +94,10 @@ size_t chakra::database::BucketDB::size() {
     return num;
 }
 
-nlohmann::json chakra::database::BucketDB::dumpDB() {
-    nlohmann::json j;
-    j["name"] = opts.name;
-    j["block_size"] = opts.blocktSize;
-    j["cached"] = opts.blockCapaticy;
-    return j;
+void chakra::database::BucketDB::dumpDB(proto::peer::MetaDB& metaDb) const {
+    metaDb.set_cached(opts.cached);
+    metaDb.set_name(opts.name);
+    metaDb.set_flag(opts.flag);
 }
 
 chakra::utils::Error chakra::database::BucketDB::restoreDB() {

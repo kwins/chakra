@@ -11,16 +11,22 @@
 #include "utils/error.h"
 #include <nlohmann/json.hpp>
 #include "utils/nocopy.h"
+#include "peer.pb.h"
 
 namespace chakra::database{
 
 class BucketDB :public rocksdb::WriteBatch::Handler{
 public:
+    const static uint64_t FLAG_NF = 0;
+    const static uint64_t FLAG_WRITE = (1 << 0);
+    const static uint64_t FLAG_READ = (1 << 2);
+
     struct Options{
         std::string name;
         std::string dir;
         size_t blocktSize = 0;
-        size_t blockCapaticy = 0;
+        size_t cached = 0;
+        uint64_t flag = FLAG_NF;
         long dbWALTTLSeconds = 86400;
     };
 
@@ -31,7 +37,7 @@ public:
 public:
     explicit BucketDB(Options options);
     size_t size();
-    nlohmann::json dumpDB();
+    void dumpDB(proto::peer::MetaDB& metaDb) const;
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     void put(rocksdb::WriteBatch &batch);

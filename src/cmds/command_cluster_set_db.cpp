@@ -42,7 +42,9 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
 
     for (int i = 0; i < dbSetMessage.dbs_size(); ++i) {
         auto& db = dbSetMessage.dbs(i);
-        dbptr.addDB(db.name());
+
+        dbptr.addDB(db.name(), db.cached());
+
         cluster::Peer::DB info;
         info.name = db.name();
         info.shard = db.shard();

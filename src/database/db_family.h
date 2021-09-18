@@ -25,7 +25,7 @@ public:
     static FamilyDB& get();
 
     bool servedDB(const std::string& name);
-    void addDB(const std::string& name);
+    void addDB(const std::string& name, size_t cached);
     void addDB(const std::string& name, size_t blocktSize, size_t blocktCapacity);
     void dropDB(const std::string& name);
     void dumpDBsFile() const;

@@ -14,7 +14,7 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
     if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG).success()) return;
 
     auto clsptr = cluster::Cluster::get();
-    std::shared_ptr<cluster::Peer> sender = cluster::Cluster::get()->getPeer(gossip.sender().name());
+    auto sender = clsptr->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()){
         // 更新纪元
         if (sender->getEpoch() < gossip.sender().config_epoch()){
@@ -29,7 +29,7 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
     }
 
     if (!gossip.sender().data().empty()){
-        auto peer = cluster::Cluster::get()->renamePeer(gossip.sender().data(), gossip.sender().name());
+        auto peer = clsptr->renamePeer(gossip.sender().data(), gossip.sender().name());
         if (peer){
             peer->delFlag(cluster::Peer::FLAG_HANDSHAKE);
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
@@ -37,20 +37,20 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
         }
     }
 
-    sender = cluster::Cluster::get()->getPeer(gossip.sender().name());
     if (sender){
         sender->setLastPongRecv(utils::Basic::getNowMillSec());
         sender->setLastPingSend(0);
         if (sender->isPfail() || sender->isFail()){
             if (sender->isPfail()){
                 sender->delFlag(cluster::Peer::FLAG_PFAIL);
-                LOG(INFO) << "%% " << sender->getName() <<  " remove PFAIL flag.";
+                LOG(INFO) << "*** Receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
             } else if (sender->isFail()){
                 sender->delFlag(cluster::Peer::FLAG_FAIL);
-                LOG(INFO) << "%%" << sender->getName() << " remove FAIL flag.";
+                LOG(INFO) << "*** Receive PONG from " << sender->getName() << " remove FAIL flag.";
             }
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
+    clsptr->processGossip(gossip);
 }
 

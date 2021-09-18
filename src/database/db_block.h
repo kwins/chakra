@@ -19,7 +19,7 @@ class BlockDB {
 public:
     using PairIter = typename std::list<std::pair<std::string, std::shared_ptr<Element>>>::iterator;
 public:
-    // assimilate
+    explicit BlockDB(size_t capacity);
     std::shared_ptr<Element> get(const std::string& key, std::function<bool(const std::string& key, std::string& val)> loadf);
     void put(const std::string& key, std::shared_ptr<Element> val);
     void del(const std::string& key);

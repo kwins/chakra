@@ -41,6 +41,26 @@ bool chakra::cluster::Peer::isPfail() const { return this->fg & FLAG_PFAIL; }
 
 bool chakra::cluster::Peer::isFail() const { return this->fg & FLAG_FAIL; }
 
+bool chakra::cluster::Peer::isMyself(uint64_t flag) {
+    return flag & FLAG_MYSELF;
+}
+
+bool chakra::cluster::Peer::isHandShake(uint64_t flag) {
+    return flag & FLAG_HANDSHAKE;
+}
+
+bool chakra::cluster::Peer::isMeet(uint64_t flag) {
+    return flag & FLAG_MEET;
+}
+
+bool chakra::cluster::Peer::isPfail(uint64_t flag) {
+    return flag & FLAG_PFAIL;
+}
+
+bool chakra::cluster::Peer::isFail(uint64_t flag) {
+    return flag & FLAG_FAIL;
+}
+
 void chakra::cluster::Peer::setDB(const std::string &name, const chakra::cluster::Peer::DB &st) { dbs[name] = st; }
 
 void chakra::cluster::Peer::removeDB(const std::string &name) { dbs.erase(name); }
@@ -60,7 +80,7 @@ bool chakra::cluster::Peer::connect() {
         link = nullptr; // ~Link
         if (!retryLinkTime)
             retryLinkTime = utils::Basic::getNowMillSec();
-        LOG(ERROR) << "Connect peer " << getName() << "[" << ip + ":" << port << "] retryLinkTime " << retryLinkTime << " error " << e.what();
+        LOG(ERROR) << "Connect peer " << getName() << "[" << ip + ":" << port << "] retry time " << retryLinkTime << " error " << e.what();
         return false;
     }
     retryLinkTime = 0;
@@ -70,27 +90,20 @@ bool chakra::cluster::Peer::connect() {
 
 const std::unordered_map<std::string, chakra::cluster::Peer::DB> &chakra::cluster::Peer::getPeerDBs() const { return dbs; }
 
-nlohmann::json chakra::cluster::Peer::dumpPeer() {
-    nlohmann::json j;
-    j["name"] = name;
-    j["ip"] = ip;
-    j["port"] = port;
-    j["epoch"] = epoch;
-    j["flag"] = fg;
-    if (!dbs.empty()){
-        for (auto& it : dbs){
-            nlohmann::json jslot;
-            jslot["name"] = it.second.name;
-            jslot["memory"] = it.second.memory;
-            jslot["shard"] = it.second.shard;
-            jslot["shard_size"] = it.second.shardSize;
-            jslot["cached"] = it.second.cached;
-            j["slots"].push_back(jslot);
-        }
-    } else{
-        j["slots"] = nlohmann::json::array();
+void chakra::cluster::Peer::dumpPeer(proto::peer::PeerState& peerState) {
+    peerState.set_name(name);
+    peerState.set_ip(ip);
+    peerState.set_port(port);
+    peerState.set_epoch(epoch);
+    peerState.set_flag(fg);
+    for (auto& it : dbs){
+        auto db = peerState.mutable_dbs()->Add();
+        db->set_name(it.second.name);
+        db->set_memory(it.second.memory);
+        db->set_shard(it.second.shard);
+        db->set_shard_size(it.second.shardSize);
+        db->set_cached(it.second.cached);
     }
-    return j;
 }
 
 long chakra::cluster::Peer::getLastPingSend() const { return last_ping_send; }
@@ -101,20 +114,20 @@ long chakra::cluster::Peer::getLastPongRecv() const { return last_pong_recv; }
 
 void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv = lastPongRecv; }
 
-void chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
-    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
+chakra::utils::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
+    return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
         auto err = this->link->conn->send(data, len);
         if (!err.success()){
-            LOG(ERROR) << "Send message to " << getName() << "[" << getIp() << ":" << getPort() << "] error " << strerror(errno);
+            LOG(ERROR) << "Send message to " << getName() << "[" << getIp() << ":" << getPort() << "] error " << err.toString();
         }
         return err;
     });
 }
 
 void chakra::cluster::Peer::linkFree() {
-    if (this->link) {
-        delete this->link;
-        this->link = nullptr;
+    if (link) {
+        delete link;
+        link = nullptr;
     }
 }
 
@@ -122,6 +135,7 @@ void chakra::cluster::Peer::addFailReport(const std::shared_ptr<Peer>& sender) {
     auto it = failReports.find(sender->getName());
     if (it != failReports.end()){
         it->second->time = utils::Basic::getNowMillSec();
+        LOG(INFO) << "sender " << sender->getName() << " already in fail reports, just update report time.";
     } else{
         std::shared_ptr<FailReport> report = std::make_shared<FailReport>();
         report->peer = sender;
@@ -145,8 +159,9 @@ size_t chakra::cluster::Peer::cleanFailReport(long timeOutMillSec) {
     for(auto it = failReports.begin(); it != failReports.end(); ){
         if (nowMillSec - it->second->time > maxTime)
             failReports.erase(it++);
+        else
+            it++;
     }
-
     return failReports.size();
 }
 

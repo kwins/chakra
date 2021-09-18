@@ -50,6 +50,7 @@ public:
     // 2、如果集群超过半数以上节点挂掉，集群进入fail状态
     void updateClusterState();
     void processGossip(const proto::peer::GossipMessage& gossip);
+    // 根据报道情况，尝试将节点置为fail状态，并广播到集群
     void tryMarkFailPeer(const std::shared_ptr<Peer>& peer);
     void sendFail(const std::string& failPeerName);
     void broadcastMessage(::google::protobuf::Message& peerMsg, proto::types::Type type);
@@ -57,7 +58,6 @@ public:
     std::shared_ptr<Peer> renamePeer(const std::string& random, const std::string& real);
     std::shared_ptr<Peer> getMyself();
     void setCronTODO(uint64_t todo);
-    void updateSender();
 
 private:
     utils::Error loadConfigFile();
@@ -77,11 +77,11 @@ private:
 
     // 集群当前的状态：是在线还是下线
     int state = 0;
+    // 集群中所有节点对于当前节点的认知是否一致
+    bool consensus = false;
     std::shared_ptr<std::default_random_engine> seed;
     // 节点名称索引
     std::unordered_map<std::string, std::shared_ptr<Peer>> peers = {};
-//    // 节点DB索引
-//    std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>> dbPeers{};
     uint64_t cronLoops = 0;
     uint64_t cronTodo = 0;
 };

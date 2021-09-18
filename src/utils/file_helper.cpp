@@ -47,6 +47,34 @@ chakra::utils::Error chakra::utils::FileHelper::saveFile(const nlohmann::json &j
     return utils::Error();
 }
 
+chakra::utils::Error
+chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, const std::string &tofile) {
+    google::protobuf::util::JsonOptions options;
+    options.always_print_enums_as_ints = true;
+    options.always_print_primitive_fields = true;
+    options.add_whitespace = true;
+    options.preserve_proto_field_names = true;
+    std::string str;
+    auto s = google::protobuf::util::MessageToJsonString(message, &str, options);
+    if (!s.ok())
+        return utils::Error(s.error_code(), s.ToString());
+
+    std::string tmpfile = tofile + ".tmp";
+    std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
+    if (!out.is_open()){
+        if (errno == ENOENT){
+            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + tofile + " not exist");
+        }
+        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+    }
+    out << str;
+    out.close();
+    if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
+        return utils::Error(utils::Error::ERR_FILE_RENAME, strerror(errno));
+    }
+    return utils::Error();
+}
+
 chakra::utils::Error chakra::utils::FileHelper::loadFile(const std::string &fromfile, nlohmann::json &j) {
     std::ifstream fileStream(fromfile);
     if (!fileStream.is_open()){
@@ -58,6 +86,25 @@ chakra::utils::Error chakra::utils::FileHelper::loadFile(const std::string &from
     fileStream >> j;
     fileStream.close();
     return utils::Error();
+}
+
+chakra::utils::Error
+chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::protobuf::Message &message) {
+    std::ifstream fileStream(fromfile);
+    if (!fileStream.is_open()){
+        if (errno == ENOENT){
+            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + fromfile + " not exist");
+        }
+        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+    }
+    std::istream_iterator<char> begin(fileStream), end;
+    std::string str(begin, end);
+    fileStream.close();
+    auto s = google::protobuf::util::JsonStringToMessage(str, &message);
+    if (!s.ok())
+        return utils::Error(s.error_code(), s.ToString());
+    std::cout << "load file success" << std::endl;
+    return chakra::utils::Error();
 }
 
 chakra::utils::Error chakra::utils::FileHelper::mkDir(const std::string &path) {

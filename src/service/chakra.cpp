@@ -219,9 +219,9 @@ chakra::serv::Chakra::Link::~Link() {
 
 void chakra::serv::Chakra::Worker::startUp(int id) {
     workID = id;
-    LOG(INFO) << "Chakra worker " << id << " start up.";
+//    LOG(INFO) << "Chakra worker " << id << " start up.";
     loop.loop();
-    LOG(INFO) << "Chakra worker " << id << " break.";
+//    LOG(INFO) << "Chakra worker " << id << " break.";
 }
 
 void chakra::serv::Chakra::Worker::onAsync(ev::async &watcher, int event) {

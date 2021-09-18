@@ -10,12 +10,12 @@
 #include <zlib.h>
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
+#include "peer.pb.h"
 
 DEFINE_string(db_dir, "data", "rocksdb save dir");                                      /* NOLINT */
 DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                           /* NOLINT */
 DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                             /* NOLINT */
 DEFINE_int32(db_block_size, 256, "rocksdb cached block size");                          /* NOLINT */
-DEFINE_int32(db_block_capacity, 100000, "rocksdb block capacity");                      /* NOLINT */
 
 chakra::database::FamilyDB::FamilyDB() {
     auto err = utils::FileHelper::mkDir(FLAGS_db_dir);
@@ -23,30 +23,27 @@ chakra::database::FamilyDB::FamilyDB() {
         LOG(ERROR) << "FamilyDB mkdir dir error " << err.toString();
         exit(-1);
     }
-    nlohmann::json j;
+
+    proto::peer::DBState dbState;
     std::string filename = FLAGS_db_dir + "/" + DB_FILE;
-    err = utils::FileHelper::loadFile(filename, j);
+    err = utils::FileHelper::loadFile(filename, dbState);
     if (!err.success()){
         if (!err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-            LOG(INFO) << "FamilyDB load dbs.json error " << err.success();
+            LOG(INFO) << "FamilyDB load " << filename << " error " << err.toString();
             exit(-1);
         }
         return;
     }
 
-    index = 0;
-    auto dbs = j.at("dbs");
-    for (int i = 0; i < dbs.size(); ++i) {
-        auto name = dbs[i].at("name").get<std::string>();
-        auto cached = dbs[i].at("cached").get<int64_t>();
-        auto blockSize = dbs[i].at("block_size").get<int64_t>();
+    for(auto& info : dbState.dbs()){
         BucketDB::Options bucketOpts;
         bucketOpts.dir = FLAGS_db_dir;
-        bucketOpts.name = name;
-        bucketOpts.blockCapaticy = cached;
-        bucketOpts.blocktSize = blockSize;
+        bucketOpts.name = info.name();
+        bucketOpts.flag = info.flag();
+        bucketOpts.cached = info.cached();
+        bucketOpts.blocktSize = FLAGS_db_block_size;
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
-        columnBuckets[index.load()].emplace(std::make_pair(name, bucket));
+        columnBuckets[index.load()].emplace(std::make_pair(info.name(), bucket));
     }
 }
 
@@ -55,9 +52,9 @@ chakra::database::FamilyDB &chakra::database::FamilyDB::get() {
     return familyDb;
 }
 
-void chakra::database::FamilyDB::addDB(const std::string &name) { addDB(name, FLAGS_db_block_size, FLAGS_db_block_capacity); }
+void chakra::database::FamilyDB::addDB(const std::string &name, size_t cached) { addDB(name, FLAGS_db_block_size, cached); }
 
-void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize, size_t blocktCapacity) {
+void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize, size_t cached) {
     if (servedDB(name)) return;
 
     int next = (index == 0 ? 1 : 0);
@@ -71,7 +68,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
     bucketOpts.dir = FLAGS_db_dir;
     bucketOpts.name = name;
     bucketOpts.blocktSize = blockSize;
-    bucketOpts.blockCapaticy = blocktCapacity;
+    bucketOpts.cached = cached;
     auto bucket = std::make_shared<BucketDB>(bucketOpts);
     columnBuckets[next].emplace(std::make_pair(name, bucket));
     index = next;
@@ -144,12 +141,13 @@ size_t chakra::database::FamilyDB::dbSize(const std::string &name) {
 
 void chakra::database::FamilyDB::dumpDBsFile() const {
     std::string filename = FLAGS_db_dir + "/" + DB_FILE;
-    nlohmann::json j;
+    proto::peer::DBState dbState;
     for (auto& it : columnBuckets[index.load()]){
-        j["dbs"].push_back(it.second->dumpDB());
+        auto info = dbState.mutable_dbs()->Add();
+        it.second->dumpDB(*info);
     }
 
-    auto err = utils::FileHelper::saveFile(j, filename);
+    auto err = utils::FileHelper::saveFile(dbState, filename);
     if (!err.success()){
         LOG(ERROR) << "DB dump dbs error " << strerror(errno);
     } else {
