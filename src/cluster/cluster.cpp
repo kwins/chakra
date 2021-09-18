@@ -183,11 +183,16 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
 
         // 如果等到 PONG 到达的时间超过了 node timeout 一半的连接
         // 因为尽管节点依然正常，但连接可能已经出问题了
+        // 希望通过重连能够快速感知到对端节点是否有问题
         if (peer->connected() /* 连接正常 */
                 && nowMillSec - peer->createTimeMs() > FLAGS_cluster_peer_timeout_ms /* 没有重连 */
                 && peer->getLastPingSend() /* 发送过 PING */
                 && peer->getLastPongRecv() < peer->getLastPingSend() /* 等待 PONG 中 */
-                && nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms/2){ /* 等待Pong超过超时的一半时间 */
+                && nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms/2  /* 等待Pong超过超时的一半时间 */
+                && !peer->isPfail()
+                && !peer->isFail()  /* 节点不能为 FAIL or PFAIL 状态 */
+                ){
+            // TODO: use other way fix this fail reason
             LOG(WARNING) << "*** NOTE peer "
                          << peer->getName()
                          << " connect ok, but always not received pong since " << peer->getLastPongRecv()

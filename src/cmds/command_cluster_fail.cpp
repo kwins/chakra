@@ -31,9 +31,10 @@ void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data
     }
 
     if (sender){
-       auto failing = clsptr->getPeer(failMessage.fail_peer_name());
-       if (failing && !failing->isFail() && !failing->isMyself()){
-           LOG(WARNING) << "FAIL message received from " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
+        LOG(INFO) << "FAIL has sender " << sender->getName();
+        auto failing = clsptr->getPeer(failMessage.fail_peer_name());
+        if (failing && !failing->isMyself() && !failing->isFail()){
+            LOG(WARNING) << "FAIL message received from " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
            failing->delFlag(cluster::Peer::FLAG_PFAIL);
            failing->setFlag(cluster::Peer::FLAG_FAIL);
            failing->setFailTime(utils::Basic::getNowMillSec());

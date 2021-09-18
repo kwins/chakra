@@ -43,6 +43,5 @@ void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, voi
     // 会带上当前节点的 name
     proto::peer::GossipMessage pong;
     clsptr->buildGossipMessage(pong, gossip.sender().data());
-    LOG(INFO) << "myself config epoch " << clsptr->getMyself()->getEpoch() << " current epoch " << clsptr->getCurrentEpoch();
     chakra::net::Packet::serialize(pong, proto::types::P_PONG, cbf);
 }
