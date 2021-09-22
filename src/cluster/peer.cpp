@@ -115,13 +115,12 @@ long chakra::cluster::Peer::getLastPongRecv() const { return last_pong_recv; }
 void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv = lastPongRecv; }
 
 chakra::utils::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
-    return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
-        auto err = this->link->conn->send(data, len);
-        if (!err.success()){
-            LOG(ERROR) << "Send message to " << getName() << "[" << getIp() << ":" << getPort() << "] error " << err.toString();
-        }
-        return err;
-    });
+    return link->sendMsg(msg, type);
+}
+
+chakra::utils::Error chakra::cluster::Peer::sendSyncMsg(google::protobuf::Message &request, proto::types::Type type,
+                                                        google::protobuf::Message &response) {
+    return link->sendSyncMsg(request, type, response);
 }
 
 void chakra::cluster::Peer::linkFree() {
@@ -196,16 +195,10 @@ long chakra::cluster::Peer::getRetryLinkTime() const { return retryLinkTime; }
 
 void chakra::cluster::Peer::setRetryLinkTime(long timeMs) { this->retryLinkTime = timeMs; }
 
-chakra::cluster::Peer::Link::Link(int sockfd) {
-    conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = sockfd });
-}
+chakra::cluster::Peer::Link::Link(int sockfd) : chakra::net::Link(sockfd) {}
 
-chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::shared_ptr<Peer>& peer) {
-    conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
-    auto err = conn->connect();
-    if (!err.success()){
-        throw std::logic_error(err.toString());
-    }
+chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::shared_ptr<Peer>& peer)
+: chakra::net::Link(ip,port){
     reletedPeer = peer;
 }
 
@@ -238,14 +231,9 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
 }
 
 void chakra::cluster::Peer::Link::startEvRead() {
-    rio = std::make_shared<ev::io>();
-    rio->set<&chakra::cluster::Peer::Link::onPeerRead>(this);
-    rio->set(ev::get_default_loop());
-    rio->start(conn->fd(), ev::READ);
-}
-
-bool chakra::cluster::Peer::Link::connected() const {
-    return conn != nullptr && conn->connState() == chakra::net::Connect::State::CONNECTED;
+    rio.set<&chakra::cluster::Peer::Link::onPeerRead>(this);
+    rio.set(ev::get_default_loop());
+    rio.start(conn->fd(), ev::READ);
 }
 
 void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) {
@@ -262,19 +250,24 @@ void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) 
     }
 }
 
-void chakra::cluster::Peer::Link::close() const {
-    LOG(INFO) << "### chakra::cluster::Peer::Link close";
-    if (rio){
-        rio->stop();
+void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
+    peerState.set_flag(getFg());
+    peerState.set_ip(getIp());
+    peerState.set_port(getPort());
+    peerState.set_name(getName());
+    peerState.set_epoch(getEpoch());
+    for(auto& info : dbs){
+        auto db = peerState.mutable_dbs()->Add();
+        db->set_name(info.second.name);
+        db->set_cached(info.second.cached);
+        db->set_shard_size(info.second.shardSize);
+        db->set_shard(info.second.shard);
+        db->set_memory(info.second.memory);
     }
-    if (conn)
-        conn->close();
 }
 
 chakra::cluster::Peer::Link::~Link() {
     LOG(INFO) << "### chakra::cluster::Peer::Link::~Link";
     close();
-    if (rio) rio = nullptr;
-    if (conn) conn = nullptr;
     if (reletedPeer) reletedPeer = nullptr;
 }

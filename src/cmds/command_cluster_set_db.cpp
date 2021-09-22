@@ -55,7 +55,11 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
     }
 
     int maxEpoch = clsptr->getMaxEpoch();
-    clsptr->setCurrentEpoch(maxEpoch + 1);
+    if (maxEpoch >= clsptr->getCurrentEpoch()){
+        clsptr->setCurrentEpoch(maxEpoch + 1);
+    } else {
+        clsptr->setCurrentEpoch(clsptr->getCurrentEpoch() + 1);
+    }
     myself->setEpoch(maxEpoch + 1);
     clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG);
     chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);

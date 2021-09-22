@@ -12,6 +12,7 @@
 #include "command_cluster_set_db.h"
 #include "command_cluster_set_epoch.h"
 #include "command_cluster_update_db.h"
+#include "command_cluster_state.h"
 
 #include "command_client_set.h"
 #include "command_client_get.h"
@@ -30,6 +31,7 @@ chakra::cmds::CommandPool::CommandPool() {
     regCmd(proto::types::P_FAIL, std::make_shared<CommandClusterFail>());
     regCmd(proto::types::P_SET_EPOCH, std::make_shared<CommandClusterSetEpoch>());
     regCmd(proto::types::P_SET_DB, std::make_shared<CommandClusterSetDB>());
+    regCmd(proto::types::P_STATE, std::make_shared<CommandClusterState>());
 
     // client
     regCmd(proto::types::C_SET, std::make_shared<CommandClientSet>());

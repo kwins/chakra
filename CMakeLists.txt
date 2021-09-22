@@ -18,7 +18,7 @@ file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
-set(TEST_LIB  libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
+set(TEST_LIB  libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
     set(LINUX_LINKS pthread rt atomic gomp m gfortran profiler dl)

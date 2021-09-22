@@ -177,7 +177,6 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
     // 遍历所有节点，检查是否需要将某个节点标记为下线
     for(auto & it : peers){
         auto peer = it.second;
-
         if (peer->isMyself() || peer->isHandShake())
             continue;
 
@@ -395,7 +394,6 @@ void chakra::cluster::Cluster::sendPingOrMeet(std::shared_ptr<Peer> peer, proto:
         peer->setLastPingSend(millSec);
     }
 
-//    LOG(INFO) << "Send message " << gossip.DebugString();
     // 发送消息
     peer->sendMsg(gossip, type);
 }
@@ -423,6 +421,7 @@ void chakra::cluster::Cluster::updateClusterState() {
             dbPeers[db.first].push_back(it.second);
         }
     }
+
     // 1、如果集群中任意节点挂掉，且节点服务的DB中有任意一个DB没有副本，则集群进入fail
     for(auto&it : dbPeers){
         int fails = 0;
@@ -435,13 +434,15 @@ void chakra::cluster::Cluster::updateClusterState() {
             newState = STATE_FAIL;
         }
     }
+
     // 2、如果集群中挂掉的节点数量超过半数，则集群进入fail
     if (unReachablePeer >= (size/2) +1){
         newState = STATE_FAIL;
     }
+
     if (newState != state) {
+        LOG(INFO) << "Cluster state changed FROM " << state << " TO " << newState;
         state = newState;
-        LOG(INFO) << "Change state from " << state << " to " << newState;
     }
 }
 
@@ -567,6 +568,16 @@ std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::renamePeer(cons
         peers.erase(it);
     }
     return peer;
+}
+
+void chakra::cluster::Cluster::stateDesc(proto::peer::ClusterState& clusterState){
+    clusterState.set_current_epoch(getCurrentEpoch());
+    clusterState.set_state(getState());
+
+    for(auto& it : peers){
+        auto peer = clusterState.mutable_peers()->Add();
+        it.second->stateDesc(*peer);
+    }
 }
 
 std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getMyself() { return myself; }

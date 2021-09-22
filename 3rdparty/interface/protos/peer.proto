@@ -22,6 +22,21 @@ message MetaDB{
     int32 flag = 6;
 }
 
+message PeerState{
+    int32 epoch = 1;
+    int32 flag = 2;
+    string ip = 3;
+    int32 port = 4;
+    string name = 5;
+    repeated MetaDB dbs = 6;
+}
+
+message ClusterState{ // 节点视角看到的集群状态
+    int32 current_epoch = 1;
+    repeated PeerState peers = 2;
+    int32 state = 3;
+}
+
 message GossipSender{
     int32 current_epoch = 1;
     int32 config_epoch = 2;
@@ -85,21 +100,6 @@ message DBSetMessageResponse{
 
 message StateMessageRequest{
     string from = 1; // name
-}
-
-message PeerState{
-    int32 epoch = 1;
-    int32 flag = 2;
-    string ip = 3;
-    int32 port = 4;
-    string name = 5;
-    repeated MetaDB dbs = 6;
-}
-
-message ClusterState{ // 节点视角看到的集群状态
-    int32 current_epoch = 1;
-    repeated PeerState peers = 2;
-    int32 state = 3;
 }
 
 message StateMessageResponse{

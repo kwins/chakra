@@ -16,7 +16,7 @@ DEFINE_int32(port, 7290, "port");
 class TestChakra : public ::testing::Test{
 public:
     void SetUp() override {
-        int port = 7290;
+        int port = 8290;
         chakra::net::Connect::Options clientOpts;
         clientOpts.host = "127.0.0.1";
         clientOpts.port = port;
@@ -71,11 +71,20 @@ public:
             LOG(ERROR) << "meet success";
     }
 
+    void testState(){
+        proto::peer::ClusterState clusterState;
+        auto err = clusterptr->state(clusterState);
+        if (!err.success())  LOG(ERROR) << "state error " << err.toString();
+        else
+            LOG(ERROR) << "state: " << clusterState.DebugString();
+    }
+
     void TearDown() override {
         client->close();
         clusterptr->close();
         replicaptr->close();
     }
+
 
     std::shared_ptr<chakra::client::Chakra> client;
     std::shared_ptr<chakra::client::Chakra> clusterptr;
@@ -84,7 +93,8 @@ public:
 
 TEST_F(TestChakra, client){
 //    testReplicaOf("db1");
-    testMeet("127.0.0.1", 9291);
+//    testMeet("127.0.0.1", 9291);
+testState();
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
 //    testSetDB("db5");
 //    testSetKeyValue("db1", "db1_key1", "db1_value1");

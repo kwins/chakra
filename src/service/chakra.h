@@ -12,21 +12,18 @@
 #include "replica/replica.h"
 #include <condition_variable>
 #include "database/db_family.h"
+#include "net/link.h"
 
 namespace chakra::serv{
 class Chakra : public utils::UnCopyable {
 public:
     struct Worker;
-    struct Link{ // 在不同的线程中
+    struct Link : public chakra::net::Link{ // 在不同的线程中
         explicit Link(int sockfd);
         static void onPeerRead(ev::io& watcher, int event);
         void startEvRead(chakra::serv::Chakra::Worker* worker);
-        void close() const;
         ~Link();
-
-        std::shared_ptr<net::Connect> conn;
-        std::shared_ptr<ev::io> rio;
-        int workID;
+        int workID = 0;
     };
 
     struct Worker{

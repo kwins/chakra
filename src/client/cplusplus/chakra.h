@@ -18,6 +18,7 @@ public:
     utils::Error get(const std::string& dbname, const std::string& key, std::string& value);
     utils::Error setdb(const std::string& dbname, int cached);
     utils::Error replicaof(const std::string& dbname);
+    utils::Error state(proto::peer::ClusterState& clusterState);
     void close();
 private:
     utils::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);

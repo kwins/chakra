@@ -49,6 +49,7 @@ public:
     // 1、如果集群任意节点挂掉，且节点上的某个DB没有副本 或者其他副本也全部挂掉，则集群进入fail状态
     // 2、如果集群超过半数以上节点挂掉，集群进入fail状态
     void updateClusterState();
+    void stateDesc(proto::peer::ClusterState& clusterState);
     void processGossip(const proto::peer::GossipMessage& gossip);
     // 根据报道情况，尝试将节点置为fail状态，并广播到集群
     void tryMarkFailPeer(const std::shared_ptr<Peer>& peer);

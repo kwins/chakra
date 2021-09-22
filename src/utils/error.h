@@ -30,6 +30,7 @@ public:
     const static int ERR_FILE_NOT_EXIST = 6;
     const static int ERR_FILE_RENAME = 7;
     const static int ERR_FILE_CREATE = 8;
+    const static int ERR_COMMAND_NOT_FOUND = 9;
     const static int ERR_ERRNO = 999;
 private:
     int code;

@@ -14,25 +14,20 @@
 #include <google/protobuf/message.h>
 #include <ev++.h>
 #include "peer.pb.h"
+#include "net/link.h"
 
 namespace chakra::cluster{
 using namespace std::chrono;
 
 class Peer : public std::enable_shared_from_this<Peer> {
 public:
-    struct Link{
+    struct Link : public chakra::net::Link{
         explicit Link(int sockfd);
         explicit Link(const std::string& ip, int port, const std::shared_ptr<Peer>& peer);
         static void onPeerRead(ev::io& watcher, int event);
         void startEvRead();
-        bool connected() const;
-        void close() const;
         ~Link();
-
-        std::shared_ptr<net::Connect> conn;
-        std::shared_ptr<ev::io> rio;
         std::shared_ptr<Peer> reletedPeer;
-
     };
 
     struct FailReport{
@@ -109,6 +104,9 @@ public:
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
     utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    utils::Error sendSyncMsg(::google::protobuf::Message& request,
+                             proto::types::Type type, ::google::protobuf::Message& response);
+    void stateDesc(proto::peer::PeerState& peerState);
     ~Peer();
 private:
 

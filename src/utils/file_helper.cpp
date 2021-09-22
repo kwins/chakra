@@ -103,7 +103,6 @@ chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::protobu
     auto s = google::protobuf::util::JsonStringToMessage(str, &message);
     if (!s.ok())
         return utils::Error(s.error_code(), s.ToString());
-    std::cout << "load file success" << std::endl;
     return chakra::utils::Error();
 }
 

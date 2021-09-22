@@ -10,7 +10,6 @@
 #include <poll.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <glog/logging.h>
 #include "utils/error.h"
 #include "packet.h"
 

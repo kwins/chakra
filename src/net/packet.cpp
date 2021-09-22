@@ -20,7 +20,7 @@ chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::type
 chakra::utils::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg, proto::types::Type type) {
     proto::types::Type reqtype;
     if ((reqtype = chakra::net::Packet::getType(src, srcLen)) != type){
-        return utils::Error(utils::Error::ERR_PACK_TYPE, "pack type not match(" + std::to_string(reqtype) + ":" + std::to_string(type) + ")");
+        return utils::Error(utils::Error::ERR_PACK_TYPE, "pack type not match(req is " + std::to_string(reqtype) + " : need is " + std::to_string(type) + ")");
     }
 
     auto packSize = read<uint64_t>(src, srcLen, 0);

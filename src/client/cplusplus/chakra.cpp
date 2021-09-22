@@ -93,6 +93,10 @@ chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Messag
         auto err = this->conn->send(req, reqlen);
         if (err.success()){
             return this->conn->receivePack([this, &reply, type](char *resp, size_t resplen) {
+                auto reqtype = chakra::net::Packet::getType(resp, resplen);
+                if (reqtype == 0){
+                    return utils::Error(utils::Error::ERR_COMMAND_NOT_FOUND, "command not found");
+                }
                 return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
             });
         }
@@ -110,6 +114,19 @@ chakra::utils::Error chakra::client::Chakra::replicaof(const std::string &dbname
     if (replicaOfResponse.error().errcode() != 0){
         return utils::Error(replicaOfResponse.error().errcode(), replicaOfResponse.error().errmsg());
     }
+    return err;
+}
+
+chakra::utils::Error chakra::client::Chakra::state(proto::peer::ClusterState &clusterState) {
+    proto::peer::StateMessageRequest stateMessageRequest;
+    stateMessageRequest.set_from(" ");
+    proto::peer::StateMessageResponse stateMessageResponse;
+    auto err = executeCmd(stateMessageRequest, proto::types::P_STATE, stateMessageResponse);
+    if (!err.success()) return err;
+    if (stateMessageResponse.error().errcode() != 0){
+        return utils::Error(stateMessageResponse.error().errcode(), stateMessageResponse.error().errmsg());
+    }
+    clusterState = stateMessageResponse.state();
     return err;
 }
 

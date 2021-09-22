@@ -20,9 +20,7 @@ public:
         CONNECT = 1,       // 准备和 master 建立连接
         CONNECTING,        // 已经和 master 建立连接，未进行通信确认
         RECEIVE_PONG,      // 发送 Ping 到 master ，准备接受 master Pong 确认
-        WAIT_BGSAVE,       // 等待bgsave完成
         TRANSFOR,          // 已经和master建立连接，并且 PING-PONG 确认连接有效,开始全量同步
-        MERGING,           // 所有节点的写副本都已收到，等待merge成一个完整的数据库
         CONNECTED,         // 首次全量同步已经完成，和master连接正常连接，开始正常增量同步，一开始会有增量延迟情况
     };
 
@@ -78,12 +76,6 @@ public:
     const Options& getOpts();
     int64_t getRocksSeq() const;
     void setRocksSeq(int64_t seq);
-    const std::string &getTransferFileName() const;
-    void setTransferFileName(const std::string &filename);
-    off_t getTransferBulkSize() const;
-    void setTransferBulkSize(off_t bulkSize);
-    off_t getTransferBulkOffset() const;
-    void setTransferBulkOffset(off_t bulkOffset);
     const std::string &getDbName() const;
     void setDbName(const std::string &dbName);
     long getLastTransferMs() const;

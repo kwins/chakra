@@ -164,9 +164,7 @@ chakra::serv::Chakra::~Chakra() {
 
 
 // Link
-chakra::serv::Chakra::Link::Link(int sockfd) {
-    conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = sockfd });
-}
+chakra::serv::Chakra::Link::Link(int sockfd) : chakra::net::Link(sockfd) {}
 
 void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
     auto link = static_cast<chakra::serv::Chakra::Link*>(watcher.data);
@@ -194,26 +192,15 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
 
 void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worker) {
     LOG(INFO) << "Chakra Link start read in worker " << workID;
-    rio = std::make_shared<ev::io>();
-    rio->set<&chakra::serv::Chakra::Link::onPeerRead>(this);
-    rio->set(worker->loop);
-    rio->start(conn->fd(), ev::READ);
+    rio.set<&chakra::serv::Chakra::Link::onPeerRead>(this);
+    rio.set(worker->loop);
+    rio.start(conn->fd(), ev::READ);
 }
 
-void chakra::serv::Chakra::Link::close() const {
-    LOG(INFO) << "### chakra::serv::Chakra::Link::close";
-    if (rio){
-        rio->stop();
-    }
-    if (conn)
-        conn->close();
-}
 
 chakra::serv::Chakra::Link::~Link() {
     LOG(INFO) << "### chakra::serv::Chakra::Link::~Link";
     close();
-    if (rio) rio = nullptr;
-    if (conn) conn = nullptr;
 }
 
 
@@ -248,7 +235,6 @@ void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
 void chakra::serv::Chakra::Worker::stop() { this->stopAsnyc.send(); }
 
 chakra::serv::Chakra::Worker::~Worker() {
-    LOG(INFO) << "~Worker";
     stop();
 }
 
