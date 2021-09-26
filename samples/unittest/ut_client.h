@@ -26,11 +26,6 @@ public:
         clusterOpts.host = "127.0.0.1";
         clusterOpts.port = port + 1;
         clusterptr = std::make_shared<chakra::client::Chakra>(clusterOpts);
-
-        chakra::net::Connect::Options replicaOpts;
-        replicaOpts.host = "127.0.0.1";
-        replicaOpts.port = port + 2;
-        replicaptr = std::make_shared<chakra::client::Chakra>(clusterOpts);
     }
 
     void testSetDB(const std::string& dbname){
@@ -56,14 +51,6 @@ public:
         }
     }
 
-    void testReplicaOf(const std::string& dbname){
-        auto err = replicaptr->replicaof(dbname);
-        if (!err.success())
-            LOG(ERROR) << "replica of " << err.toString();
-        else
-            LOG(ERROR) << "replica of success";
-    }
-
     void testMeet(const std::string& ip, int port){
         auto err = clusterptr->meet(ip, port);
         if (!err.success()) LOG(ERROR) << "meet error " << err.toString();
@@ -82,7 +69,6 @@ public:
     void TearDown() override {
         client->close();
         clusterptr->close();
-        replicaptr->close();
     }
 
 
@@ -94,11 +80,19 @@ public:
 TEST_F(TestChakra, client){
 //    testReplicaOf("db1");
 //    testMeet("127.0.0.1", 9291);
-testState();
+//testState();
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
-//    testSetDB("db5");
-//    testSetKeyValue("db1", "db1_key1", "db1_value1");
-//    testGetValue("db1", "db1_key1");
+//    testSetDB("db1");
+for (int i = 3001; i < 3100; i ++){
+    std::string is = std::to_string(i);
+    testSetKeyValue("db1", "key" + is, "value" + is);
+}
+
+//for (int i = 0; i < 1000; i ++){
+//    std::string is = std::to_string(i);
+//    testGetValue("db1", "key" + is);
+//}
+
 //testReplicaOf("db1");
 }
 

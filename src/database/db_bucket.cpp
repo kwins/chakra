@@ -9,11 +9,12 @@
 #include <rocksdb/utilities/backupable_db.h>
 
 chakra::database::BucketDB::BucketDB(Options options) {
-    this->opts = std::move(options);
+    opts = std::move(options);
+    LOG(INFO) << "bucket options " << opts;
     rocksdb::Options rocksOpts;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
-    rocksOpts.WAL_ttl_seconds = options.dbWALTTLSeconds;
+    rocksOpts.WAL_ttl_seconds = opts.dbWALTTLSeconds;
     rocksdb::DB* dbself;
     auto s = rocksdb::DB::Open(rocksOpts, opts.dir + "/" +opts.name + ".self", &dbself);
     if (!s.ok()){
@@ -26,8 +27,9 @@ chakra::database::BucketDB::BucketDB(Options options) {
         throw std::logic_error(s.ToString());
     }
     dbptr = std::shared_ptr<rocksdb::DB>(db);
-    for (int i = 0; i < opts.blocktSize; ++i) {
-        blocks.push_back(std::make_shared<BlockDB>(opts.cached));
+    blocks.resize(opts.blockSize);
+    for (int i = 0; i < opts.blockSize; ++i) {
+        blocks[i] = std::make_shared<BlockDB>(opts.cached);
     }
 
     // 加载一些热数据
@@ -48,7 +50,7 @@ chakra::database::BucketDB::BucketDB(Options options) {
 std::shared_ptr<chakra::database::Element>
 chakra::database::BucketDB::get(const std::string &key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return blocks.at(hashed % opts.blocktSize)->get(key, [this](const std::string& key, std::string& value)->bool{
+    return blocks.at(hashed % opts.blockSize)->get(key, [this](const std::string& key, std::string& value)->bool{
         auto s = dbptr->Get(rocksdb::ReadOptions(), key, &value);
         if (!s.ok()){
             if (!s.IsNotFound())
@@ -62,7 +64,7 @@ chakra::database::BucketDB::get(const std::string &key) {
 void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Element> val, bool dbput) {
     // TODO: 找一个支持多语言的hash函数
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % opts.blocktSize]->put(key, val);
+    blocks[hashed % opts.blockSize]->put(key, val);
     if (dbput){
         val->serialize([this, &key](char* data, size_t len){
             auto s = self->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
@@ -79,7 +81,7 @@ void chakra::database::BucketDB::put(rocksdb::WriteBatch& batch) {
 
 void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % opts.blocktSize]->del(key);
+    blocks[hashed % opts.blockSize]->del(key);
     if (dbdel){
         auto s = self->Delete(rocksdb::WriteOptions(), key);
         if (!s.ok()) LOG(ERROR) << "DB del error " << s.ToString();
@@ -176,7 +178,7 @@ void chakra::database::BucketDB::Put(const rocksdb::Slice &key, const rocksdb::S
     if (!s.ok()) LOG(ERROR) << "DB delta put error " << s.ToString();
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % opts.blocktSize]->del(key.ToString());
+    blocks[hashed % opts.blockSize]->del(key.ToString());
 }
 
 void chakra::database::BucketDB::Delete(const rocksdb::Slice &key) {
@@ -184,5 +186,5 @@ void chakra::database::BucketDB::Delete(const rocksdb::Slice &key) {
     if (!s.ok()) LOG(ERROR) << "DB delta del error " << s.ToString();
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % opts.blocktSize]->del(key.ToString());
+    blocks[hashed % opts.blockSize]->del(key.ToString());
 }

@@ -91,7 +91,7 @@ message EpochSetMessageResponse{
 }
 
 message DBSetMessageRequest{
-    repeated MetaDB dbs = 1;
+    MetaDB db = 1;
 }
 
 message DBSetMessageResponse{

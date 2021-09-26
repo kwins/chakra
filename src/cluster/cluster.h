@@ -59,7 +59,7 @@ public:
     std::shared_ptr<Peer> renamePeer(const std::string& random, const std::string& real);
     std::shared_ptr<Peer> getMyself();
     void setCronTODO(uint64_t todo);
-
+    bool stateOK();
 private:
     utils::Error loadConfigFile();
     void startEv();

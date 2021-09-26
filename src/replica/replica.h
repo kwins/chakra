@@ -33,6 +33,7 @@ public:
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpLinks();
+    bool replicated(const std::string& dbname);
     void stop();
     
 private:

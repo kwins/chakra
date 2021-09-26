@@ -15,6 +15,8 @@
 #include "database/db_family.h"
 #include <rocksdb/db.h>
 
+DECLARE_double(replica_pull_delta_interval_sec);
+DECLARE_int32(replica_timeout_ms);
 chakra::replica::Link::Link(chakra::replica::Link::Options options){
     opts = std::move(options);
     this->dir = opts.dir;
@@ -62,29 +64,26 @@ void chakra::replica::Link::startReplicaRecv() {
 void chakra::replica::Link::replicaEventLoop() {
     auto nowMillSec = utils::Basic::getNowMillSec();
     if ((state == State::CONNECTING || state == State::RECEIVE_PONG)
-        && nowMillSec - lastInteractionMs > opts.replicaTimeoutMs){
+        && nowMillSec - lastInteractionMs > FLAGS_replica_timeout_ms){
         LOG(WARNING) << "REPL connecting to primary timeout.";
         deConnectPrimary();
     }
 
     if (state == State::TRANSFOR
-        && nowMillSec - lastTransferMs > opts.replicaTimeoutMs){
+        && nowMillSec - lastTransferMs > FLAGS_replica_timeout_ms){
         LOG(WARNING) << "REPL receiving bulk data from PRIMARY... If the problem persists try to set the 'repl-timeout' parameter in naruto.conf to a larger value.";
         abortTransfer();
     }
 
     if (state == State::CONNECTED
-        && nowMillSec -  lastInteractionMs > opts.replicaTimeoutMs){
-        LOG(WARNING) <<"REPL timeout no data nor PING received...";
+        && nowMillSec -  lastInteractionMs > FLAGS_replica_timeout_ms){
+        LOG(WARNING) <<"REPL timeout no data nor PING received..." << nowMillSec << "-" << lastInteractionMs << ">" << FLAGS_replica_timeout_ms;
         close();
     }
-
     // 尝试开始连接被复制的服务器
-    if (state == State::CONNECT)
-        connectPrimary();
-
-    if (state == State::CONNECTED)
-        heartBeat();
+    if (state == State::CONNECT) connectPrimary();
+    // 定时心跳
+    if (state == State::CONNECTED) heartBeat();
 }
 
 void chakra::replica::Link::startSendBulk(rocksdb::Iterator* iter, rocksdb::SequenceNumber seq) {
@@ -97,7 +96,7 @@ void chakra::replica::Link::startSendBulk(rocksdb::Iterator* iter, rocksdb::Sequ
 }
 
 void chakra::replica::Link::onSendBulk(ev::io &watcher, int event) {
-    LOG(INFO) << "REPL primary send bulk to replicator.";
+    LOG(INFO) << "REPL primary send bulk...";
     if (state != State::TRANSFOR) return;
 
     int size = 0;
@@ -145,7 +144,7 @@ void chakra::replica::Link::startRecvBulk() {
 void chakra::replica::Link::startPullDelta() {
     deltaIO.set<chakra::replica::Link, &chakra::replica::Link::onPullDelta>(this);
     deltaIO.set(ev::get_default_loop());
-    deltaIO.start(opts.cronInterval);
+    deltaIO.start(FLAGS_replica_pull_delta_interval_sec);
 }
 
 void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
@@ -153,9 +152,14 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     deltaMessageRequest.set_db_name(dbName);
     deltaMessageRequest.set_seq(deltaSeq);
-
+    deltaMessageRequest.set_size(DELTA_LEN);
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     sendSyncMsg(deltaMessageRequest, proto::types::R_PULL, deltaMessageResponse);
+    LOG(INFO) << "REPL on pull delta " << dbName << " seq=" << deltaSeq << " size=" << DELTA_LEN << " response:" << deltaMessageResponse.DebugString();
+    if (deltaMessageResponse.error().errcode() != 0){
+        LOG(ERROR) << "REPL pull delta error " << deltaMessageResponse.error().errmsg();
+        return;
+    }
 
     for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
         auto& seq = deltaMessageResponse.seqs(i);
@@ -163,7 +167,7 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
         dbptr.put(dbName, batch);
         deltaSeq = seq.seq();
     }
-
+    setLastInteractionMs(utils::Basic::getNowMillSec());
     startPullDelta();
 }
 
@@ -215,7 +219,7 @@ void chakra::replica::Link::onHandshake(ev::io &watcher, int event) {
         auto err = conn->receivePack([this, &pong](char *resp, size_t respLen) {
             return chakra::net::Packet::deSerialize(resp, respLen, pong, proto::types::R_PONG);
         });
-
+        setLastInteractionMs(utils::Basic::getNowMillSec());
         if (!err.success() || pong.error().errcode() || !tryPartialReSync()){
             std::string errmsg;
             if (!err.success())
@@ -285,11 +289,12 @@ bool chakra::replica::Link::tryPartialReSync() {
 
     proto::replica::SyncMessageResponse syncMessageResponse;
     sendSyncMsg(syncMessageRequest, proto::types::R_PSYNC, syncMessageResponse);
-    if (syncMessageResponse.error().errcode()){
+    if (syncMessageResponse.error().errcode() != 0){
         LOG(ERROR) << "Unexpected errcode to PSYNC from primary " << syncMessageResponse.error().errmsg();
         return false;
     }
 
+    setLastInteractionMs(utils::Basic::getNowMillSec());
     if (syncMessageResponse.psync_type() == proto::types::R_FULLSYNC){
         LOG(INFO) << "PRIMARY <-> REPLICATE accepted a FULL sync.";
         state = State::TRANSFOR;
@@ -299,7 +304,7 @@ bool chakra::replica::Link::tryPartialReSync() {
         LOG(INFO) << "PRIMARY <-> REPLICATE accepted a PART sync.";
         state = State::CONNECTED;
         deltaSeq = syncMessageRequest.seq();
-        startReplicaRecv();
+        startPullDelta();
     } else {
         LOG(INFO) << "PRIMARY <-> REPLICATE accepted a BAD sync.";
         return false;
@@ -307,17 +312,16 @@ bool chakra::replica::Link::tryPartialReSync() {
     return true;
 }
 
-void chakra::replica::Link::sendSyncMsg(google::protobuf::Message &msg, proto::types::Type type,
+chakra::utils::Error chakra::replica::Link::sendSyncMsg(google::protobuf::Message &msg, proto::types::Type type,
                                         google::protobuf::Message &reply) {
-    chakra::net::Packet::serialize(msg, type, [this, &reply, type](char* req, size_t reqLen){
+    return chakra::net::Packet::serialize(msg, type, [this, &reply, type](char* req, size_t reqLen){
         auto err = this->conn->send(req, reqLen);
-        if (err.success()){
-            return this->conn->receivePack([&reply, type](char *resp, size_t respLen) {
-                return chakra::net::Packet::deSerialize(resp, respLen, reply, type);
-            });
-        }
-        LOG(ERROR) << "REPL send message to [" << opts.ip << ":" << opts.port << "] error " << strerror(errno);
-        return err;
+        if (!err.success()) return err;
+
+        return this->conn->receivePack([&reply, type](char *resp, size_t respLen) {
+            LOG(INFO) << "sendSyncMsg receive len " << respLen;
+            return chakra::net::Packet::deSerialize(resp, respLen, reply, type);
+        });
     });
 }
 
@@ -351,7 +355,7 @@ void chakra::replica::Link::close() {
 
 bool chakra::replica::Link::isTimeout() const {
     auto now = utils::Basic::getNowMillSec();
-    return (state == State::CONNECT && (now - lastInteractionMs >  opts.replicaTimeoutMs));
+    return (state == State::CONNECT && (now - lastInteractionMs >  FLAGS_replica_timeout_ms));
 }
 
 const std::string &chakra::replica::Link::getPrimaryName() const { return primary; }

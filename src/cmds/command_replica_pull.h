@@ -10,7 +10,7 @@
 namespace chakra::cmds{
 class CommandReplicaPull : public Command {
 public:
-    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> reply) override;
+    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> cbf) override;
     ~CommandReplicaPull() override = default;
 };
 }

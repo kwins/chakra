@@ -16,17 +16,15 @@ std::shared_ptr<chakra::database::Element> chakra::database::BlockDB::get(const 
         std::string str;
         if (!loadf(key, str))
             return nullptr;
-
         auto element = std::make_shared<Element>();
         element->deSeralize(str.data(), str.size());
         element->setUpdated(false);
         elements.push_front(std::make_pair(key, element));
     } else {
         // 删除元素原来在list中的位置，放到最前面
-        elements.erase(it->second);
         elements.push_front(*it->second);
+        elements.erase(it->second);
     }
-
     // 更新索引中的位置
     auto begin = elements.begin();
     k2iter[begin->first] = begin;

@@ -30,8 +30,6 @@ public:
         std::string dbName;
         std::string ip;
         int port = 0;
-        long replicaTimeoutMs = 10000; // 复制超时
-        float cronInterval = 0.1;
     };
 
     Link() = default;
@@ -82,7 +80,7 @@ public:
     void setLastTransferMs(long lastTransferMs);
     long getLastInteractionMs() const;
     void setLastInteractionMs(long lastInteractionMs);
-    void sendSyncMsg(::google::protobuf::Message& msg, proto::types::Type type,
+    utils::Error sendSyncMsg(::google::protobuf::Message& msg, proto::types::Type type,
                      ::google::protobuf::Message& reply);
     void close();
 private:
@@ -103,11 +101,11 @@ private:
     State state = State::CONNECT;
 
     // 全量同步使用
-    rocksdb::Iterator* bulkiter;
-    rocksdb::SequenceNumber deltaSeq;
+    rocksdb::Iterator* bulkiter = nullptr;
+    int64_t deltaSeq = -1;
     ev::io transferIO;
     static const int TRANSFER_LEN = 1024 * 16;
-
+    static const int DELTA_LEN = 1024 * 4;
     // 定时拉取delta数据
     ev::timer deltaIO;
 };

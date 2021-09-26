@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include "utils/error.h"
 #include "packet.h"
+#include <glog/logging.h>
 
 chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->opts = std::move(opts);
@@ -59,8 +60,10 @@ chakra::utils::Error chakra::net::Connect::send(const char *data, size_t len) {
 }
 
 chakra::utils::Error chakra::net::Connect::receivePack(const std::function< utils::Error (char* ptr, size_t len)>& process) {
-    ssize_t readn = ::read(fd(), &buf[bufLen], this->bufFree);
+    LOG(INFO) << "receive buf len " << bufLen << " buff free " << bufFree;
+    ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0){
+        LOG(INFO) << "receive readn 0";
         return setError(ERR_RECEIVE, "connect closed");
     } else if (readn < 0){
         if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR){
@@ -75,7 +78,6 @@ chakra::utils::Error chakra::net::Connect::receivePack(const std::function< util
         bufFree -= readn;
         buf[bufLen] = '\0';
     }
-
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
     if ((packSize == 0) || (packSize > 0 && bufLen < packSize)){
         return utils::Error(utils::Error::ERR_PACK_NOT_ENOUGH, "pack not enough");

@@ -11,13 +11,14 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 
-DEFINE_string(replica_dir, "data", "replica dir");                                      /* NOLINT */
-DEFINE_string(replica_ip, "127.0.0.1", "replica ip");                                   /* NOLINT */
-DEFINE_int32(replica_port, 7292, "replica port");                                       /* NOLINT */
-DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                        /* NOLINT */
-DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                         /* NOLINT */
-DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double"); /* NOLINT */
-DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                       /* NOLINT */
+DECLARE_int32(cluster_port);
+DEFINE_string(replica_dir, "data", "replica dir");                                          /* NOLINT */
+DEFINE_string(replica_ip, "127.0.0.1", "replica ip");                                       /* NOLINT */
+DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                            /* NOLINT */
+DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                             /* NOLINT */
+DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");     /* NOLINT */
+DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                           /* NOLINT */
+DEFINE_double(replica_pull_delta_interval_sec, 1.0, "replica pull db dalta interval sec");  /* NOLINT */
 
 chakra::replica::Replica::Replica() {
     LOG(INFO) << "Replica init";
@@ -27,9 +28,9 @@ chakra::replica::Replica::Replica() {
         exit(-1);
     }
 
-    err = net::Network::tpcListen(FLAGS_replica_port, FLAGS_replica_tcp_back_log, sfd);
+    err = net::Network::tpcListen(FLAGS_cluster_port + 1, FLAGS_replica_tcp_back_log, sfd);
     if (!err.success()){
-        LOG(ERROR) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_replica_port << " " << err.toString();
+        LOG(ERROR) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_cluster_port + 1 << " " << err.toString();
         exit(1);
     }
 
@@ -37,6 +38,7 @@ chakra::replica::Replica::Replica() {
     replicaio.set(ev::get_default_loop());
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
+    LOG(INFO) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_cluster_port + 1;
 }
 
 void chakra::replica::Replica::startReplicaCron() {
@@ -63,7 +65,7 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
     auto primarys = j.at("replicas");
     for (int i = 0; i < primarys.size(); ++i) {
         auto link = std::make_shared<chakra::replica::Link>();
-        link->loadLink(j[i]);
+        link->loadLink(primarys[i]);
         primaryDBLinks.push_back(link);
     }
 
@@ -93,10 +95,20 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 
     // primary side
     replicaLinks.remove_if([](const Link* link){
+//        if (!link->isTimeout() && link->getState() == Link::State::CONNECTED) link->heartBeat();
         return link->isTimeout();
     });
 
     startReplicaCron();
+}
+
+bool chakra::replica::Replica::replicated(const std::string &dbname) {
+    for(auto& link : primaryDBLinks){
+        if (link->getDbName() == dbname){
+            return true;
+        }
+    }
+    return false;
 }
 
 void chakra::replica::Replica::dumpLinks() {
@@ -120,8 +132,8 @@ void chakra::replica::Replica::setReplicateDB(const std::string &name, const std
     options.ip = ip;
     options.port = port;
     options.dbName = name;
-    options.cronInterval = FLAGS_replica_cron_interval_sec;
-    options.replicaTimeoutMs = FLAGS_replica_timeout_ms;
+//    options.cronInterval = FLAGS_replica_cron_interval_sec;
+//    options.replicaTimeoutMs = FLAGS_replica_timeout_ms;
     options.dir = FLAGS_replica_dir;
     auto link = std::make_shared<chakra::replica::Link>(options);
     primaryDBLinks.push_back(link);
@@ -149,12 +161,6 @@ void chakra::replica::Replica::stop() {
 
     replicaio.stop();
     cronIO.stop();
-    replicaLinks.remove_if([](chakra::replica::Link* link){
-        link->close();
-        delete link;
-        return true;
-    });
-
     replicaLinks.remove_if([](chakra::replica::Link* link){
         link->close();
         delete link;

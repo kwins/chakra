@@ -76,7 +76,7 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, s
 
 chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, int cached) {
     proto::peer::DBSetMessageRequest dbSetMessageRequest;
-    auto db = dbSetMessageRequest.mutable_dbs()->Add();
+    auto db = dbSetMessageRequest.mutable_db();
     db->set_name(dbname);
     db->set_cached(cached);
     proto::peer::DBSetMessageResponse dbSetMessageResponse;

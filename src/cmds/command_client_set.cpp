@@ -12,13 +12,14 @@
 void
 chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) {
     proto::client::SetMessageResponse setMessageResponse;
-
     proto::client::SetMessageRequest setMessageRequest;
+    auto& dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, setMessageRequest, proto::types::C_SET);
     if (!err.success()){
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), err.getCode(), err.getMsg());
-    } else {
-        auto& dbptr = chakra::database::FamilyDB::get();
+    }if (!dbptr.servedDB(setMessageRequest.db_name())){
+        chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "DB " + setMessageRequest.db_name() + " not exist.");
+    }else {
         auto element = std::make_shared<chakra::database::Element>();
         element->setUpdated(true);
         element->setCreate(utils::Basic::getNowMillSec());

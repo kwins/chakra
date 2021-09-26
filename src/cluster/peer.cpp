@@ -8,6 +8,7 @@
 #include "net/packet.h"
 #include "cmds/command_pool.h"
 #include <glog/logging.h>
+#include "replica/replica.h"
 
 const std::string &chakra::cluster::Peer::getName() const { return name; }
 
@@ -238,6 +239,7 @@ void chakra::cluster::Peer::Link::startEvRead() {
 
 void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) {
     setEpoch(sender.config_epoch());
+    auto replicaptr = replica::Replica::get();
     for(auto& metadb : sender.meta_dbs()){
         chakra::cluster::Peer::DB db;
         db.name = metadb.name();
@@ -247,6 +249,15 @@ void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) 
         db.shard = metadb.shard();
         LOG(INFO) << "sender " << getName() << " set db " << db.name;
         setDB(db.name, db);
+
+        // 在多主的集群中，当某个db增加一个副本时
+        // 当前副本的所有节点需要立刻复制新增的副本节点，以保证db的最终的一致性
+        if (!replicaptr->replicated(metadb.name())){
+            replicaptr->setReplicateDB(metadb.name(), sender.ip(), sender.port() + 1);
+            LOG(INFO) << "Cluster add new db copy" << metadb.name() << ", start replicate it from("
+                      << sender.ip() << ":" << sender.port() + 1
+                      << ").";
+        }
     }
 }
 

@@ -24,10 +24,19 @@ public:
     struct Options{
         std::string name;
         std::string dir;
-        size_t blocktSize = 0;
+        size_t blockSize = 0;
         size_t cached = 0;
         uint64_t flag = FLAG_NF;
         long dbWALTTLSeconds = 86400;
+        friend std::ostream& operator<<(std::ostream& out, const BucketDB::Options& options){
+            out << "name:" << options.name
+                << " dir:" << options.dir
+                << " blockSize:" << options.blockSize
+                << " cached:" << options.cached
+                << " flag:" << options.flag
+                << " dbWALTTLSeconds:" << options.dbWALTTLSeconds;
+            return out;
+        }
     };
 
     struct RestoreDB{

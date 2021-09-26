@@ -57,7 +57,7 @@ message DeltaMessageRequest{
 message DeltaMessageResponse{
   message Sequence{
     int64 seq = 1; // 新的序列号
-    string data = 2; // 序列化后的数据，已经包含了 key value信息
+    bytes data = 2; // 序列化后的数据，已经包含了 key value信息
   }
   types.Error error = 1;
   string name = 2; // db name

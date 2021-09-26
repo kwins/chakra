@@ -41,7 +41,7 @@ chakra::database::FamilyDB::FamilyDB() {
         bucketOpts.name = info.name();
         bucketOpts.flag = info.flag();
         bucketOpts.cached = info.cached();
-        bucketOpts.blocktSize = FLAGS_db_block_size;
+        bucketOpts.blockSize = FLAGS_db_block_size;
         auto bucket = std::make_shared<BucketDB>(bucketOpts);
         columnBuckets[index.load()].emplace(std::make_pair(info.name(), bucket));
     }
@@ -67,7 +67,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
     BucketDB::Options bucketOpts;
     bucketOpts.dir = FLAGS_db_dir;
     bucketOpts.name = name;
-    bucketOpts.blocktSize = blockSize;
+    bucketOpts.blockSize = blockSize;
     bucketOpts.cached = cached;
     auto bucket = std::make_shared<BucketDB>(bucketOpts);
     columnBuckets[next].emplace(std::make_pair(name, bucket));

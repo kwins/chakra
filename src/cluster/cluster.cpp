@@ -48,6 +48,7 @@ chakra::cluster::Cluster::Cluster() {
         LOG(INFO) << "Cluster init first, peers size:" << this->peers.size();
     }
     startEv();
+    updateClusterState();
     LOG(INFO) << "Cluster listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
 }
 
@@ -440,6 +441,10 @@ void chakra::cluster::Cluster::updateClusterState() {
         newState = STATE_FAIL;
     }
 
+    if (peers.size() < 3){
+        newState = STATE_FAIL;
+    }
+
     if (newState != state) {
         LOG(INFO) << "Cluster state changed FROM " << state << " TO " << newState;
         state = newState;
@@ -579,6 +584,8 @@ void chakra::cluster::Cluster::stateDesc(proto::peer::ClusterState& clusterState
         it.second->stateDesc(*peer);
     }
 }
+
+bool chakra::cluster::Cluster::stateOK() { return state == STATE_OK; }
 
 std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getMyself() { return myself; }
 

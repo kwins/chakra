@@ -13,7 +13,7 @@
 namespace chakra::cmds{
 class CommandReplicaSync : public Command{
 public:
-    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> reply) override;
+    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> cbf) override;
     static utils::Error startBulk(chakra::replica::Link* link, proto::replica::SyncMessageRequest& request);
     ~CommandReplicaSync() override = default;
 };
