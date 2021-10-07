@@ -43,10 +43,10 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
         if (sender->isPfail() || sender->isFail()){
             if (sender->isPfail()){
                 sender->delFlag(cluster::Peer::FLAG_PFAIL);
-                LOG(INFO) << "*** Receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
+                LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
             } else if (sender->isFail()){
                 sender->delFlag(cluster::Peer::FLAG_FAIL);
-                LOG(INFO) << "*** Receive PONG from " << sender->getName() << " remove FAIL flag.";
+                LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() << " remove FAIL flag.";
             }
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }

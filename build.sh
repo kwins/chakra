@@ -10,7 +10,7 @@ init() {
 	mkdir -p build
 }
 build() {
-    COMPILE_ENV=8
+    COMPILE_ENV=16
 	cmake -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .. ${CMAKE_EXTRA_OPTION} \
 	&& make -j${COMPILE_ENV} \
 	&& cp chakra .. \
@@ -24,7 +24,7 @@ build_test () {
 
 run () {
     source /etc/profile && cd "$(dirname $(readlink -f $0))"
-    COMPILE_ENV=8
+    COMPILE_ENV=16
     init
     cd build && build && cd ..
 }

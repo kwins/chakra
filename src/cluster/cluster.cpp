@@ -117,6 +117,7 @@ void chakra::cluster::Cluster::startPeersCron() {
 
 void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
     iteraion++;
+    LOG(INFO) << "cron......1";
     long nowMillSec = utils::Basic::getNowMillSec();
     // 向集群中的所有断线或者未连接节点发送消息
     for(auto it = peers.begin(); it != peers.end();){
@@ -139,18 +140,21 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         if (!peer->connected() && peer->connect()) {
             // 向新节点发送 Meet
             long oldPingSent = peer->getLastPingSend();
-            sendPingOrMeet(peer, proto::types::P_MEET_PEER);
+            auto type = peer->createTimeMs() > 0 ? proto::types::P_PING : proto::types::P_MEET_PEER;
+            sendPingOrMeet(peer, type);
             if (oldPingSent){
                 peer->setLastPingSend(oldPingSent);
             }
-            peer->delFlag(Peer::FLAG_MEET);
+            peer->delFlag(Peer::FLAG_MEET); // whether or not meet message
             LOG(INFO) << "Connecting peer " << peer->getName()
                       << " at " << peer->getIp() << ":" << peer->getPort()
-                      << " success, send handshake message to it.";
+                      << " success, send "
+                      << proto::types::Type_Name(type)
+                      << " message to it.";
         }
         it++;
     }
-
+    LOG(INFO) << "cron......2";
     // 向一个随机节点发送 gossip 信息
     if (!(iteraion % 10)){
         std::shared_ptr<Peer> minPingPeer = nullptr;
@@ -179,6 +183,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         dumpMyselfDBs();
     }
 
+    LOG(INFO) << "cron......3";
     // 遍历所有节点，检查是否需要将某个节点标记为下线
     for(auto & it : peers){
         auto peer = it.second;
@@ -233,6 +238,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         }
     }
 
+    LOG(INFO) << "cron......4";
     /* 检查是否有新的副本上线，触发复制流程 */
     auto replicaptr = chakra::replica::Replica::get();
     for(auto& it : peers){
@@ -253,16 +259,19 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         }
     }
 
+    LOG(INFO) << "cron......5";
     if (FLAG_UPDATE_STATE & cronTodo){
         updateClusterState();
         cronTodo &= ~FLAG_UPDATE_STATE;
     }
 
+    LOG(INFO) << "cron......6";
     if (FLAG_SAVE_CONFIG & cronTodo){
         dumpPeers();
         dumpMyselfDBs();
         cronTodo &= ~FLAG_SAVE_CONFIG;
     }
+    LOG(INFO) << "cron......7";
     startPeersCron();
 }
 

@@ -24,7 +24,7 @@ public:
     struct Link : public chakra::net::Link{
         explicit Link(int sockfd);
         explicit Link(const std::string& ip, int port, const std::shared_ptr<Peer>& peer);
-        static void onPeerRead(ev::io& watcher, int event);
+        void onPeerRead(ev::io& watcher, int event);
         void startEvRead();
         ~Link();
         std::shared_ptr<Peer> reletedPeer;
@@ -110,6 +110,7 @@ private:
     long failTime = 0;
     uint64_t epoch = 0;
     long retryLinkTime = 0; // 首次重试连接peer时间
+//    std::shared_ptr<Peer::Link> link = nullptr;
     Link* link = nullptr;
     std::unordered_map<std::string,std::shared_ptr<FailReport>> failReports{};
 

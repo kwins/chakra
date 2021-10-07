@@ -11,19 +11,20 @@
 
 void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, void *data,
                                                    std::function<utils::Error(char *, size_t)> cbf) {
-    LOG(INFO) << "************ CommandReplicaRecvBulk ******************** start";
     auto link = static_cast<chakra::replica::Link*>(data);
     if (link->getState() != chakra::replica::Link::State::TRANSFOR){
-        LOG(WARNING) << "REPL link state not transfor when recv bulk.";
+        LOG(WARNING) << "replica link state not transfor when recv bulk.";
         return;
     }
+
     link->setLastTransferMs(utils::Basic::getNowMillSec());
     link->setLastInteractionMs(link->getLastTransferMs());
+
     proto::replica::BulkMessage bulkMessage;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, bulkMessage, proto::types::R_BULK);
     if (!err.success()){
-        LOG(ERROR) << "REPL recv bulk deserialize error " << err.toString();
-    } else {
+        LOG(ERROR) << "replica recv bulk deserialize error " << err.toString();
+    } else if (bulkMessage.kvs_size() > 0){
         auto& dbptr = chakra::database::FamilyDB::get();
         rocksdb::WriteBatch batch;
         for(auto& it : bulkMessage.kvs()){
@@ -39,8 +40,5 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
                 link->startPullDelta(); // 触发一次 pull delta
             }
         }
-        LOG(INFO) << "CommandReplicaRecvBulk recv size:" << bulkMessage.kvs().size();
     }
-
-    LOG(INFO) << "************ CommandReplicaRecvBulk ******************** end";
 }

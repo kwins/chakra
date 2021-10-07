@@ -13,7 +13,7 @@
 #include "utils/file_helper.h"
 #include "database/db_family.h"
 #include <rocksdb/db.h>
-
+#include "cluster/cluster.h"
 
 DECLARE_int32(replica_timeout_ms);
 DECLARE_int64(connect_buff_size);
@@ -46,13 +46,15 @@ void chakra::replica::Link::onProcessRecv(ev::io &watcher, int event) {
     auto err = link->conn->receivePack([link](char *req, size_t reqLen) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
-        LOG(INFO) << "-- REPL received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
+        DLOG(INFO) << "-- REPL received message type "
+                   << proto::types::Type_Name(msgType) << ":" << msgType
+                   << " FROM " << link->getPeerName();
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
 
         utils::Error err;
         cmdsptr->execute(req, reqLen, link, [link, &err](char *resp, size_t respLen) {
             proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
-            LOG(INFO) << "  REPL reply message type " << proto::types::Type_Name(respType) << ":" << respType;
+            DLOG(INFO) << "   REPL reply message type " << proto::types::Type_Name(respType) << ":" << respType;
             err = link->conn->send(resp, respLen);
             return err;
         });
@@ -81,19 +83,20 @@ void chakra::replica::Link::replicaEventHandler() {
     auto nowMillSec = utils::Basic::getNowMillSec();
     if ((state == State::CONNECTING || state == State::RECEIVE_PONG)
         && nowMillSec - lastInteractionMs > FLAGS_replica_timeout_ms){
-        LOG(WARNING) << "REPL connecting to primary timeout.";
+        LOG(WARNING) << "REPL connecting to primary " << getPeerName() << " timeout.";
         deConnectPrimary();
     }
 
     if (state == State::TRANSFOR
         && nowMillSec - lastTransferMs > FLAGS_replica_timeout_ms){
-        LOG(WARNING) << "REPL receiving bulk data from PRIMARY... If the problem persists try to set the 'repl-timeout' parameter in naruto.conf to a larger value.";
+        LOG(WARNING) << "REPL receiving bulk data from " << getPeerName() << " timeout..."
+                     << " If the problem persists try to set the 'repl-timeout' parameter in chakra.conf to a larger value.";
         abortTransfer();
     }
 
     if (state == State::CONNECTED
         && nowMillSec -  lastInteractionMs > FLAGS_replica_timeout_ms){
-        LOG(WARNING) <<"REPL timeout no data nor PING received..." << nowMillSec << "-" << lastInteractionMs << ">" << FLAGS_replica_timeout_ms;
+        LOG(WARNING) << "REPL timeout no data nor PING received from " << getPeerName() << "(" << nowMillSec << "-" << lastInteractionMs << ">" << FLAGS_replica_timeout_ms << ")";
         close();
     }
     // 尝试开始连接被复制的服务器
@@ -147,7 +150,6 @@ void chakra::replica::Link::onSendBulk(ev::timer &watcher, int event) {
     }
 
     if (bulkiter->Valid()){
-        LOG(INFO) << "key:" << bulkiter->key().ToString() << " value:" << bulkiter->value().ToString();
         bulkMessage.set_end(false);
         startSendBulk(); // 继续传输
     } else {
@@ -164,7 +166,7 @@ void chakra::replica::Link::onSendBulk(ev::timer &watcher, int event) {
     if (!err.success()){
         LOG(ERROR) << "REPL send bulk message to error " << err.toString();
     } else {
-        LOG(INFO) << "REPL send bulk message size:" << size << " is end:" << bulkMessage.end() << " num:" << num;
+        LOG(INFO) << "REPL send bulk message size " << size << " is end " << bulkMessage.end() << " num " << num;
     }
 }
 
@@ -175,7 +177,6 @@ void chakra::replica::Link::startPullDelta() {
 }
 
 void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
-    auto& dbptr = database::FamilyDB::get();
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     deltaMessageRequest.set_db_name(dbName);
     deltaMessageRequest.set_seq(deltaSeq);
@@ -208,6 +209,7 @@ void chakra::replica::Link::connectPrimary() {
 
     state = State::CONNECTING;
     proto::replica::PingMessage ping;
+    ping.set_sender_name(cluster::Cluster::get()->getMyself()->getName());
     ping.set_db_name(getDbName());
     err = sendMsg(ping, proto::types::R_PING);
     if (!err.success()){
@@ -253,13 +255,13 @@ chakra::utils::Error chakra::replica::Link::tryPartialReSync() {
     } else {
         syncMessageRequest.set_seq(-1);
     }
-    LOG(INFO) << "Try a partial resync from " << syncMessageRequest.DebugString();
+    LOG(INFO) << "REPL try a partial sync request " << syncMessageRequest.DebugString();
     return sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
 nlohmann::json chakra::replica::Link::dumpLink() {
     nlohmann::json j;
-    j["primary"] = primary;
+    j["primary"] = peerName;
     j["db_name"] = dbName;
     j["ip"] = ip;
     j["port"] = port;
@@ -272,9 +274,9 @@ bool chakra::replica::Link::isTimeout() const {
     return (state == State::CONNECT && (now - lastInteractionMs >  FLAGS_replica_timeout_ms));
 }
 
-const std::string &chakra::replica::Link::getPrimaryName() const { return primary; }
+const std::string &chakra::replica::Link::getPeerName() const { return peerName; }
 
-void chakra::replica::Link::setPrimaryName(const std::string &name) { Link::primary = name; }
+void chakra::replica::Link::setPeerName(const std::string &name) { peerName = name; }
 
 chakra::replica::Link::State chakra::replica::Link::getState() const { return state; }
 

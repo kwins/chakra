@@ -8,7 +8,6 @@
 #include "net/packet.h"
 #include "cmds/command_pool.h"
 #include <glog/logging.h>
-#include "replica/replica.h"
 
 const std::string &chakra::cluster::Peer::getName() const { return name; }
 
@@ -76,6 +75,7 @@ bool chakra::cluster::Peer::connected() const {
 
 bool chakra::cluster::Peer::connect() {
     try {
+//        delete link; // 删除之前的 link
         link = new Link(ip, port, shared_from_this());
     } catch (std::exception& e) {
         link = nullptr; // ~Link
@@ -117,8 +117,7 @@ chakra::utils::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & 
 
 void chakra::cluster::Peer::linkFree() {
     if (link) {
-        delete link;
-        link = nullptr;
+        link->close();
     }
 }
 
@@ -187,7 +186,10 @@ std::string chakra::cluster::Peer::desc() {
     return str;
 }
 
-chakra::cluster::Peer::~Peer() { linkFree(); }
+chakra::cluster::Peer::~Peer() {
+    linkFree();
+    delete link;
+}
 
 long chakra::cluster::Peer::getRetryLinkTime() const { return retryLinkTime; }
 
@@ -201,44 +203,42 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 }
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
-    auto link = static_cast<chakra::cluster::Peer::Link*>(watcher.data);
+//    auto link = static_cast<chakra::cluster::Peer::Link*>(watcher.data);
 
-    auto err = link->conn->receivePack([&link](char *req, size_t reqlen) {
+    auto err = conn->receivePack([this](char *req, size_t reqlen) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
-        LOG(INFO) << "-- PEER received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
+        DLOG(INFO) << "-- PEER received message type "
+                   << proto::types::Type_Name(msgType) << ":" << msgType
+                   << " FROM " << (reletedPeer != nullptr ? reletedPeer->getName() : conn->remoteAddr());
+
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
         utils::Error err;
-        cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
+        cmdsptr->execute(req, reqlen, nullptr, [this, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
-            LOG(INFO) << "  PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-            err = link->conn->send(reply, replylen);
+            DLOG(INFO) << "   PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
+            err = conn->send(reply, replylen);
             return err;
         });
         return err;
     });
 
     if (!err.success()){
-        LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.toString();
-        if (link->reletedPeer){ // active
-            link->reletedPeer->linkFree();
-        } else{ // passitive
-            delete link;
-        }
+        LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.toString();
+        close();
+        if (!reletedPeer) delete this; // 这里直接 delete this，因为后面不会再使用到此对象
     }
 }
 
 void chakra::cluster::Peer::Link::startEvRead() {
-    rio.set<&chakra::cluster::Peer::Link::onPeerRead>(this);
+    rio.set<chakra::cluster::Peer::Link, &chakra::cluster::Peer::Link::onPeerRead>(this);
     rio.set(ev::get_default_loop());
     rio.start(conn->fd(), ev::READ);
 }
 
 void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) {
     setEpoch(sender.config_epoch());
-    auto replicaptr = replica::Replica::get();
     for(auto& metadb : sender.meta_dbs()){
-        LOG(INFO) << "sender " << getName() << " set db " << metadb.DebugString();
         updateMetaDB(metadb.name(), metadb);
     }
 }

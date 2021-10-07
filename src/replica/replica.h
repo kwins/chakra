@@ -39,8 +39,6 @@ public:
     
 private:
     uint64_t cronLoops = 0;
-    std::atomic_int index{};
-    size_t numWorker{};
     ev::io replicaio;
     ev::timer cronIO;
     int sfd = -1;

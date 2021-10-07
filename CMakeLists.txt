@@ -3,8 +3,20 @@ include(ExternalProject)
 include(cmake/misc.cmake)
 
 project(chakra)
+add_compile_options(-std=c++17)
 
-add_compile_options(-g -std=c++17)
+SET(CMAKE_BUILD_TYPE "Debug")
+
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -glldb")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    MESSAGE(STATUS "Debug Mode")
+    MESSAGE(STATUS "Flags:" ${CMAKE_CXX_FLAGS_DEBUG})
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    MESSAGE(STATUS "Release Mode")
+    MESSAGE(STATUS "Flags:" ${CMAKE_CXX_FLAGS_RELEASE})
+endif ()
 
 file(GLOB_RECURSE CLIENT_SRC ${CMAKE_SOURCE_DIR}/src/client/*.cpp)
 file(GLOB_RECURSE CLUSTER_SRC ${CMAKE_SOURCE_DIR}/src/cluster/*.cpp)

@@ -10,7 +10,6 @@
 
 void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, void *data,
                                                       std::function<utils::Error(char *resp, size_t respLen)> cbf) {
-    LOG(INFO) << "************ CommandReplicaSyncRequest ************ start";
     proto::replica::SyncMessageResponse syncMessageResponse;
     proto::replica::SyncMessageRequest syncMessageRequest;
     auto link = static_cast<chakra::replica::Link*>(data);
@@ -20,12 +19,10 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
     if (!err.success()) {
         chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else{
-        LOG(INFO) << "CommandReplicaSync message " << syncMessageRequest.DebugString();
-
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
         syncMessageResponse.set_seq(syncMessageRequest.seq());
         if (!syncMessageRequest.db_name().empty() && syncMessageRequest.seq() >= 0){ // 增量同步
-            LOG(INFO) << "CommandReplicaSync execute part sync...";
+            LOG(INFO) << "command replica execute part sync.";
             syncMessageResponse.set_db_name(syncMessageRequest.db_name());
             syncMessageResponse.set_seq(syncMessageRequest.seq());
 
@@ -48,7 +45,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
                 }
             }
         } else if (!syncMessageRequest.db_name().empty() && syncMessageRequest.seq() < 0){ // 全量同步
-            LOG(INFO) << "CommandReplicaSync execute full sync...";
+            LOG(INFO) << "command replica execute full sync.";
             err = link->snapshotBulk(syncMessageRequest.db_name());
             if (!err.success()){
                 chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
@@ -56,11 +53,8 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
                 syncMessageResponse.set_psync_type(proto::types::R_FULLSYNC);
             }
         } else {
-            chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, "Parameter illegal");
+            chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, "parameter illegal");
         }
     }
-
-    LOG(INFO) << "CommandReplicaSync send " << syncMessageResponse.DebugString();
     chakra::net::Packet::serialize(syncMessageResponse, proto::types::R_SYNC_RESPONSE, cbf);
-    LOG(INFO) << "************ CommandReplicaSyncRequest ************ end";
 }

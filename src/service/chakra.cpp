@@ -170,12 +170,14 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
     auto err = link->conn->receivePack([&link](char *req, size_t reqlen) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
-        LOG(INFO) << "-- CLIENT received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
+        DLOG(INFO) << "-- CLIENT received message type "
+                  << proto::types::Type_Name(msgType) << ":" << msgType;
+
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
         utils::Error err;
         cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
-            LOG(INFO) << "  CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
+            DLOG(INFO) << "   CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
             err = link->conn->send(reply, replylen);
             return err;
         });

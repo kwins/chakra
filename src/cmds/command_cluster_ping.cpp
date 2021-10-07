@@ -11,7 +11,6 @@ void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data
     proto::peer::GossipMessage gossip;
     if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PING).success()) return;
 
-//    LOG(INFO) << "Receive ping message " << gossip.DebugString();
     auto clsptr = cluster::Cluster::get();
     std::shared_ptr<cluster::Peer> sender = clsptr->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()){

@@ -15,7 +15,6 @@
 
 #include "command_client_set.h"
 #include "command_client_get.h"
-#include "command_replica_of.h"
 #include "command_replica_heartbeat.h"
 #include "command_replica_delta_pull.h"
 #include "command_replica_delta_recv.h"
@@ -42,7 +41,6 @@ chakra::cmds::CommandPool::CommandPool() {
     regCmd(proto::types::C_GET, std::make_shared<CommandClientGet>());
 
     // replica
-    regCmd(proto::types::R_REPLICA_OF, std::make_shared<CommandReplicaOf>());
     regCmd(proto::types::R_PING, std::make_shared<CommandReplicaPing>());
     regCmd(proto::types::R_PONG, std::make_shared<CommandReplicaPong>());
     regCmd(proto::types::R_HEARTBEAT, std::make_shared<CommandReplicaHeartbeat>());

@@ -73,7 +73,7 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
         options.dir = FLAGS_replica_dir;
         auto link = std::make_shared<chakra::replica::Link>(options);
         link->setRocksSeq(primarys[i].at("delta_seq").get<int64_t>());
-        link->setPrimaryName(primarys[i].at("primary").get<std::string>());
+        link->setPeerName(primarys[i].at("primary").get<std::string>());
         primaryDBLinks.push_back(link);
     }
 
@@ -92,10 +92,12 @@ std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
 // 这样做的方式简化了集群的操作。
 // 如果采用选举的方式，则需要在拿到首次全量后，还要进行各节点之间沟通，获取到首次全量之后的增量位置信息，这增加了复杂度。
 void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
+    LOG(INFO) << "replica cron....1";
     cronLoops++;
     for(auto& link : primaryDBLinks)
         link->replicaEventHandler();
 
+    LOG(INFO) << "replica cron....2";
     auto clusptr = chakra::cluster::Cluster::get();
     std::unordered_map<std::string, std::list<std::shared_ptr<Link>>> replicatings;
     for(auto& link : primaryDBLinks){
@@ -104,6 +106,7 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
         }
     }
 
+    LOG(INFO) << "replica cron....3";
     for(auto& it : replicatings){
         auto peers = clusptr->getPeers(it.first);
         int num = std::count_if(peers.begin(), peers.end(), [](const std::shared_ptr<chakra::cluster::Peer>& peer){
@@ -121,21 +124,23 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
             info.set_state(proto::peer::MetaDB_State_ONLINE);
             clusptr->updateMyselfDB(info);
             LOG(INFO) << "REPL set db " << it.first << " state online.";
-        } else {
-            LOG(INFO) << "db " << it.first << " replica connected num " << num << " link size " << it.second.size() << " info state " << db->second.state();
         }
     }
 
+    LOG(INFO) << "replica cron....4";
     if (cronLoops % 10 == 0)
         dumpLinks();
 
+    LOG(INFO) << "replica cron....5";
     // primary side
     replicaLinks.remove_if([](const Link* link){
 //        if (!link->isTimeout() && link->getState() == Link::State::CONNECTED) link->heartBeat();
         return link->isTimeout();
     });
 
+    LOG(INFO) << "replica cron....6";
     startReplicaCron();
+    LOG(INFO) << "replica cron....7";
 }
 
 int chakra::replica::Replica::replicaSuccDB(const std::string &dbname) {

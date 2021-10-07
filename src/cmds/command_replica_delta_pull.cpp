@@ -11,19 +11,22 @@
 
 void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data,
                                                     std::function<utils::Error(char *resp, size_t respLen)> cbf) {
-    LOG(INFO) << "********** CommandReplicaDeltaPull ********** start";
     auto link = static_cast<replica::Link*>(data);
-    proto::replica::DeltaMessageRequest deltaMessageRequest;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_DELTA_REQUEST).success()) return;
+    link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
-    LOG(INFO) << deltaMessageRequest.DebugString();
+    proto::replica::DeltaMessageRequest deltaMessageRequest;
+    auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_DELTA_REQUEST);
+    if (!err.success()){
+        LOG(ERROR) << "replica delta pull deserialize error " << err.toString();
+        return;
+    }
 
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     deltaMessageResponse.set_db_name(deltaMessageRequest.db_name());
 
     auto& dbptr = database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-    auto err = dbptr.getUpdateSince(deltaMessageRequest.db_name(), deltaMessageRequest.seq(), &iter);
+    err = dbptr.getUpdateSince(deltaMessageRequest.db_name(), deltaMessageRequest.seq(), &iter);
     if (!err.success()){
         chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else {
@@ -42,9 +45,6 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
             iter->Next();
         }
-        LOG(INFO) << "REPL delta pull bytes " << bytes << " start seq=" << deltaMessageRequest.seq() << " end seq=" << seq << " size=" << deltaMessageResponse.seqs_size();
     }
-    link->setLastInteractionMs(utils::Basic::getNowMillSec());
     chakra::net::Packet::serialize(deltaMessageResponse, proto::types::R_DELTA_RESPONSE, cbf);
-    LOG(INFO) << "********** CommandReplicaDeltaPull ********** end";
 }

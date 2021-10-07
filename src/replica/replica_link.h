@@ -66,8 +66,8 @@ public:
 
     nlohmann::json dumpLink();
     bool isTimeout() const;
-    const std::string &getPrimaryName() const;
-    void setPrimaryName(const std::string &name);
+    const std::string &getPeerName() const;
+    void setPeerName(const std::string &name);
     State getState() const;
     const std::string &getIp() const;
     void setIp(const std::string &ip);
@@ -90,10 +90,9 @@ private:
     std::shared_ptr<net::Connect> conn = nullptr;
     ev::io rio;
     ev::timer deltaIO;
-    long cronLoops = 0;
     std::string dir;
     // 同步缓存数据，启动时会从文件加载
-    std::string primary;
+    std::string peerName;
     std::string dbName;
     std::string ip;
     int port = 0;

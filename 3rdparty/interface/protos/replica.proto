@@ -4,13 +4,14 @@ package proto.replica;
 import "types.proto";
 
 message MetaReplica{
-  string dbname = 1;
+  string db_name = 1;
   int64 delta_seq = 2;
   string ip = 3;
-  string primary_name = 4;
+  int64 port = 4;
+  string primary = 5;
 }
 
-message MetaReplicas{
+message ReplicaState{
   repeated MetaReplica replicas = 1;
 }
 
@@ -37,13 +38,13 @@ message SyncMessageResponse{
 }
 
 message PingMessage{
-  string name = 1; // send node name
+  string sender_name = 1; // send node name
   string db_name = 2; // db name
 }
 
 message PongMessage{
   types.Error error = 1;
-  string name = 2; // send node name
+  string sender_name = 2; // send node name
 }
 
 // 截止到某个时间点的全量数据
