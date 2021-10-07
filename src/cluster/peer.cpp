@@ -67,7 +67,7 @@ void chakra::cluster::Peer::removeMetaDB(const std::string &dbname) { dbs.erase(
 
 long chakra::cluster::Peer::createTimeMs() const { return ctime; }
 
-void chakra::cluster::Peer::setCreatTimeMs(long millsec) { this->ctime = millsec; }
+void chakra::cluster::Peer::setCreatTimeMs(long millsec) { ctime = millsec; }
 
 bool chakra::cluster::Peer::connected() const {
     return link != nullptr && link->connected();
@@ -75,13 +75,15 @@ bool chakra::cluster::Peer::connected() const {
 
 bool chakra::cluster::Peer::connect() {
     try {
-//        delete link; // 删除之前的 link
+        delete link; // 删除之前的 link
         link = new Link(ip, port, shared_from_this());
     } catch (std::exception& e) {
         link = nullptr; // ~Link
         if (!retryLinkTime)
             retryLinkTime = utils::Basic::getNowMillSec();
-        LOG(ERROR) << "Connect peer " << getName() << "[" << ip + ":" << port << "] retry time " << retryLinkTime << " error " << e.what();
+        LOG(ERROR) << "Connect peer " << getName()
+                   << "[" << ip + ":" << port << "]"
+                   <<" retry time " << retryLinkTime << " error " << e.what();
         return false;
     }
     retryLinkTime = 0;
@@ -203,8 +205,6 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 }
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
-//    auto link = static_cast<chakra::cluster::Peer::Link*>(watcher.data);
-
     auto err = conn->receivePack([this](char *req, size_t reqlen) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);

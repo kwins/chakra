@@ -10,7 +10,6 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
-#include "rotate_binary_log.h"
 #include "net/connect.h"
 #include <google/protobuf/message.h>
 #include "types.pb.h"

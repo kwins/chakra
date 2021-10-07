@@ -7,7 +7,6 @@
 #include "net/packet.h"
 #include "cmds/command_pool.h"
 #include "utils/basic.h"
-#include "rotate_binary_log.h"
 #include "replica.pb.h"
 #include <chrono>
 #include "utils/file_helper.h"
@@ -307,7 +306,9 @@ int chakra::replica::Link::getPort() const {return port;}
 void chakra::replica::Link::setPort(int port) { Link::port = port; }
 
 void chakra::replica::Link::close() {
+    // 这里一定要把三个 ev io 关闭掉，否则会在下一轮使用无效的 link
     rio.stop();
+    deltaIO.stop();
     transferIO.stop();
     if (conn)
         conn->close();

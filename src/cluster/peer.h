@@ -44,7 +44,8 @@ public:
     const static uint64_t FLAG_HANDSHAKE = (1 << 1);
     const static uint64_t FLAG_MEET = (1 << 2);
     const static uint64_t FLAG_PFAIL = (1 << 3);
-    const static uint64_t FLAG_FAIL = (1 <<4 );
+    const static uint64_t FLAG_FAIL = (1 << 4);
+//    const static uint64_t FLAG_SUCCESS = (1 << 5);
 
 public:
     Peer() = default;

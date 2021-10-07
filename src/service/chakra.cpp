@@ -7,11 +7,11 @@
 #include "net/packet.h"
 #include "cmds/command_pool.h"
 #include <thread>
-#include "cluster/cluster.h"
+//#include "cluster/cluster.h"
 #include <netinet/in.h>
 #include "replica/replica.h"
 #include "net/network.h"
-#include "database/db_family.h"
+//#include "database/db_family.h"
 #include <gflags/gflags.h>
 
 DECLARE_string(server_ip);
@@ -55,7 +55,7 @@ chakra::serv::Chakra::Chakra() {
     // 初始化
     chakra::cluster::Cluster::get(); /* 集群先启动 */
     chakra::database::FamilyDB::get(); /* db 依赖集群数据 */
-    chakra::replica::Replica::get();
+//    chakra::replica::Replica::get();
     // sig
     initLibev();
 }
