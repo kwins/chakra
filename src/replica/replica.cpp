@@ -10,15 +10,17 @@
 #include "net/network.h"
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
+#include "cluster/cluster.h"
 
 DECLARE_int32(cluster_port);
-DEFINE_string(replica_dir, "data", "replica dir");                                          /* NOLINT */
-DEFINE_string(replica_ip, "127.0.0.1", "replica ip");                                       /* NOLINT */
-DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                            /* NOLINT */
-DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                             /* NOLINT */
-DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");     /* NOLINT */
-DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                           /* NOLINT */
-DEFINE_double(replica_pull_delta_interval_sec, 1.0, "replica pull db dalta interval sec");  /* NOLINT */
+DECLARE_string(replica_dir);
+DECLARE_string(replica_ip);
+DECLARE_int32(replica_tcp_back_log);
+DECLARE_int32(replica_timeout_ms);
+DECLARE_double(replica_cron_interval_sec);
+DECLARE_int32(replica_timeout_retry);
+DECLARE_double(replica_delta_pull_interval_sec);
+DECLARE_double(replica_bulk_send_interval_sec);
 
 chakra::replica::Replica::Replica() {
     LOG(INFO) << "Replica init";
@@ -64,8 +66,14 @@ chakra::utils::Error chakra::replica::Replica::loadLinks() {
 
     auto primarys = j.at("replicas");
     for (int i = 0; i < primarys.size(); ++i) {
-        auto link = std::make_shared<chakra::replica::Link>();
-        link->loadLink(primarys[i]);
+        chakra::replica::Link::PositiveOptions options;
+        options.ip = primarys[i].at("ip").get<std::string>();
+        options.port = primarys[i].at("port").get<int>();;
+        options.dbName = primarys[i].at("db_name").get<std::string>();;
+        options.dir = FLAGS_replica_dir;
+        auto link = std::make_shared<chakra::replica::Link>(options);
+        link->setRocksSeq(primarys[i].at("delta_seq").get<int64_t>());
+        link->setPrimaryName(primarys[i].at("primary").get<std::string>());
         primaryDBLinks.push_back(link);
     }
 
@@ -84,10 +92,38 @@ std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
 // 这样做的方式简化了集群的操作。
 // 如果采用选举的方式，则需要在拿到首次全量后，还要进行各节点之间沟通，获取到首次全量之后的增量位置信息，这增加了复杂度。
 void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
-//    LOG(INFO) << "REPL cron...";
     cronLoops++;
+    for(auto& link : primaryDBLinks)
+        link->replicaEventHandler();
+
+    auto clusptr = chakra::cluster::Cluster::get();
+    std::unordered_map<std::string, std::list<std::shared_ptr<Link>>> replicatings;
     for(auto& link : primaryDBLinks){
-        link->replicaEventLoop();
+        if (link->getState() == Link::State::CONNECTED){
+            replicatings[link->getDbName()].push_back(link);
+        }
+    }
+
+    for(auto& it : replicatings){
+        auto peers = clusptr->getPeers(it.first);
+        int num = std::count_if(peers.begin(), peers.end(), [](const std::shared_ptr<chakra::cluster::Peer>& peer){
+            return !peer->isMyself();
+        }); /* 除本节点外 某个db在集群中节点个数 */
+
+        auto dbs = clusptr->getMyself()->getPeerDBs();
+        auto db = dbs.find(it.first);
+        if (db == dbs.end()){
+            LOG(ERROR) << "not found db " << it.first << " in this node. ";
+        } else if(it.second.size() == num
+                  && db->second.state() != proto::peer::MetaDB_State_ONLINE){
+            proto::peer::MetaDB info;
+            info.CopyFrom(db->second);
+            info.set_state(proto::peer::MetaDB_State_ONLINE);
+            clusptr->updateMyselfDB(info);
+            LOG(INFO) << "REPL set db " << it.first << " state online.";
+        } else {
+            LOG(INFO) << "db " << it.first << " replica connected num " << num << " link size " << it.second.size() << " info state " << db->second.state();
+        }
     }
 
     if (cronLoops % 10 == 0)
@@ -102,13 +138,21 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
     startReplicaCron();
 }
 
-bool chakra::replica::Replica::replicated(const std::string &dbname) {
-    for(auto& link : primaryDBLinks){
-        if (link->getDbName() == dbname){
-            return true;
+int chakra::replica::Replica::replicaSuccDB(const std::string &dbname) {
+    int num = 0;
+    std::for_each(primaryDBLinks.begin(), primaryDBLinks.end(), [&num, dbname](const std::shared_ptr<Link>& link){
+        if (link->getDbName() == dbname &&
+            link->getState() == chakra::replica::Link::State::CONNECTED){
+            num++;
         }
-    }
-    return false;
+    });
+    return num;
+}
+
+bool chakra::replica::Replica::replicated(const std::string &dbname, const std::string&ip, int port) {
+    return std::any_of(primaryDBLinks.begin(), primaryDBLinks.end(), [dbname, ip, port](const std::shared_ptr<Link>& link){
+       return link->getDbName() == dbname && ip == link->getIp() && port == link->getPort();
+    });
 }
 
 void chakra::replica::Replica::dumpLinks() {
@@ -128,12 +172,10 @@ void chakra::replica::Replica::dumpLinks() {
 }
 
 void chakra::replica::Replica::setReplicateDB(const std::string &name, const std::string &ip, int port) {
-    chakra::replica::Link::Options options;
+    chakra::replica::Link::PositiveOptions options;
     options.ip = ip;
     options.port = port;
     options.dbName = name;
-//    options.cronInterval = FLAGS_replica_cron_interval_sec;
-//    options.replicaTimeoutMs = FLAGS_replica_timeout_ms;
     options.dir = FLAGS_replica_dir;
     auto link = std::make_shared<chakra::replica::Link>(options);
     primaryDBLinks.push_back(link);
@@ -148,7 +190,7 @@ void chakra::replica::Replica::onAccept(ev::io &watcher, int event) {
         return;
     }
 
-    chakra::replica::Link::Options options;
+    chakra::replica::Link::NegativeOptions options;
     options.sockfd = sockfd;
     options.dir = FLAGS_replica_dir;
     auto link = new Link(options);

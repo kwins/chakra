@@ -4,6 +4,7 @@
 
 #ifndef CHAKRA_CHAKRA_H
 #define CHAKRA_CHAKRA_H
+#include "database/db_family.h"
 #include "cluster/cluster.h"
 #include <ev++.h>
 #include "utils/nocopy.h"
@@ -11,7 +12,6 @@
 #include <mutex>
 #include "replica/replica.h"
 #include <condition_variable>
-#include "database/db_family.h"
 #include "net/link.h"
 
 namespace chakra::serv{

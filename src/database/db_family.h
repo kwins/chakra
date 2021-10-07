@@ -25,10 +25,10 @@ public:
     static FamilyDB& get();
 
     bool servedDB(const std::string& name);
+    utils::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);
     void addDB(const std::string& name, size_t cached);
     void addDB(const std::string& name, size_t blocktSize, size_t blocktCapacity);
     void dropDB(const std::string& name);
-    void dumpDBsFile() const;
     utils::Error restoreDB(const std::string& name);
     RestoreDB getLastRestoreDB();
     utils::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
@@ -45,7 +45,7 @@ public:
     void del(const std::string& name, const std::string& key);
 
     // 写全量rocksDB
-    void put(const std::string& name, rocksdb::WriteBatch& batch);
+    utils::Error put(const std::string& name, rocksdb::WriteBatch& batch);
     ~FamilyDB();
 private:
     using ColumnName = std::string;

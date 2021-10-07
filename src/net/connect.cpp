@@ -14,16 +14,19 @@
 #include "packet.h"
 #include <glog/logging.h>
 
+DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");                 /* NOLINT */
+// TODO: connect flag difine
+
 chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->opts = std::move(opts);
     this->sar = nullptr;
     this->errMsg = "";
     this->lastActive = system_clock::now();
-    this->buf = (char*) malloc(sizeof(char) * opts.bufSize);
-    this->bufSize = opts.bufSize;
+    this->buf = (char*) malloc(sizeof(char) * FLAGS_connect_buff_size);
+    this->bufSize = FLAGS_connect_buff_size;
     this->bufLen = 0;
-    this->bufFree = opts.bufSize;
-    if (opts.fd > 0){
+    this->bufFree = FLAGS_connect_buff_size;
+    if (this->opts.fd > 0){
         this->FD = opts.fd;
         this->state = State::CONNECTED;
     } else{
@@ -60,10 +63,8 @@ chakra::utils::Error chakra::net::Connect::send(const char *data, size_t len) {
 }
 
 chakra::utils::Error chakra::net::Connect::receivePack(const std::function< utils::Error (char* ptr, size_t len)>& process) {
-    LOG(INFO) << "receive buf len " << bufLen << " buff free " << bufFree;
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0){
-        LOG(INFO) << "receive readn 0";
         return setError(ERR_RECEIVE, "connect closed");
     } else if (readn < 0){
         if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR){
@@ -80,7 +81,8 @@ chakra::utils::Error chakra::net::Connect::receivePack(const std::function< util
     }
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
     if ((packSize == 0) || (packSize > 0 && bufLen < packSize)){
-        return utils::Error(utils::Error::ERR_PACK_NOT_ENOUGH, "pack not enough");
+        LOG(WARNING) << "connect recv pack not enough, pack size is " << packSize << " recved is " << bufLen;
+        return utils::Error(); // 这里不返回错误，只是打印日志，下次继续读取
     }
 
     // 处理整个包

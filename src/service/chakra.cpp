@@ -14,11 +14,10 @@
 #include "database/db_family.h"
 #include <gflags/gflags.h>
 
-DEFINE_string(server_ip, "127.0.0.1", "chakra server ip");                                     /* NOLINT */
-DEFINE_int32(server_port, 7290, "chakra server listen port");                                  /* NOLINT */
-DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                           /* NOLINT */
-DEFINE_double(server_cron_interval_sec, 1.0, "chakra server tcp back log");                    /* NOLINT */
-
+DECLARE_string(server_ip);
+DECLARE_int32(server_port);
+DECLARE_int32(server_tcp_backlog);
+DECLARE_double(server_cron_interval_sec);
 
 chakra::serv::Chakra::Chakra() {
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
@@ -54,10 +53,9 @@ chakra::serv::Chakra::Chakra() {
     }
 
     // 初始化
-    chakra::database::FamilyDB::get();
-    chakra::cluster::Cluster::get();
+    chakra::cluster::Cluster::get(); /* 集群先启动 */
+    chakra::database::FamilyDB::get(); /* db 依赖集群数据 */
     chakra::replica::Replica::get();
-
     // sig
     initLibev();
 }

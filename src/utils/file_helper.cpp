@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <glog/logging.h>
 
 size_t chakra::utils::FileHelper::size(const std::string &dir, const std::string &name) {
     std::string filepath;

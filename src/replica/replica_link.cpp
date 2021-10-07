@@ -9,38 +9,48 @@
 #include "utils/basic.h"
 #include "rotate_binary_log.h"
 #include "replica.pb.h"
-#include <thread>
 #include <chrono>
 #include "utils/file_helper.h"
 #include "database/db_family.h"
 #include <rocksdb/db.h>
 
-DECLARE_double(replica_pull_delta_interval_sec);
+
 DECLARE_int32(replica_timeout_ms);
-chakra::replica::Link::Link(chakra::replica::Link::Options options){
-    opts = std::move(options);
-    this->dir = opts.dir;
-    state = State::CONNECT;
-    dbName = opts.dbName;
-    ip = opts.ip;
-    port = opts.port;
-    if (opts.sockfd > 0){
-        conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = opts.sockfd });
-    }
+DECLARE_int64(connect_buff_size);
+DECLARE_double(replica_delta_pull_interval_sec);
+DECLARE_double(replica_bulk_send_interval_sec);
+
+chakra::replica::Link::Link(const chakra::replica::Link::NegativeOptions& options) {
+    setState(State::CONNECT);
+    type = NEGATIVE;
+    dir = options.dir;
+    setLastTransferMs(utils::Basic::getNowMillSec());
+    setLastInteractionMs(utils::Basic::getNowMillSec());
+    conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = options.sockfd });
+    startReplicaRecv();
+}
+
+chakra::replica::Link::Link(const chakra::replica::Link::PositiveOptions& options){
+    setState(State::CONNECT);
+    type = POSITIVE;
+    dir = options.dir;
+    setDbName(options.dbName);
+    setIp(options.ip);
+    setPort(options.port);
+    setLastTransferMs(utils::Basic::getNowMillSec());
+    setLastInteractionMs(utils::Basic::getNowMillSec());
 }
 
 void chakra::replica::Link::onProcessRecv(ev::io &watcher, int event) {
     auto link = static_cast<chakra::replica::Link*>(watcher.data);
-
-    auto err = link->conn->receivePack([&link](char *req, size_t reqLen) {
+    auto err = link->conn->receivePack([link](char *req, size_t reqLen) {
 
         proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
         LOG(INFO) << "-- REPL received message type " << proto::types::Type_Name(msgType) << ":" << msgType;
-
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
 
         utils::Error err;
-        cmdsptr->execute(req, reqLen, link, [&link, &err](char *resp, size_t respLen) {
+        cmdsptr->execute(req, reqLen, link, [link, &err](char *resp, size_t respLen) {
             proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
             LOG(INFO) << "  REPL reply message type " << proto::types::Type_Name(respType) << ":" << respType;
             err = link->conn->send(resp, respLen);
@@ -55,13 +65,19 @@ void chakra::replica::Link::onProcessRecv(ev::io &watcher, int event) {
     }
 }
 
-void chakra::replica::Link::startReplicaRecv() {
-    replior.set<&chakra::replica::Link::onProcessRecv>(this);
-    replior.set(ev::get_default_loop());
-    replior.start(conn->fd(), ev::READ);
+chakra::utils::Error chakra::replica::Link::sendMsg(::google::protobuf::Message &msg, proto::types::Type type) {
+    return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
+        return conn->send(data, len);
+    });
 }
 
-void chakra::replica::Link::replicaEventLoop() {
+void chakra::replica::Link::startReplicaRecv() {
+    rio.set<&chakra::replica::Link::onProcessRecv>(this);
+    rio.set(ev::get_default_loop());
+    rio.start(conn->fd(), ev::READ);
+}
+
+void chakra::replica::Link::replicaEventHandler() {
     auto nowMillSec = utils::Basic::getNowMillSec();
     if ((state == State::CONNECTING || state == State::RECEIVE_PONG)
         && nowMillSec - lastInteractionMs > FLAGS_replica_timeout_ms){
@@ -86,38 +102,56 @@ void chakra::replica::Link::replicaEventLoop() {
     if (state == State::CONNECTED) heartBeat();
 }
 
-void chakra::replica::Link::startSendBulk(rocksdb::Iterator* iter, rocksdb::SequenceNumber seq) {
-    state = State::TRANSFOR;
-    bulkiter = iter;
-    deltaSeq = seq;
-    transferIO.set<chakra::replica::Link, &chakra::replica::Link::onSendBulk>(this);
-    transferIO.set(ev::get_default_loop());
-    transferIO.start(conn->fd(), ev::WRITE);
+chakra::utils::Error chakra::replica::Link::snapshotBulk(const std::string &dbname) {
+    auto& dbptr = chakra::database::FamilyDB::get();
+    rocksdb::SequenceNumber lastSeq;
+    auto err = dbptr.snapshot(dbname, &bulkiter, lastSeq);
+    if (!err.success()){
+        LOG(ERROR) << "REPL create db " << dbname << " snapshot error " << err.toString();
+    } else {
+        LOG(INFO) << "REPL start send bulk seq " << deltaSeq;
+        state = State::TRANSFOR;
+        deltaSeq = lastSeq;
+        bulkiter->SeekToFirst();
+        startSendBulk();
+    }
+    return err;
 }
 
-void chakra::replica::Link::onSendBulk(ev::io &watcher, int event) {
-    LOG(INFO) << "REPL primary send bulk...";
+
+void chakra::replica::Link::startSendBulk() {
+    transferIO.set<chakra::replica::Link, &chakra::replica::Link::onSendBulk>(this);
+    transferIO.set(ev::get_default_loop());
+    transferIO.start(FLAGS_replica_bulk_send_interval_sec);
+}
+
+void chakra::replica::Link::onSendBulk(ev::timer &watcher, int event) {
+    LOG(INFO) << "REPL on send bulk... state:" << (int)state;
     if (state != State::TRANSFOR) return;
 
     int size = 0;
+    int num = 0;
     proto::replica::BulkMessage bulkMessage;
     bulkMessage.set_seq(deltaSeq);
+    bulkMessage.set_db_name(getDbName());
     while (bulkiter->Valid()){
-        if (size > TRANSFER_LEN)
-            break;
-
         size += bulkiter->key().size();
         size += bulkiter->value().size();
+        if (size > BULK_LEN || size > FLAGS_connect_buff_size)
+            break;
         auto data = bulkMessage.mutable_kvs()->Add();
         data->set_key(bulkiter->key().ToString());
         data->set_value(bulkiter->value().ToString());
-
         bulkiter->Next();
+        num++;
     }
 
     if (bulkiter->Valid()){
+        LOG(INFO) << "key:" << bulkiter->key().ToString() << " value:" << bulkiter->value().ToString();
         bulkMessage.set_end(false);
+        startSendBulk(); // 继续传输
     } else {
+        LOG(INFO) << "REPL send bulk finished";
         // 全量发送完成
         bulkMessage.set_end(true);
         transferIO.stop();
@@ -126,25 +160,18 @@ void chakra::replica::Link::onSendBulk(ev::io &watcher, int event) {
         bulkiter = nullptr;
     }
 
-    chakra::net::Packet::serialize(bulkMessage, proto::types::R_BULK, [this](char* req, size_t reqLen){
-        auto err = this->conn->send(req, reqLen);
-        if (!err.success()){
-            LOG(ERROR) << "REPL send bulk message to error " << strerror(errno);
-        }
-        return err;
-    });
-}
-
-void chakra::replica::Link::startRecvBulk() {
-    replior.set<chakra::replica::Link, &chakra::replica::Link::onRecvBulk>(this);
-    replior.set(ev::get_default_loop());
-    replior.start(conn->fd(), ev::READ);
+    auto err = sendMsg(bulkMessage, proto::types::R_BULK);
+    if (!err.success()){
+        LOG(ERROR) << "REPL send bulk message to error " << err.toString();
+    } else {
+        LOG(INFO) << "REPL send bulk message size:" << size << " is end:" << bulkMessage.end() << " num:" << num;
+    }
 }
 
 void chakra::replica::Link::startPullDelta() {
     deltaIO.set<chakra::replica::Link, &chakra::replica::Link::onPullDelta>(this);
     deltaIO.set(ev::get_default_loop());
-    deltaIO.start(FLAGS_replica_pull_delta_interval_sec);
+    deltaIO.start(FLAGS_replica_delta_pull_interval_sec);
 }
 
 void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
@@ -153,130 +180,72 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
     deltaMessageRequest.set_db_name(dbName);
     deltaMessageRequest.set_seq(deltaSeq);
     deltaMessageRequest.set_size(DELTA_LEN);
-    proto::replica::DeltaMessageResponse deltaMessageResponse;
-    sendSyncMsg(deltaMessageRequest, proto::types::R_PULL, deltaMessageResponse);
-    LOG(INFO) << "REPL on pull delta " << dbName << " seq=" << deltaSeq << " size=" << DELTA_LEN << " response:" << deltaMessageResponse.DebugString();
-    if (deltaMessageResponse.error().errcode() != 0){
-        LOG(ERROR) << "REPL pull delta error " << deltaMessageResponse.error().errmsg();
-        return;
-    }
-
-    for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
-        auto& seq = deltaMessageResponse.seqs(i);
-        rocksdb::WriteBatch batch(seq.data());
-        dbptr.put(dbName, batch);
-        deltaSeq = seq.seq();
-    }
-    setLastInteractionMs(utils::Basic::getNowMillSec());
-    startPullDelta();
-}
-
-void chakra::replica::Link::onRecvBulk(ev::io &watcher, int event) {
-    LOG(INFO) << "REPL recv bulk data ...";
-    auto err = conn->receivePack([this](char* data, size_t len){
-        proto::replica::BulkMessage bulkMessage;
-        auto err = chakra::net::Packet::deSerialize(data, len, bulkMessage, proto::types::R_BULK);
-        if (!err.success())
-            return err;
-
-        auto& dbptr = chakra::database::FamilyDB::get();
-        rocksdb::WriteBatch batch;
-        for(auto& it : bulkMessage.kvs()){
-            batch.Put(it.key(), it.value());
-        }
-        dbptr.put(dbName, batch);
-
-        if (bulkMessage.end()){
-            state = State::CONNECTED;
-            deltaSeq = bulkMessage.seq();
-            startPullDelta();
-        }
-        return err;
-    });
-    if (!err.success()) LOG(ERROR) << "REPL pull bulk error " << err.toString();
-}
-
-void chakra::replica::Link::onHandshake(ev::io &watcher, int event) {
-    if (state == State::CONNECTING){
-        LOG(INFO) << "REPL state CONNECTING";
-        state = State::RECEIVE_PONG;
-        repliow.stop();
-
-        proto::replica::PingMessage ping;
-        ping.set_ping_ms(utils::Basic::getNowMillSec());
-        ping.set_my_name("");
-        chakra::net::Packet::serialize(ping, proto::types::R_PING, [this](char* req, size_t reqLen){
-            return conn->send(req, reqLen);
-        });
-        return;
-    }
-
-    if (state == State::RECEIVE_PONG){
-        LOG(INFO) << "REPL state RECEIVE_PONG";
-        replior.stop();
-
-        proto::replica::PongMessage pong;
-        auto err = conn->receivePack([this, &pong](char *resp, size_t respLen) {
-            return chakra::net::Packet::deSerialize(resp, respLen, pong, proto::types::R_PONG);
-        });
-        setLastInteractionMs(utils::Basic::getNowMillSec());
-        if (!err.success() || pong.error().errcode() || !tryPartialReSync()){
-            std::string errmsg;
-            if (!err.success())
-                errmsg = err.toString();
-            if (pong.error().errcode())
-                errmsg = pong.error().errmsg();
-            if (!errmsg.empty())
-                LOG(ERROR) << "REPL recv error " << errmsg;
-            close();
-        }
+    auto err = sendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
+    if (!err.success()){
+        LOG(INFO) << "REPL send delta pull message eror " << err.toString();
+    } else {
+        LOG(INFO) << "REPL send db "
+                  << deltaMessageRequest.db_name() << " seq " << deltaMessageRequest.seq()
+                  << " delta message success.";
     }
 }
 
 void chakra::replica::Link::connectPrimary() {
-    conn = std::make_shared<net::Connect>(
-            net::Connect::Options{ .host = ip, .port = port });
-    auto err = conn->connect();
-    if (!err.success()){
-        LOG(ERROR) << "Link connect to primary " << ip << ":" << ip << " error " << err.toString();
+    LOG(INFO) << "REPL state CONNECTING";
+    if (type != POSITIVE){
+        LOG(ERROR) << "REPL link type is not positive.";
         return;
     }
-    replior.set<chakra::replica::Link, &chakra::replica::Link::onHandshake>(this);
-    replior.set(ev::get_default_loop());
-    replior.start(conn->fd(), ev::READ);
 
-    repliow.set<chakra::replica::Link, &chakra::replica::Link::onHandshake>(this);
-    repliow.set(ev::get_default_loop());
-    repliow.start(conn->fd(), ev::WRITE);
+    conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
+    auto err = conn->connect();
+    if (!err.success()){
+        LOG(ERROR) << "REPL connect primary "
+                   << "[" << ip << ":" << port << "] "
+                   << "error " << err.toString();
+        return;
+    }
 
-    lastTransferMs = utils::Basic::getNowMillSec();
     state = State::CONNECTING;
-    LOG(INFO) << "PRIMASY <-> REPLICA connect success.";
+    proto::replica::PingMessage ping;
+    ping.set_db_name(getDbName());
+    err = sendMsg(ping, proto::types::R_PING);
+    if (!err.success()){
+        LOG(ERROR) << "REPL connect primary "
+                   << ip << ":" << port
+                   << " error " << err.toString();
+    } else {
+        setLastInteractionMs(utils::Basic::getNowMillSec());
+        state = State::RECEIVE_PONG;
+        startReplicaRecv();
+        LOG(INFO) << "REPLICA -> PRIMARY connect success.";
+    }
 }
 
 void chakra::replica::Link::deConnectPrimary() {
     assert(state == State::CONNECTING || state == State::RECEIVE_PONG);
-    replior.stop();
-    repliow.stop();
     state = State::CONNECT;
 }
 
 void chakra::replica::Link::abortTransfer() {
     assert(state == State::TRANSFOR);
-    replior.stop();
     state = State::CONNECT;
 }
 
-void chakra::replica::Link::heartBeat() const {
+void chakra::replica::Link::heartBeat() {
     proto::replica::HeartBeatMessage heart;
     heart.set_heartbeat_ms(utils::Basic::getNowMillSec());
     heart.set_seq(deltaSeq);
-    chakra::net::Packet::serialize(heart, proto::types::R_HEARTBEAT, [this](char* data, size_t len){
-        return conn->send(data, len);
-    });
+    auto err = sendMsg(heart, proto::types::R_HEARTBEAT);
+    if (!err.success()){
+        LOG(ERROR) << "REPL heartbeat error " << err.toString();
+    }
 }
 
-bool chakra::replica::Link::tryPartialReSync() {
+chakra::utils::Error chakra::replica::Link::tryPartialReSync() {
+    if (state != Link::State::RECEIVE_PONG)
+        return utils::Error(utils::Error::ERR_REPLICA_STATE, "partial resync state isn't RECEIVE_PONG");
+
     proto::replica::SyncMessageRequest syncMessageRequest;
     syncMessageRequest.set_db_name(dbName);
     if (deltaSeq > 0){ // 不是第一次同步，尝试从上次结束的地方开始
@@ -284,45 +253,8 @@ bool chakra::replica::Link::tryPartialReSync() {
     } else {
         syncMessageRequest.set_seq(-1);
     }
-
     LOG(INFO) << "Try a partial resync from " << syncMessageRequest.DebugString();
-
-    proto::replica::SyncMessageResponse syncMessageResponse;
-    sendSyncMsg(syncMessageRequest, proto::types::R_PSYNC, syncMessageResponse);
-    if (syncMessageResponse.error().errcode() != 0){
-        LOG(ERROR) << "Unexpected errcode to PSYNC from primary " << syncMessageResponse.error().errmsg();
-        return false;
-    }
-
-    setLastInteractionMs(utils::Basic::getNowMillSec());
-    if (syncMessageResponse.psync_type() == proto::types::R_FULLSYNC){
-        LOG(INFO) << "PRIMARY <-> REPLICATE accepted a FULL sync.";
-        state = State::TRANSFOR;
-        startRecvBulk();
-
-    } else if (syncMessageResponse.psync_type() == proto::types::R_PARTSYNC){
-        LOG(INFO) << "PRIMARY <-> REPLICATE accepted a PART sync.";
-        state = State::CONNECTED;
-        deltaSeq = syncMessageRequest.seq();
-        startPullDelta();
-    } else {
-        LOG(INFO) << "PRIMARY <-> REPLICATE accepted a BAD sync.";
-        return false;
-    }
-    return true;
-}
-
-chakra::utils::Error chakra::replica::Link::sendSyncMsg(google::protobuf::Message &msg, proto::types::Type type,
-                                        google::protobuf::Message &reply) {
-    return chakra::net::Packet::serialize(msg, type, [this, &reply, type](char* req, size_t reqLen){
-        auto err = this->conn->send(req, reqLen);
-        if (!err.success()) return err;
-
-        return this->conn->receivePack([&reply, type](char *resp, size_t respLen) {
-            LOG(INFO) << "sendSyncMsg receive len " << respLen;
-            return chakra::net::Packet::deSerialize(resp, respLen, reply, type);
-        });
-    });
+    return sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
 nlohmann::json chakra::replica::Link::dumpLink() {
@@ -333,24 +265,6 @@ nlohmann::json chakra::replica::Link::dumpLink() {
     j["port"] = port;
     j["delta_seq"] = deltaSeq;
     return j;
-}
-
-void chakra::replica::Link::loadLink(const nlohmann::json &j) {
-    j.at("primary").get_to(primary);
-    j.at("db_name").get_to(dbName);
-    j.at("ip").get_to(ip);
-    j.at("port").get_to(port);
-    j.at("delta_seq").get_to(deltaSeq);
-}
-
-void chakra::replica::Link::close() {
-    replior.stop();
-    repliow.stop();
-    deltaIO.stop();
-    transferIO.stop();
-    if (conn)
-        conn->close();
-    state = State::CONNECT;
 }
 
 bool chakra::replica::Link::isTimeout() const {
@@ -365,8 +279,6 @@ void chakra::replica::Link::setPrimaryName(const std::string &name) { Link::prim
 chakra::replica::Link::State chakra::replica::Link::getState() const { return state; }
 
 void chakra::replica::Link::setState(chakra::replica::Link::State st) { Link::state = st; }
-
-const chakra::replica::Link::Options &chakra::replica::Link::getOpts() { return opts; }
 
 const std::string &chakra::replica::Link::getDbName() const { return dbName; }
 
@@ -391,3 +303,17 @@ void chakra::replica::Link::setIp(const std::string &ip) {Link::ip = ip; }
 int chakra::replica::Link::getPort() const {return port;}
 
 void chakra::replica::Link::setPort(int port) { Link::port = port; }
+
+void chakra::replica::Link::close() {
+    rio.stop();
+    transferIO.stop();
+    if (conn)
+        conn->close();
+    state = State::CONNECT;
+}
+
+chakra::replica::Link::~Link() {
+    delete bulkiter;
+    if (conn) conn = nullptr;
+    if (bulkiter) bulkiter = nullptr;
+}

@@ -11,16 +11,19 @@
 #include "command_cluster_fail.h"
 #include "command_cluster_set_db.h"
 #include "command_cluster_set_epoch.h"
-#include "command_cluster_update_db.h"
 #include "command_cluster_state.h"
 
 #include "command_client_set.h"
 #include "command_client_get.h"
 #include "command_replica_of.h"
 #include "command_replica_heartbeat.h"
-#include "command_replica_pull.h"
-#include "command_replica_sync.h"
+#include "command_replica_delta_pull.h"
+#include "command_replica_delta_recv.h"
 #include "command_replica_ping.h"
+#include "command_replica_pong.h"
+#include "command_replica_sync_request.h"
+#include "command_replica_sync_response.h"
+#include "command_replica_recv_bulk.h"
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
@@ -41,9 +44,13 @@ chakra::cmds::CommandPool::CommandPool() {
     // replica
     regCmd(proto::types::R_REPLICA_OF, std::make_shared<CommandReplicaOf>());
     regCmd(proto::types::R_PING, std::make_shared<CommandReplicaPing>());
+    regCmd(proto::types::R_PONG, std::make_shared<CommandReplicaPong>());
     regCmd(proto::types::R_HEARTBEAT, std::make_shared<CommandReplicaHeartbeat>());
-    regCmd(proto::types::R_PULL, std::make_shared<CommandReplicaPull>());
-    regCmd(proto::types::R_PSYNC, std::make_shared<CommandReplicaSync>());
+    regCmd(proto::types::R_DELTA_REQUEST, std::make_shared<CommandReplicaDeltaPull>());
+    regCmd(proto::types::R_DELTA_RESPONSE, std::make_shared<CommandReplicaDeltaRecv>());
+    regCmd(proto::types::R_BULK, std::make_shared<CommandReplicaRecvBulk>());
+    regCmd(proto::types::R_SYNC_REQUEST, std::make_shared<CommandReplicaSyncRequest>());
+    regCmd(proto::types::R_SYNC_RESPONSE, std::make_shared<CommandReplicaSyncResponse>());
 }
 
 void chakra::cmds::CommandPool::regCmd(proto::types::Type type, std::shared_ptr<Command> cmd) { cmds.emplace(type, cmd); }

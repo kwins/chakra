@@ -25,12 +25,14 @@ enum Type{
   R_PONG              = 3002;
   R_FULLSYNC          = 3003;         // 请求复制返回全量同步
   R_PARTSYNC          = 3004;         // 请求复制返回部分同步
-  R_PSYNC             = 3005;         // 请求复制
+  R_SYNC_REQUEST      = 3005;         // 请求复制
   R_REPLICA_OF        = 3006;         // 发起复制请求
   R_REPLICA_INCR      = 3007;         // 处理增量命令
   R_HEARTBEAT         = 3008;         // replicator 心跳
-  R_PULL              = 3009;         // 拉取增量数据
+  R_DELTA_REQUEST     = 3009;         // 拉取增量数据请求
   R_BULK              = 3010;         // 发送全量数据块
+  R_SYNC_RESPONSE     = 3011;         // 请求复制应答
+  R_DELTA_RESPONSE    = 3012;         // 拉取增量数据应答
 }
 
 message Error{

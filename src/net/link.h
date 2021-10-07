@@ -16,9 +16,7 @@ public:
     explicit Link(const std::string& ip, int port);
     explicit Link(int sockfd);
     utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
-    utils::Error sendSyncMsg(::google::protobuf::Message& request,
-                             proto::types::Type type, ::google::protobuf::Message& response);
-    bool connected();
+    bool connected() const;
     void close();
     ~Link();
 

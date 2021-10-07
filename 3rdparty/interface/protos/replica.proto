@@ -3,6 +3,17 @@ package proto.replica;
 
 import "types.proto";
 
+message MetaReplica{
+  string dbname = 1;
+  int64 delta_seq = 2;
+  string ip = 3;
+  string primary_name = 4;
+}
+
+message MetaReplicas{
+  repeated MetaReplica replicas = 1;
+}
+
 message ReplicaOfRequest{
   string db_name = 1;
   bool force = 2; // 如果之前正在复制，则断开之前的复制，强制新的
@@ -26,25 +37,25 @@ message SyncMessageResponse{
 }
 
 message PingMessage{
-  int64 ping_ms = 1;
-  string my_name = 2;
+  string name = 1; // send node name
+  string db_name = 2; // db name
 }
 
 message PongMessage{
   types.Error error = 1;
-  int64 pong_ms = 2;
-  string my_name = 3;
+  string name = 2; // send node name
 }
 
 // 截止到某个时间点的全量数据
 message BulkMessage{
   message Data{
     string key = 1;
-    string value = 2;
+    bytes value = 2;
   }
   bool end = 1; // true 代表是最后一个 alpha 消息
   int64 seq = 2; // snapshot 对应的 last seq
   repeated Data kvs = 3;
+  string db_name = 4;
 }
 
 message DeltaMessageRequest{
@@ -60,7 +71,7 @@ message DeltaMessageResponse{
     bytes data = 2; // 序列化后的数据，已经包含了 key value信息
   }
   types.Error error = 1;
-  string name = 2; // db name
+  string db_name = 2; // db name
   repeated Sequence seqs = 3;
 }
 

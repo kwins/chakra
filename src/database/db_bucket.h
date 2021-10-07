@@ -6,7 +6,6 @@
 #define CHAKRA_DB_BUCKET_H
 #include <rocksdb/db.h>
 #include <vector>
-
 #include "db_block.h"
 #include "utils/error.h"
 #include <nlohmann/json.hpp>
@@ -17,41 +16,19 @@ namespace chakra::database{
 
 class BucketDB :public rocksdb::WriteBatch::Handler{
 public:
-    const static uint64_t FLAG_NF = 0;
-    const static uint64_t FLAG_WRITE = (1 << 0);
-    const static uint64_t FLAG_READ = (1 << 2);
-
-    struct Options{
-        std::string name;
-        std::string dir;
-        size_t blockSize = 0;
-        size_t cached = 0;
-        uint64_t flag = FLAG_NF;
-        long dbWALTTLSeconds = 86400;
-        friend std::ostream& operator<<(std::ostream& out, const BucketDB::Options& options){
-            out << "name:" << options.name
-                << " dir:" << options.dir
-                << " blockSize:" << options.blockSize
-                << " cached:" << options.cached
-                << " flag:" << options.flag
-                << " dbWALTTLSeconds:" << options.dbWALTTLSeconds;
-            return out;
-        }
-    };
-
     struct RestoreDB{
         rocksdb::SequenceNumber seq;
         std::string filepath;
     };
 public:
-    explicit BucketDB(Options options);
+    explicit BucketDB(const proto::peer::MetaDB& meta);
     size_t size();
-    void dumpDB(proto::peer::MetaDB& metaDb) const;
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
-    void put(rocksdb::WriteBatch &batch);
+    utils::Error put(rocksdb::WriteBatch &batch);
     void del(const std::string& key, bool dbdel = true);
 
+    proto::peer::MetaDB getMetaDB(const std::string& dbname);
     utils::Error restoreDB();
     RestoreDB getLastRestoreDB();
     utils::Error getUpdateSince(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
@@ -66,7 +43,8 @@ private:
     void Put(const rocksdb::Slice &key, const rocksdb::Slice &value) override;
     void Delete(const rocksdb::Slice &key) override;
 
-    Options opts = {};
+//    Options opts = {};
+    proto::peer::MetaDB metaDB;
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
     std::shared_ptr<rocksdb::DB> dbptr = nullptr;                     // 全量

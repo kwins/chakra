@@ -17,15 +17,20 @@ void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, voi
     if (!err.success()){
         chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else {
-        auto myself = cluster::Cluster::get()->getMyself();
-        if (epochSetMessageRequest.epoch() < 0){
-            chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "Invalid config epoch specified:" + std::to_string(epochSetMessageRequest.epoch()));
-        } else if (cluster::Cluster::get()->size() > 1){
-            chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "The user can assign a config epoch only when the peer does not know any other node.");
-        } else if (myself->getEpoch() != 0){
-            chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "Peer config epoch is already non-zero");
+        auto clsptr = cluster::Cluster::get();
+        if (epochSetMessageRequest.increasing()){
+            clsptr->increasingMyselfEpoch();
         } else {
-            myself->setEpoch(epochSetMessageRequest.epoch());
+            if (epochSetMessageRequest.epoch() < 0){
+                chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "invalid epoch specified");
+            } else if (cluster::Cluster::get()->size() > 1 && !epochSetMessageRequest.increasing()){
+                chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "the user can assign a config epoch only when the peer does not know any other node.");
+            } else if (clsptr->getMyself()->getEpoch() != 0){
+                chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, "peer config epoch is already non-zero");
+            } else {
+                clsptr->getMyself()->setEpoch(epochSetMessageRequest.epoch());
+                clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+            }
         }
     }
     chakra::net::Packet::serialize(epochSetMessageResponse, proto::types::P_SET_EPOCH, cbf);

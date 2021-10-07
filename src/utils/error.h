@@ -31,6 +31,9 @@ public:
     const static int ERR_FILE_RENAME = 7;
     const static int ERR_FILE_CREATE = 8;
     const static int ERR_COMMAND_NOT_FOUND = 9;
+    const static int ERR_REPLICA_STATE = 10;
+    const static int ERR_DB_NOT_FOUND = 11;
+    const static int ERR_DB_ITERATOR = 12;
     const static int ERR_ERRNO = 999;
 private:
     int code;

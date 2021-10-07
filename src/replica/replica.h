@@ -33,7 +33,8 @@ public:
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpLinks();
-    bool replicated(const std::string& dbname);
+    bool replicated(const std::string& dbname, const std::string&ip, int port);
+    int replicaSuccDB(const std::string& dbname); // 复制DB状态正常的个数
     void stop();
     
 private:
@@ -45,7 +46,6 @@ private:
     int sfd = -1;
     // 复制的主节点链表
     std::list<std::shared_ptr<Link>> primaryDBLinks;
-
     // 请求复制的连接列表
     std::list<Link*> replicaLinks;
     static const std::string REPLICA_FILE_NAME;

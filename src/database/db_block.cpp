@@ -63,6 +63,3 @@ size_t chakra::database::BlockDB::size() {
     size_t num = elements.size();
     return num;
 }
-
-//chakra::database::BlockDB::~BlockDB() {
-//}

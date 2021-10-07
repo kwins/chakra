@@ -28,7 +28,6 @@ public:
     struct Options{
         std::string host;
         int port = 7290;
-        int bufSize = (1024 * 4);
         milliseconds connectTimeOut { 100 };
         milliseconds readTimeOut { 100 };
         milliseconds writeTimeOut { 100 };

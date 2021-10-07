@@ -39,13 +39,6 @@ public:
         long time;
     };
 
-    struct DB{
-        std::string name;
-        bool memory;
-        int shard;
-        int shardSize;
-        long cached;
-    };
     const static uint64_t FLAG_NF = 0;
     const static uint64_t FLAG_MYSELF = (1 << 0);
     const static uint64_t FLAG_HANDSHAKE = (1 << 1);
@@ -68,22 +61,21 @@ public:
     void setFlag(uint64_t fg);
     void delFlag(uint64_t fd);
     long getFailTime() const;
-    void setFailTime(long failTime);
+    void setFailTime(long failtime);
     long getRetryLinkTime() const;
     void setRetryLinkTime(long timeMs);
-    void setDB(const std::string& name, const DB& st);
-    void removeDB(const std::string& name);
-    bool servedDB(const std::string& name);
-    const std::unordered_map<std::string, DB>& getPeerDBs() const;
+    void updateMetaDB(const std::string& dbname, const proto::peer::MetaDB& st);
+    void removeMetaDB(const std::string& dbname);
+    bool servedDB(const std::string& dbname);
+    const std::unordered_map<std::string, proto::peer::MetaDB>& getPeerDBs() const;
 
     long getLastPingSend() const;
     void setLastPingSend(long lastPingSend);
     long getLastPongRecv() const;
     void setLastPongRecv(long lastPongRecv);
-    long createTimeMs();
+    long createTimeMs() const;
     void setCreatTimeMs(long millsec);
     void dumpPeer(proto::peer::PeerState& peerState);
-
     bool isMyself() const;
     static bool isMyself(uint64_t flag);
     bool isHandShake() const;
@@ -104,8 +96,6 @@ public:
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
     utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
-    utils::Error sendSyncMsg(::google::protobuf::Message& request,
-                             proto::types::Type type, ::google::protobuf::Message& response);
     void stateDesc(proto::peer::PeerState& peerState);
     ~Peer();
 private:
@@ -124,7 +114,7 @@ private:
     std::unordered_map<std::string,std::shared_ptr<FailReport>> failReports{};
 
     // <db name,db info>
-    std::unordered_map<std::string, DB> dbs{};
+    std::unordered_map<std::string, proto::peer::MetaDB> dbs{};
     long last_ping_send = 0;
     long last_pong_recv = 0;
 };

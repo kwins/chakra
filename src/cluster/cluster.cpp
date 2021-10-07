@@ -14,15 +14,17 @@
 #include <random>
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
+#include "database/db_family.h"
+#include "replica/replica.h"
 
-DEFINE_string(cluster_dir, "data", "cluster dir");                                              /* NOLINT */
-DEFINE_string(cluster_ip, "127.0.0.1", "cluster ip");                                           /* NOLINT */
-DEFINE_int32(cluster_port, 7291, "cluster port");                                               /* NOLINT */
-DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");              /* NOLINT */
-DEFINE_int32(cluster_peer_timeout_ms, 10000, "cluster peer timeout ms");                        /* NOLINT */
-DEFINE_int32(cluster_peer_link_retry_timeout_ms, 10000, "cluster peer link retry timeout ms");  /* NOLINT */
-DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");                     /* NOLINT */
-DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                                /* NOLINT */
+DECLARE_string(cluster_dir);
+DECLARE_string(cluster_ip);
+DECLARE_int32(cluster_port);
+DECLARE_int32(cluster_handshake_timeout_ms);
+DECLARE_int32(cluster_peer_timeout_ms);
+DECLARE_int32(cluster_peer_link_retry_timeout_ms);
+DECLARE_double(cluster_cron_interval_sec);
+DECLARE_int32(cluster_tcp_back_log);
 
 chakra::cluster::Cluster::Cluster() {
     LOG(INFO) << "Cluster init dir " << FLAGS_cluster_dir;
@@ -49,11 +51,13 @@ chakra::cluster::Cluster::Cluster() {
     }
     startEv();
     updateClusterState();
+    dumpMyselfDBs();
     LOG(INFO) << "Cluster listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
 }
 
 chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
     std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
+    LOG(INFO) << "filename " << filename;
     proto::peer::ClusterState clusterState;
     auto err = utils::FileHelper::loadFile(filename, clusterState);
     if (!err.success()) return err;
@@ -74,14 +78,9 @@ chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
         peer->setPort(info.port());
         peer->setEpoch(info.epoch());
         peer->setFlag(info.flag());
+
         for(auto& dbinfo : info.dbs()){
-            Peer::DB db;
-            db.name = dbinfo.name();
-            db.memory = dbinfo.memory();
-            db.shard = dbinfo.shard();
-            db.shardSize = dbinfo.shard_size();
-            db.cached = dbinfo.cached();
-            peer->setDB(db.name, db);
+            peer->updateMetaDB(dbinfo.name(), dbinfo);
         }
 
         peers.emplace(info.name(), peer);
@@ -173,6 +172,11 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
             LOG(INFO) << "Find min pong peer " << minPingPeer->getName() << ":" << minPingPeer->getLastPongRecv() << ", Try to send PING.";
             sendPingOrMeet(minPingPeer, proto::types::P_PING);
         }
+
+        /* 定时一段时间保存集群信息 */
+        updateClusterState();
+        dumpPeers();
+        dumpMyselfDBs();
     }
 
     // 遍历所有节点，检查是否需要将某个节点标记为下线
@@ -229,14 +233,35 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         }
     }
 
+    /* 检查是否有新的副本上线，触发复制流程 */
+    auto replicaptr = chakra::replica::Replica::get();
+    for(auto& it : peers){
+        auto& peer = it.second;
+        if (peer->isMyself()) continue;
+        for(auto& db : peer->getPeerDBs()){
+            auto& metaDB = db.second;
+            if (myself->servedDB(metaDB.name())  /* 当前节点处理正在处理这个db */
+                && metaDB.state() == proto::peer::MetaDB_State_ONLINE /* db 处于 online 状态*/
+                && !replicaptr->replicated(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
+                // 在多主的集群中，当某个db增加一个副本时
+                // 当前副本的所有节点需要立刻复制新增的副本节点，以保证db的最终的一致性
+                replicaptr->setReplicateDB(metaDB.name(), peer->getIp(), peer->getPort() + 1);
+                LOG(INFO) << "Cluster add db " << metaDB.name() << " new copy, starting replicate from("
+                          << peer->getIp() << ":" << (peer->getPort() + 1)
+                          << ").";
+            }
+        }
+    }
+
     if (FLAG_UPDATE_STATE & cronTodo){
         updateClusterState();
         cronTodo &= ~FLAG_UPDATE_STATE;
     }
 
     if (FLAG_SAVE_CONFIG & cronTodo){
-        if(dumpPeers())
-            cronTodo &= ~FLAG_SAVE_CONFIG;
+        dumpPeers();
+        dumpMyselfDBs();
+        cronTodo &= ~FLAG_SAVE_CONFIG;
     }
     startPeersCron();
 }
@@ -289,12 +314,26 @@ bool chakra::cluster::Cluster::dumpPeers() {
 
     auto err = utils::FileHelper::saveFile(clusterState, filename);
     if (!err.success()){
-        LOG(ERROR) << "Cluster dump dbs error " << strerror(errno);
-    }
-    else {
-        LOG(INFO) << "Cluster dump dbs to filename " << filename << " success.";
+        LOG(ERROR) << "Cluster dump peers error " << err.toString();
+    }else {
+        LOG(INFO) << "Cluster dump peers to filename " << filename << " success.";
     }
     return true;
+}
+
+void chakra::cluster::Cluster::dumpMyselfDBs() {
+    std::string filename = FLAGS_cluster_dir + "/dbs.json";
+    proto::peer::MetaDBs metaDBs;
+    for(auto& it : myself->getPeerDBs()){
+        auto db = metaDBs.mutable_dbs()->Add();
+        db->CopyFrom(it.second);
+    }
+    auto err = utils::FileHelper::saveFile(metaDBs, filename);
+    if (!err.success()){
+        LOG(ERROR) << "Cluster dump myself dbs error " << err.toString();
+    } else {
+        LOG(INFO) << "Cluster dump myself dbs to filename " << filename << " success.";
+    }
 }
 
 int chakra::cluster::Cluster::getCurrentEpoch() const { return currentEpoch; }
@@ -325,12 +364,9 @@ void chakra::cluster::Cluster::buildGossipSeader(proto::peer::GossipSender *send
     sender->set_state(getState());
 
     for(auto& it : myself->getPeerDBs()){
-        auto slot =  sender->mutable_meta_dbs()->Add();
-        slot->set_name(it.second.name);
-        slot->set_shard(it.second.shard);
-        slot->set_shard_size(it.second.shardSize);
-        slot->set_cached(it.second.cached);
-        slot->set_memory(it.second.memory);
+        auto info = it.second;
+        auto db = sender->mutable_meta_dbs()->Add();
+        db->CopyFrom(it.second);
     }
 }
 
@@ -342,7 +378,6 @@ void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &go
     int gossipcount = 0;
     while (freshnodes > 0 && gossipcount < 3){
         auto randPeer = randomPeer();
-//        LOG(INFO) << "## random name "<< randPeer->getName() << " condition=" << (!randPeer->connected() && randPeer->getPeerDBs().empty() && !randPeer->isPfail() && !randPeer->isFail());
         if (randPeer == myself
             || randPeer->isHandShake()
             || (!randPeer->connected() && randPeer->getPeerDBs().empty() && !randPeer->isPfail() && !randPeer->isFail())){
@@ -370,11 +405,7 @@ void chakra::cluster::Cluster::buildGossipMessage(proto::peer::GossipMessage &go
         gossipPeer->set_flag(randPeer->getFg());
         for(auto& it : randPeer->getPeerDBs()){
             auto db = gossipPeer->mutable_meta_dbs()->Add();
-            db->set_name(it.second.name);
-            db->set_shard(it.second.shard);
-            db->set_shard_size(it.second.shardSize);
-            db->set_cached(it.second.cached);
-            db->set_memory(it.second.memory);
+            db->CopyFrom(it.second);
         }
         gossipcount++;
     }
@@ -519,7 +550,7 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
             if (sender){
                 addPeer(gsp.peers(i).ip(), gsp.peers(i).port());
                 setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
-                LOG(INFO) << "Gossip message ADD peer " << gsp.peers(i).peer_name() << "[" + gsp.peers(i).ip() + ":" << gsp.peers(i).port() << "]";
+                LOG(INFO) << "Gossip message add peer " << gsp.peers(i).peer_name() << "[" + gsp.peers(i).ip() + ":" << gsp.peers(i).port() << "]";
             }
         }
     }
@@ -585,7 +616,30 @@ void chakra::cluster::Cluster::stateDesc(proto::peer::ClusterState& clusterState
     }
 }
 
-bool chakra::cluster::Cluster::stateOK() { return state == STATE_OK; }
+bool chakra::cluster::Cluster::stateOK() const { return state == STATE_OK; }
+
+void chakra::cluster::Cluster::setMyselfDB(const proto::peer::MetaDB &metaDB) {
+    auto& dbptr = chakra::database::FamilyDB::get();
+    dbptr.addDB(metaDB.name(), metaDB.cached());
+    updateMyselfDB(metaDB);
+}
+
+void chakra::cluster::Cluster::updateMyselfDB(const proto::peer::MetaDB &metaDB) {
+    getMyself()->updateMetaDB(metaDB.name(), metaDB);
+
+    increasingMyselfEpoch();
+}
+
+void chakra::cluster::Cluster::increasingMyselfEpoch() {
+    int maxEpoch = getMaxEpoch();
+    if (maxEpoch >= getCurrentEpoch()){
+        setCurrentEpoch(maxEpoch + 1);
+    } else {
+        setCurrentEpoch(getCurrentEpoch() + 1);
+    }
+    getMyself()->setEpoch(maxEpoch + 1);
+    setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+}
 
 std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getMyself() { return myself; }
 

@@ -16,10 +16,17 @@ message MeetMessageResponse{
 message MetaDB{
     string name = 1;
     bool memory = 2;
-    int32 shard = 3;
-    int32 shard_size = 4;
-    int32 cached = 5;
-    int32 flag = 6;
+    int32 cached = 3;
+    enum State{
+        INIT = 0;
+        ONLINE = 1;
+        OFFLINE = 2;
+    }
+    State state = 4;
+}
+
+message MetaDBs{
+    repeated MetaDB dbs = 1;
 }
 
 message PeerState{
@@ -84,6 +91,7 @@ message DBMessage{
 
 message EpochSetMessageRequest{
     int64 epoch = 1;
+    bool increasing = 2; // 如果此项为true则epoch不生效
 }
 
 message EpochSetMessageResponse{
@@ -105,8 +113,4 @@ message StateMessageRequest{
 message StateMessageResponse{
     types.Error error = 1;
     ClusterState state = 2;
-}
-
-message DBState{
-    repeated MetaDB dbs = 1;
 }

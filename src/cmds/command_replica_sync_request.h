@@ -2,8 +2,8 @@
 // Created by 王振奎 on 2021/7/11.
 //
 
-#ifndef CHAKRA_COMMAND_REPLICA_SYNC_H
-#define CHAKRA_COMMAND_REPLICA_SYNC_H
+#ifndef CHAKRA_COMMAND_REPLICA_SYNC_REQUEST_H
+#define CHAKRA_COMMAND_REPLICA_SYNC_REQUEST_H
 
 #include "command.h"
 #include "replica.pb.h"
@@ -11,15 +11,14 @@
 #include "replica/replica_link.h"
 
 namespace chakra::cmds{
-class CommandReplicaSync : public Command{
+class CommandReplicaSyncRequest : public Command{
 public:
     void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> cbf) override;
-    static utils::Error startBulk(chakra::replica::Link* link, proto::replica::SyncMessageRequest& request);
-    ~CommandReplicaSync() override = default;
+    ~CommandReplicaSyncRequest() override = default;
 };
 }
 
 
 
 
-#endif //CHAKRA_COMMAND_REPLICA_SYNC_H
+#endif //CHAKRA_COMMAND_REPLICA_SYNC_REQUEST_H

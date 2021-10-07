@@ -12,11 +12,19 @@ void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data
                                                std::function<utils::Error(char *, size_t)> cbf) {
 
     auto link = static_cast<replica::Link*>(data);
-
-    // 回复Pong
     proto::replica::PongMessage pongMessage;
-    pongMessage.set_pong_ms(utils::Basic::getNowMillSec());
-    pongMessage.set_my_name("");
-    link->setLastInteractionMs(pongMessage.pong_ms());
+    proto::replica::PingMessage pingMessage;
+    auto err = chakra::net::Packet::deSerialize(req, len, pingMessage, proto::types::R_PING);
+    if (!err.success()){
+        chakra::net::Packet::fillError(pongMessage.mutable_error(), err.getCode(), err.getMsg());
+    } else if (pingMessage.db_name().empty()){
+        chakra::net::Packet::fillError(pongMessage.mutable_error(), 1, "replica dbname is empty.");
+    }else {
+        LOG(INFO) << "CommandReplicaPing message " << pingMessage.DebugString();
+        // 回复Pong
+        pongMessage.set_name("");
+        link->setDbName(pingMessage.db_name());
+        link->setLastInteractionMs(utils::Basic::getNowMillSec());
+    }
     chakra::net::Packet::serialize(pongMessage, proto::types::R_PONG, cbf);
 }

@@ -62,11 +62,11 @@ bool chakra::cluster::Peer::isFail(uint64_t flag) {
     return flag & FLAG_FAIL;
 }
 
-void chakra::cluster::Peer::setDB(const std::string &name, const chakra::cluster::Peer::DB &st) { dbs[name] = st; }
+void chakra::cluster::Peer::updateMetaDB(const std::string &dbname, const proto::peer::MetaDB &st) { dbs[dbname] = st; }
 
-void chakra::cluster::Peer::removeDB(const std::string &name) { dbs.erase(name); }
+void chakra::cluster::Peer::removeMetaDB(const std::string &dbname) { dbs.erase(dbname); }
 
-long chakra::cluster::Peer::createTimeMs() { return ctime; }
+long chakra::cluster::Peer::createTimeMs() const { return ctime; }
 
 void chakra::cluster::Peer::setCreatTimeMs(long millsec) { this->ctime = millsec; }
 
@@ -89,7 +89,7 @@ bool chakra::cluster::Peer::connect() {
     return true;
 }
 
-const std::unordered_map<std::string, chakra::cluster::Peer::DB> &chakra::cluster::Peer::getPeerDBs() const { return dbs; }
+const std::unordered_map<std::string, proto::peer::MetaDB> &chakra::cluster::Peer::getPeerDBs() const { return dbs; }
 
 void chakra::cluster::Peer::dumpPeer(proto::peer::PeerState& peerState) {
     peerState.set_name(name);
@@ -99,11 +99,7 @@ void chakra::cluster::Peer::dumpPeer(proto::peer::PeerState& peerState) {
     peerState.set_flag(fg);
     for (auto& it : dbs){
         auto db = peerState.mutable_dbs()->Add();
-        db->set_name(it.second.name);
-        db->set_memory(it.second.memory);
-        db->set_shard(it.second.shard);
-        db->set_shard_size(it.second.shardSize);
-        db->set_cached(it.second.cached);
+        db->CopyFrom(it.second);
     }
 }
 
@@ -117,11 +113,6 @@ void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv 
 
 chakra::utils::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
     return link->sendMsg(msg, type);
-}
-
-chakra::utils::Error chakra::cluster::Peer::sendSyncMsg(google::protobuf::Message &request, proto::types::Type type,
-                                                        google::protobuf::Message &response) {
-    return link->sendSyncMsg(request, type, response);
 }
 
 void chakra::cluster::Peer::linkFree() {
@@ -165,11 +156,17 @@ size_t chakra::cluster::Peer::cleanFailReport(long timeOutMillSec) {
     return failReports.size();
 }
 
-bool chakra::cluster::Peer::servedDB(const std::string &name) { return dbs.count(name) > 0; }
+bool chakra::cluster::Peer::servedDB(const std::string &dbname) {
+    auto it = dbs.find(dbname);
+    if (it != dbs.end() && it->second.state() == proto::peer::MetaDB_State_ONLINE){
+        return true;
+    }
+    return false;
+}
 
 long chakra::cluster::Peer::getFailTime() const { return failTime; }
 
-void chakra::cluster::Peer::setFailTime(long failTime) { Peer::failTime = failTime; }
+void chakra::cluster::Peer::setFailTime(long failtime) { Peer::failTime = failtime; }
 
 std::string chakra::cluster::Peer::desc() {
     std::string str;
@@ -241,23 +238,8 @@ void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) 
     setEpoch(sender.config_epoch());
     auto replicaptr = replica::Replica::get();
     for(auto& metadb : sender.meta_dbs()){
-        chakra::cluster::Peer::DB db;
-        db.name = metadb.name();
-        db.cached = metadb.cached();
-        db.memory = metadb.memory();
-        db.shardSize = metadb.shard_size();
-        db.shard = metadb.shard();
-        LOG(INFO) << "sender " << getName() << " set db " << db.name;
-        setDB(db.name, db);
-
-        // 在多主的集群中，当某个db增加一个副本时
-        // 当前副本的所有节点需要立刻复制新增的副本节点，以保证db的最终的一致性
-        if (!replicaptr->replicated(metadb.name())){
-            replicaptr->setReplicateDB(metadb.name(), sender.ip(), sender.port() + 1);
-            LOG(INFO) << "Cluster add new db copy" << metadb.name() << ", start replicate it from("
-                      << sender.ip() << ":" << sender.port() + 1
-                      << ").";
-        }
+        LOG(INFO) << "sender " << getName() << " set db " << metadb.DebugString();
+        updateMetaDB(metadb.name(), metadb);
     }
 }
 
@@ -267,13 +249,9 @@ void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
     peerState.set_port(getPort());
     peerState.set_name(getName());
     peerState.set_epoch(getEpoch());
-    for(auto& info : dbs){
+    for(auto& it : dbs){
         auto db = peerState.mutable_dbs()->Add();
-        db->set_name(info.second.name);
-        db->set_cached(info.second.cached);
-        db->set_shard_size(info.second.shardSize);
-        db->set_shard(info.second.shard);
-        db->set_memory(info.second.memory);
+        db->CopyFrom(it.second);
     }
 }
 

@@ -41,7 +41,6 @@ struct TestHandler : public rocksdb::WriteBatch::Handler {
 
 class RocksDBTest : public ::testing::Test{
 public:
-protected:
     void testSeq(){
         rocksdb::DB* db;
         rocksdb::Options options;
@@ -265,19 +264,18 @@ protected:
         rocksdb::Options options;
         options.create_if_missing = true;
         options.WAL_ttl_seconds = 86400;
-        auto s = rocksdb::DB::Open(options, "../test/data_7", &data7);
-        for (int i = 0; i < 1000; ++i) {
-            s = data7->Put(rocksdb::WriteOptions(), rocksdb::Slice("key_1"), rocksdb::Slice("value_1"));
-            assert(s.ok());
+        auto s = rocksdb::DB::Open(options, "./data/node2/db1.self", &data7);
+        if (!s.ok()){
+            LOG(ERROR) << s.ToString();
+        } else{
+            rocksdb::Iterator* it = data7->NewIterator(rocksdb::ReadOptions());
+            for(it->SeekToFirst(); it->Valid(); it->Next()){
+                LOG(INFO) << "key:" << it->key().ToString() << " value:" << it->value().ToString();
+            }
+            LOG(INFO) << "it->Valid():" << it->Valid();
+            data7->Close();
+            delete data7;
         }
-
-        rocksdb::Iterator* it = data7->NewIterator(rocksdb::ReadOptions());
-        for(it->SeekToFirst(); it->Valid(); it->Next()){
-            LOG(INFO) << "key:" << it->key().ToString() << " value:" << it->value().ToString();
-        }
-
-        data7->Close();
-        delete data7;
     }
 
     void testSnapshot(){
@@ -285,29 +283,24 @@ protected:
         rocksdb::Options options;
         options.create_if_missing = true;
         options.WAL_ttl_seconds = 86400;
-        auto s = rocksdb::DB::Open(options, "../test/data_7", &data8);
-        for (int i = 0; i < 10; ++i) {
-            s = data8->Put(rocksdb::WriteOptions(), rocksdb::Slice("key_" + std::to_string(i)), rocksdb::Slice("value_"+ std::to_string(i)));
-            assert(s.ok());
+        auto s = rocksdb::DB::Open(options, "./data/node2/db1.self", &data8);
+        if (!s.ok()){
+            LOG(ERROR) << s.ToString();
+        } else {
+            rocksdb::ReadOptions readOptions;
+            auto snapshot = data8->GetSnapshot();
+            readOptions.snapshot = snapshot;
+            auto it = data8->NewIterator(readOptions);
+            for(it->SeekToFirst(); it->Valid(); it->Next()){
+                LOG(INFO) << "key:" << it->key().ToString() << " value:" << it->value().ToString();
+            }
+
+            auto snapshotSeq = readOptions.snapshot->GetSequenceNumber();
+            auto afterSnapshotSeq = data8->GetLatestSequenceNumber();
+
+            delete data8;
+            LOG(INFO) << " afterSnapshotSeq:" << afterSnapshotSeq << " valid" << it->Valid();
         }
-
-        rocksdb::ReadOptions readOptions;
-        readOptions.snapshot = data8->GetSnapshot();
-        auto it = data8->NewIterator(readOptions);
-        auto snapshotSeq = readOptions.snapshot->GetSequenceNumber();
-        for (int i = 10; i < 20; ++i) {
-            s = data8->Put(rocksdb::WriteOptions(), rocksdb::Slice("key_" + std::to_string(i)), rocksdb::Slice("value_"+ std::to_string(i)));
-            assert(s.ok());
-        }
-
-        auto afterSnapshotSeq = data8->GetLatestSequenceNumber();
-        for(it->SeekToFirst(); it->Valid(); it->Next()){
-            LOG(INFO) << "key:" << it->key().ToString() << " value:" << it->value().ToString();
-        }
-
-        rocksdb::WriteBatch batch("ddd");
-
-        LOG(INFO) << "snapshotSeq:" << snapshotSeq << " afterSnapshotSeq:" << afterSnapshotSeq;
     }
 
     void testWriteBatchIndex(){
@@ -341,10 +334,36 @@ protected:
         }
         LOG(INFO) << "2";
     }
+
+    void testReplicaV2(){
+        rocksdb::Options options;
+        options.create_if_missing = true;
+        options.WAL_ttl_seconds = 100000;
+
+        rocksdb::DB* data3;
+        auto s = rocksdb::DB::Open(options, "./data/node2/db1.self", &data3);
+
+        LOG(INFO) << "latest seq:" << data3->GetLatestSequenceNumber();
+
+        std::unique_ptr<rocksdb::TransactionLogIterator> iter;
+        s = data3->GetUpdatesSince(data3->GetLatestSequenceNumber()+10, &iter);
+
+        LOG(INFO) << "state:" << s.ToString();
+
+//        assert(s.ok());
+        int size = 0;
+        while (iter->Valid()){
+            LOG(INFO) << "data:" << iter->GetBatch().writeBatchPtr->Data() << " seq:" << iter->GetBatch().sequence;
+            iter->Next();
+            size++;
+        }
+        LOG(INFO) << "size:" << size;
+        delete data3;
+    }
 };
 
 TEST_F(RocksDBTest, basicOp){
-    testSeq();
+//    testSeq();
 //    testRestore();
 //testWriteBatch();
 //    testReplica();
@@ -352,6 +371,8 @@ TEST_F(RocksDBTest, basicOp){
 //    testTTLRocksDB();
 //    testIterator();
 //    testSnapshot();
+    testReplicaV2();
 //    testWriteBatchIndex();
+//testReplicaV2();
 }
 #endif //CHAKRA_UT_ROCKSDB_H

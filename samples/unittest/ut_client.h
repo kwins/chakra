@@ -47,7 +47,7 @@ public:
         auto err = client->get(dbname, key,str);
         if (!err.success()) LOG(ERROR) << "get:" << err.toString();
         else{
-            LOG(INFO) << "get value:" << str;
+            LOG(INFO) << "get key " << key << " value:" << str;
         }
     }
 
@@ -71,7 +71,12 @@ public:
         clusterptr->close();
     }
 
-
+    void testSetEpoch(){
+        auto err = clusterptr->setEpoch(0, true);
+        if (!err.success())  LOG(ERROR) << "set epoch error " << err.toString();
+        else
+            LOG(ERROR) << "set epoch success.";
+    }
     std::shared_ptr<chakra::client::Chakra> client;
     std::shared_ptr<chakra::client::Chakra> clusterptr;
     std::shared_ptr<chakra::client::Chakra> replicaptr;
@@ -79,19 +84,22 @@ public:
 
 TEST_F(TestChakra, client){
 //    testReplicaOf("db1");
+//    testMeet("127.0.0.1", 8291);
 //    testMeet("127.0.0.1", 9291);
+
 //testState();
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
 //    testSetDB("db1");
-for (int i = 3001; i < 3100; i ++){
-    std::string is = std::to_string(i);
-    testSetKeyValue("db1", "key" + is, "value" + is);
-}
-
-//for (int i = 0; i < 1000; i ++){
+//    testSetEpoch();
+//for (int i = 600; i < 700; i ++){
 //    std::string is = std::to_string(i);
-//    testGetValue("db1", "key" + is);
+//    testSetKeyValue("db1", "key" + is, "value" + is);
 //}
+
+for (int i = 600; i < 700; i ++){
+    std::string is = std::to_string(i);
+    testGetValue("db1", "key" + is);
+}
 
 //testReplicaOf("db1");
 }

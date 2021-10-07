@@ -46,6 +46,7 @@ public:
     uint64_t getMaxEpoch();
 
     bool dumpPeers();
+    void dumpMyselfDBs();
     // 1、如果集群任意节点挂掉，且节点上的某个DB没有副本 或者其他副本也全部挂掉，则集群进入fail状态
     // 2、如果集群超过半数以上节点挂掉，集群进入fail状态
     void updateClusterState();
@@ -59,7 +60,10 @@ public:
     std::shared_ptr<Peer> renamePeer(const std::string& random, const std::string& real);
     std::shared_ptr<Peer> getMyself();
     void setCronTODO(uint64_t todo);
-    bool stateOK();
+    bool stateOK() const;
+    void setMyselfDB(const proto::peer::MetaDB& metaDB);
+    void updateMyselfDB(const proto::peer::MetaDB& metaDB);
+    void increasingMyselfEpoch();
 private:
     utils::Error loadConfigFile();
     void startEv();

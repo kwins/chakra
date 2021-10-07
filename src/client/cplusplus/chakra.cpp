@@ -104,19 +104,6 @@ chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Messag
     });
 }
 
-chakra::utils::Error chakra::client::Chakra::replicaof(const std::string &dbname) {
-    proto::replica::ReplicaOfRequest replicaOfRequest;
-    replicaOfRequest.set_db_name(dbname);
-
-    proto::replica::ReplicaOfResponse replicaOfResponse;
-    auto err = executeCmd(replicaOfRequest, proto::types::R_REPLICA_OF, replicaOfResponse);
-    if (!err.success()) return err;
-    if (replicaOfResponse.error().errcode() != 0){
-        return utils::Error(replicaOfResponse.error().errcode(), replicaOfResponse.error().errmsg());
-    }
-    return err;
-}
-
 chakra::utils::Error chakra::client::Chakra::state(proto::peer::ClusterState &clusterState) {
     proto::peer::StateMessageRequest stateMessageRequest;
     stateMessageRequest.set_from(" ");
@@ -127,6 +114,19 @@ chakra::utils::Error chakra::client::Chakra::state(proto::peer::ClusterState &cl
         return utils::Error(stateMessageResponse.error().errcode(), stateMessageResponse.error().errmsg());
     }
     clusterState = stateMessageResponse.state();
+    return err;
+}
+
+chakra::utils::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increasing) {
+    proto::peer::EpochSetMessageRequest epochSetMessageRequest;
+    epochSetMessageRequest.set_epoch(epoch);
+    epochSetMessageRequest.set_increasing(increasing);
+    proto::peer::EpochSetMessageResponse epochSetMessageResponse;
+    auto err = executeCmd(epochSetMessageRequest, proto::types::P_SET_EPOCH, epochSetMessageResponse);
+    if (!err.success()) return err;
+    if (epochSetMessageResponse.error().errcode() != 0){
+        return utils::Error(epochSetMessageResponse.error().errcode(), epochSetMessageResponse.error().errmsg());
+    }
     return err;
 }
 
