@@ -29,7 +29,8 @@ public:
     void setReplicateDB(const std::string& name, const std::string& ip, int port);
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
-    void dumpLinks();
+    void dumpReplicaStates();
+    void replicaSelfDBs();
     bool replicated(const std::string& dbname, const std::string&ip, int port);
     void stop();
 private:
@@ -42,6 +43,7 @@ private:
     std::list<std::shared_ptr<Link>> primaryDBLinks;
     // 请求复制的连接列表
     std::list<Link*> replicaLinks;
+    std::vector<proto::replica::ReplicaState> selfStates;
     static const std::string REPLICA_FILE_NAME;
 };
 

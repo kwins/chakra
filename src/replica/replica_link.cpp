@@ -258,8 +258,8 @@ chakra::error::Error chakra::replica::Link::tryPartialReSync() {
     return sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
-proto::replica::MetaReplica chakra::replica::Link::dumpLink() {
-    proto::replica::MetaReplica metaReplica;
+proto::replica::ReplicaState chakra::replica::Link::dumpLink() {
+    proto::replica::ReplicaState metaReplica;
     metaReplica.set_primary(peerName);
     metaReplica.set_db_name(dbName);
     metaReplica.set_ip(ip);

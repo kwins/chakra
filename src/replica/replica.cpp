@@ -13,6 +13,7 @@
 #include "cluster/cluster.h"
 #include "replica.pb.h"
 #include "error/err_file_not_exist.h"
+#include "database/db_family.h"
 
 DECLARE_int32(cluster_port);
 DECLARE_string(replica_dir);
@@ -46,13 +47,11 @@ void chakra::replica::Replica::startReplicaCron() {
 
 void chakra::replica::Replica::loadLinks() {
     LOG(INFO) << "REPL load";
-
-    nlohmann::json j;
     std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     try {
-        proto::replica::ReplicaState replicaState;
-        utils::FileHelper::loadFile(filename, replicaState);
-        for(auto& replica : replicaState.replicas()){
+        proto::replica::ReplicaStates replicaStates;
+        utils::FileHelper::loadFile(filename, replicaStates);
+        for(auto& replica : replicaStates.replicas()){
             chakra::replica::Link::PositiveOptions options;
             options.ip = replica.ip();
             options.port = replica.port();
@@ -62,6 +61,9 @@ void chakra::replica::Replica::loadLinks() {
             link->setRocksSeq(replica.delta_seq());
             link->setPeerName(replica.primary());
             primaryDBLinks.push_back(link);
+        }
+        for(auto& replica : replicaStates.selfs()){
+            selfStates.push_back(replica);
         }
     } catch (error::FileNotExistError& err) {
         return;
@@ -116,7 +118,7 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
     }
 
     if (cronLoops % 10 == 0)
-        dumpLinks();
+        dumpReplicaStates();
 
     // primary side
     replicaLinks.remove_if([](Link* link){
@@ -124,7 +126,17 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
             link->heartBeat();
         return link->isTimeout();
     });
+
+    replicaSelfDBs();
+
     startReplicaCron();
+}
+
+void chakra::replica::Replica::replicaSelfDBs() {
+    auto& db = database::FamilyDB::get();
+    for(auto& replica : selfStates){
+        // TODO: replica self
+    }
 }
 
 bool chakra::replica::Replica::replicated(const std::string &dbname, const std::string&ip, int port) {
@@ -133,14 +145,18 @@ bool chakra::replica::Replica::replicated(const std::string &dbname, const std::
     });
 }
 
-void chakra::replica::Replica::dumpLinks() {
-    if (primaryDBLinks.empty()) return;
+void chakra::replica::Replica::dumpReplicaStates() {
+    if (primaryDBLinks.empty() && selfStates.empty()) return;
 
     std::string tofile = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
-    proto::replica::ReplicaState replicaState;
+    proto::replica::ReplicaStates replicaState;
     for(auto& link : primaryDBLinks){
         auto metaReplica = replicaState.mutable_replicas()->Add();
         (*metaReplica) = link->dumpLink();
+    }
+    for(auto& replica : selfStates){
+        auto info = replicaState.mutable_replicas()->Add();
+        info->CopyFrom(replica);
     }
     auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
     if (!err.success()){
