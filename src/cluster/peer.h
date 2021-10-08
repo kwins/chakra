@@ -15,6 +15,7 @@
 #include <ev++.h>
 #include "peer.pb.h"
 #include "net/link.h"
+#include "error/err.h"
 
 namespace chakra::cluster{
 using namespace std::chrono;
@@ -96,7 +97,7 @@ public:
     bool delFailReport(const std::shared_ptr<Peer>& sender);
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
-    utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     void stateDesc(proto::peer::PeerState& peerState);
     ~Peer();
 private:

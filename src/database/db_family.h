@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include "db_bucket.h"
 #include "utils/nocopy.h"
-#include "utils/error.h"
 
 namespace chakra::database{
 
@@ -25,16 +24,16 @@ public:
     static FamilyDB& get();
 
     bool servedDB(const std::string& name);
-    utils::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);
+    error::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);
     void addDB(const std::string& name, size_t cached);
     void addDB(const std::string& name, size_t blocktSize, size_t blocktCapacity);
     void dropDB(const std::string& name);
-    utils::Error restoreDB(const std::string& name);
+    error::Error restoreDB(const std::string& name);
     RestoreDB getLastRestoreDB();
-    utils::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
+    error::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
     // 获取 db 的一个快照 和 快照对应增量 seq
-    utils::Error snapshot(const std::string& name, rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
-    utils::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
+    error::Error snapshot(const std::string& name, rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
+    error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
 
     // 会先从内存中获取，获取不到则尝试从全量rocksDB拿
@@ -45,7 +44,7 @@ public:
     void del(const std::string& name, const std::string& key);
 
     // 写全量rocksDB
-    utils::Error put(const std::string& name, rocksdb::WriteBatch& batch);
+    error::Error put(const std::string& name, rocksdb::WriteBatch& batch);
     ~FamilyDB();
 private:
     using ColumnName = std::string;

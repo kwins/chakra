@@ -10,7 +10,7 @@
 namespace chakra::cmds{
 class CommandReplicaDeltaRecv : public Command {
 public:
-    void execute(char *req, size_t reqLen, void *data, std::function<utils::Error(char *resp, size_t respLen)> cbf) override;
+    void execute(char *req, size_t reqLen, void *data, std::function<error::Error(char *resp, size_t respLen)> cbf) override;
     ~CommandReplicaDeltaRecv() override = default;
 };
 }

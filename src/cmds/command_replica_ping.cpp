@@ -10,7 +10,7 @@
 #include "cluster/cluster.h"
 
 void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data,
-                                               std::function<utils::Error(char *, size_t)> cbf) {
+                                               std::function<error::Error(char *, size_t)> cbf) {
 
     auto link = static_cast<replica::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());

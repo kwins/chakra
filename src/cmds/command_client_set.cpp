@@ -10,7 +10,7 @@
 #include "database/type_string.h"
 
 void
-chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) {
+chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
     proto::client::SetMessageResponse setMessageResponse;
     proto::client::SetMessageRequest setMessageRequest;
     auto& dbptr = chakra::database::FamilyDB::get();

@@ -10,7 +10,6 @@
 #include <list>
 #include <unordered_map>
 #include <mutex>
-#include "utils/error.h"
 #include <functional>
 
 namespace chakra::database{

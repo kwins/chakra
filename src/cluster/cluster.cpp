@@ -16,9 +16,9 @@
 #include <gflags/gflags.h>
 #include "database/db_family.h"
 #include "replica/replica.h"
+#include "error/err_file_not_exist.h"
 
 DECLARE_string(cluster_dir);
-DECLARE_string(cluster_ip);
 DECLARE_int32(cluster_port);
 DECLARE_int32(cluster_handshake_timeout_ms);
 DECLARE_int32(cluster_peer_timeout_ms);
@@ -31,61 +31,52 @@ chakra::cluster::Cluster::Cluster() {
     state = STATE_FAIL;
     cronLoops = 0;
     seed = std::make_shared<std::default_random_engine>(time(nullptr));
-    auto err = loadConfigFile();
-    if (!err.success() && !err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-        LOG(ERROR) << "Cluster exit with error " << err.toString();
-        exit(-1);
-    } else if (err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-        err = utils::FileHelper::mkDir(FLAGS_cluster_dir);
-        if (!err.success()){
-            LOG(ERROR) << "Cluster mkdir dir error " << err.toString();
-            exit(-1);
-        }
-        myself = std::make_shared<Peer>(); // 第一次初始化
-        myself->setIp(FLAGS_cluster_ip);
-        myself->setPort(FLAGS_cluster_port);
-        myself->setName(utils::Basic::genRandomID());
-        myself->setFlag(Peer::FLAG_MYSELF);
-        peers.insert(std::make_pair(this->myself->getName(), this->myself));
-        LOG(INFO) << "Cluster init first, peers size:" << this->peers.size();
-    }
+    loadPeers();
     startEv();
     updateClusterState();
     dumpMyselfDBs();
-    LOG(INFO) << "Cluster listen in " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " success, myself is " << myself->getName();
+    LOG(INFO) << "Cluster listen in " << FLAGS_cluster_port
+              << " success, myself is " << myself->getName();
 }
 
-chakra::utils::Error chakra::cluster::Cluster::loadConfigFile() {
-    std::string filename = FLAGS_cluster_dir + "/" + PEERS_FILE;
-    proto::peer::ClusterState clusterState;
-    auto err = utils::FileHelper::loadFile(filename, clusterState);
-    if (!err.success()) return err;
-
-    LOG(INFO) << "clusterState :" << clusterState.DebugString();
-
-    currentEpoch = clusterState.current_epoch();
-    state = clusterState.state();
-    for(auto& info : clusterState.peers()){
-        auto it = peers.find(info.name());
-        if (it != peers.end()){
-            LOG(WARNING) << "Cluster init duplicate peer " << info.name();
-            continue;
+void chakra::cluster::Cluster::loadPeers() {
+    try {
+        proto::peer::ClusterState clusterState;
+        utils::FileHelper::loadFile(FLAGS_cluster_dir + "/" + PEERS_FILE, clusterState);
+        LOG(INFO) << "clusterState :" << clusterState.DebugString();
+        currentEpoch = clusterState.current_epoch();
+        state = clusterState.state();
+        for(auto& info : clusterState.peers()){
+            auto it = peers.find(info.name());
+            if (it != peers.end()){
+                LOG(WARNING) << "Cluster init duplicate peer " << info.name();
+                continue;
+            }
+            auto peer = std::make_shared<Peer>();
+            peer->setName(info.name());
+            peer->setIp(info.ip());
+            peer->setPort(info.port());
+            peer->setEpoch(info.epoch());
+            peer->setFlag(info.flag());
+            peer->setCreatTimeMs(utils::Basic::getNowMillSec());
+            for(auto& dbinfo : info.dbs()){
+                peer->updateMetaDB(dbinfo.name(), dbinfo);
+            }
+            peers.emplace(info.name(), peer);
+            if (peer->isMyself()) { myself = peer; }
         }
-        auto peer = std::make_shared<Peer>();
-        peer->setName(info.name());
-        peer->setIp(info.ip());
-        peer->setPort(info.port());
-        peer->setEpoch(info.epoch());
-        peer->setFlag(info.flag());
-        peer->setCreatTimeMs(utils::Basic::getNowMillSec());
-        for(auto& dbinfo : info.dbs()){
-            peer->updateMetaDB(dbinfo.name(), dbinfo);
-        }
-
-        peers.emplace(info.name(), peer);
-        if (peer->isMyself()) { myself = peer; }
+    } catch (error::FileNotExistError& err) {
+        myself = std::make_shared<Peer>(); // 第一次初始化
+        myself->setIp("0.0.0.0");
+        myself->setPort(FLAGS_cluster_port);
+        myself->setName(utils::Basic::genRandomID());
+        myself->setFlag(Peer::FLAG_MYSELF);
+        peers.insert(std::make_pair(myself->getName(), myself));
+        LOG(INFO) << "Cluster init first, peers size:" << peers.size();
+    } catch (std::exception& err) {
+        LOG(ERROR) << "Cluster exit with error " << err.what();
+        exit(-1);
     }
-    return err;
 }
 
 // 初次调用 必 需要先调用 initView
@@ -98,7 +89,7 @@ void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
     auto err = net::Network::tpcListen(FLAGS_cluster_port ,FLAGS_cluster_tcp_back_log, sfd);
     if (!err.success() || sfd == -1){
-        LOG(ERROR) << "Cluster listen on " << FLAGS_cluster_ip << ":" << FLAGS_cluster_port << " " << err.toString();
+        LOG(ERROR) << "Cluster listen on " << FLAGS_cluster_port << " " << err.what();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -315,7 +306,7 @@ bool chakra::cluster::Cluster::dumpPeers() {
 
     auto err = utils::FileHelper::saveFile(clusterState, filename);
     if (!err.success()){
-        LOG(ERROR) << "Cluster dump peers error " << err.toString();
+        LOG(ERROR) << "Cluster dump peers error " << err.what();
     }else {
         LOG(INFO) << "Cluster dump peers to filename " << filename << " success.";
     }
@@ -331,7 +322,7 @@ void chakra::cluster::Cluster::dumpMyselfDBs() {
     }
     auto err = utils::FileHelper::saveFile(metaDBs, filename);
     if (!err.success()){
-        LOG(ERROR) << "Cluster dump myself dbs error " << err.toString();
+        LOG(ERROR) << "Cluster dump myself dbs error " << err.what();
     } else {
         LOG(INFO) << "Cluster dump myself dbs to filename " << filename << " success.";
     }

@@ -9,12 +9,12 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
-chakra::utils::Error chakra::net::Network::tpcListen(int port, int tcpBacklog, int& sockfd) {
+chakra::error::Error chakra::net::Network::tpcListen(int port, int tcpBacklog, int& sockfd) {
     struct sockaddr_in addr{};
     int addr_len = sizeof(addr);
     int sd;
     if ((sd = ::socket(PF_INET, SOCK_STREAM, 0)) < 0){
-        return utils::Error(1, strerror(errno));
+        return error::Error(strerror(errno));
     }
 
     bzero(&addr, sizeof(addr));
@@ -23,18 +23,18 @@ chakra::utils::Error chakra::net::Network::tpcListen(int port, int tcpBacklog, i
     addr.sin_addr.s_addr = INADDR_ANY;
 
     if (setSocketReuseAddr(sd) == -1){
-        return utils::Error(1, strerror(errno));;
+        return error::Error(strerror(errno));;
     }
 
     if (::bind(sd, (const struct sockaddr*)&addr, addr_len) != 0){
-        return utils::Error(1, strerror(errno));;
+        return error::Error(strerror(errno));;
     }
 
     if (::listen(sd, tcpBacklog) < 0){
-        return utils::Error(1, strerror(errno));;
+        return error::Error(strerror(errno));;
     }
     sockfd = sd;
-    return utils::Error();
+    return error::Error();
 }
 
 

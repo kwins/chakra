@@ -30,14 +30,14 @@ public:
 
     void testSetDB(const std::string& dbname){
         auto err = clusterptr->setdb(dbname, 100000);
-        if (!err.success()) LOG(ERROR) << "setdb:" << err.toString();
+        if (!err.success()) LOG(ERROR) << "setdb:" << err.what();
         else
             LOG(ERROR) << "setdb success";
     }
 
     void testSetKeyValue(const std::string& dbname, const std::string& key, const std::string& value){
         auto err = client->set(dbname, key, value);
-        if (!err.success()) LOG(ERROR) << "set:" << err.toString();
+        if (!err.success()) LOG(ERROR) << "set:" << err.what();
         else
             LOG(ERROR) << "set key " << key << " value " << value << " success.";
     }
@@ -45,7 +45,7 @@ public:
     void testGetValue(const std::string& dbname, const std::string& key){
         std::string str;
         auto err = client->get(dbname, key,str);
-        if (!err.success()) LOG(ERROR) << "get:" << err.toString();
+        if (!err.success()) LOG(ERROR) << "get:" << err.what();
         else{
             LOG(INFO) << "get key " << key << " value:" << str;
         }
@@ -53,7 +53,7 @@ public:
 
     void testMeet(const std::string& ip, int port){
         auto err = clusterptr->meet(ip, port);
-        if (!err.success()) LOG(ERROR) << "meet error " << err.toString();
+        if (!err.success()) LOG(ERROR) << "meet error " << err.what();
         else
             LOG(ERROR) << "meet success";
     }
@@ -61,7 +61,7 @@ public:
     void testState(){
         proto::peer::ClusterState clusterState;
         auto err = clusterptr->state(clusterState);
-        if (!err.success())  LOG(ERROR) << "state error " << err.toString();
+        if (!err.success())  LOG(ERROR) << "state error " << err.what();
         else
             LOG(ERROR) << "state: " << clusterState.DebugString();
     }
@@ -73,7 +73,7 @@ public:
 
     void testSetEpoch(){
         auto err = clusterptr->setEpoch(0, true);
-        if (!err.success())  LOG(ERROR) << "set epoch error " << err.toString();
+        if (!err.success())  LOG(ERROR) << "set epoch error " << err.what();
         else
             LOG(ERROR) << "set epoch success.";
     }

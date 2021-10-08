@@ -71,7 +71,7 @@ void chakra::serv::Chakra::initLibev() {
     sfd = -1;
     auto err = net::Network::tpcListen(FLAGS_server_port ,FLAGS_server_tcp_backlog, sfd);
     if (!err.success()){
-        LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.toString();
+        LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.what();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -174,7 +174,7 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
                   << proto::types::Type_Name(msgType) << ":" << msgType;
 
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-        utils::Error err;
+        error::Error err;
         cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
             DLOG(INFO) << "   CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
@@ -185,7 +185,7 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
     });
 
     if (!err.success()){
-        LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.toString();
+        LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.what();
         delete link;
     }
 }

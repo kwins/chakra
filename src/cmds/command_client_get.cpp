@@ -8,7 +8,7 @@
 #include "database/db_family.h"
 
 void
-chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::function<utils::Error(char *, size_t)> cbf) {
+chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
     proto::client::GetMessageResponse getMessageResponse;
     proto::client::GetMessageRequest getMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, len, getMessageRequest, proto::types::C_GET);

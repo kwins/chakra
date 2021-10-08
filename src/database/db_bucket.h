@@ -7,7 +7,7 @@
 #include <rocksdb/db.h>
 #include <vector>
 #include "db_block.h"
-#include "utils/error.h"
+#include "error/err.h"
 #include <nlohmann/json.hpp>
 #include "utils/nocopy.h"
 #include "peer.pb.h"
@@ -25,15 +25,15 @@ public:
     size_t size();
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
-    utils::Error put(rocksdb::WriteBatch &batch);
+    error::Error put(rocksdb::WriteBatch &batch);
     void del(const std::string& key, bool dbdel = true);
 
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
-    utils::Error restoreDB();
+    error::Error restoreDB();
     RestoreDB getLastRestoreDB();
-    utils::Error getUpdateSince(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
+    error::Error getUpdateSince(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
     // 获取 db 的一个快照 和 快照对应增量 seq
-    utils::Error snapshot(rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
+    error::Error snapshot(rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
     rocksdb::SequenceNumber getLastSeqNumber();
 
     ~BucketDB() override;

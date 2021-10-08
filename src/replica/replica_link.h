@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <rocksdb/db.h>
 #include "net/link.h"
+#include "replica.pb.h"
 
 namespace chakra::replica{
 class Link {
@@ -48,7 +49,7 @@ public:
     // 处理命令
     static void onProcessRecv(ev::io& watcher, int event);
     // 创建db snapshot, 为后续传输 db 做准备
-    utils::Error snapshotBulk(const std::string& dbname);
+    error::Error snapshotBulk(const std::string& dbname);
     // 触发全量复制
     void startSendBulk();
     // 执行全量复制
@@ -62,9 +63,9 @@ public:
     void deConnectPrimary();
     void abortTransfer();
     void heartBeat();
-    utils::Error tryPartialReSync();
+    error::Error tryPartialReSync();
 
-    nlohmann::json dumpLink();
+    proto::replica::MetaReplica dumpLink();
     bool isTimeout() const;
     const std::string &getPeerName() const;
     void setPeerName(const std::string &name);
@@ -82,7 +83,7 @@ public:
     void setLastTransferMs(long lastTransferMs);
     long getLastInteractionMs() const;
     void setLastInteractionMs(long lastInteractionMs);
-    utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     void close();
     ~Link();
 

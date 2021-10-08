@@ -8,7 +8,7 @@
 #include "cluster/cluster.h"
 
 void chakra::cmds::CommandClusterState::execute(char *req, size_t reqLen, void *data,
-                                                std::function<utils::Error(char *, size_t)> cbf) {
+                                                std::function<error::Error(char *, size_t)> cbf) {
     proto::peer::StateMessageRequest stateMessageRequest;
     proto::peer::StateMessageResponse stateMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, stateMessageRequest, proto::types::P_STATE);

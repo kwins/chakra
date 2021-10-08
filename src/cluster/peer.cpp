@@ -113,7 +113,7 @@ long chakra::cluster::Peer::getLastPongRecv() const { return last_pong_recv; }
 
 void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv = lastPongRecv; }
 
-chakra::utils::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
+chakra::error::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
     return link->sendMsg(msg, type);
 }
 
@@ -213,7 +213,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
                    << " FROM " << (reletedPeer != nullptr ? reletedPeer->getName() : conn->remoteAddr());
 
         auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-        utils::Error err;
+        error::Error err;
         cmdsptr->execute(req, reqlen, nullptr, [this, &err](char *reply, size_t replylen) {
             proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
             DLOG(INFO) << "   PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
@@ -224,7 +224,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
     });
 
     if (!err.success()){
-        LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.toString();
+        LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.what();
         close();
         if (!reletedPeer) delete this; // 这里直接 delete this，因为后面不会再使用到此对象
     }

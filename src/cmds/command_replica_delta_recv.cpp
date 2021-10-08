@@ -10,7 +10,7 @@
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, void *data,
-                                                    std::function<utils::Error(char *, size_t)> cbf) {
+                                                    std::function<error::Error(char *, size_t)> cbf) {
 
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     auto link = static_cast<replica::Link*>(data);
@@ -18,7 +18,7 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
     if (!err.success()){
-        LOG(ERROR) << "replica delta recv deserialize error " << err.toString();
+        LOG(ERROR) << "replica delta recv deserialize error " << err.what();
     } else if (deltaMessageResponse.error().errcode() != 0){
         LOG(ERROR) << "replica delta recv response error " << deltaMessageResponse.error().errmsg();
     } else {
@@ -30,7 +30,7 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
             if (err.success()){
                 link->setRocksSeq(seq.seq());
             } else {
-                LOG(ERROR) << "replica delta recv error " << err.toString();
+                LOG(ERROR) << "replica delta recv error " << err.what();
             }
         }
     }

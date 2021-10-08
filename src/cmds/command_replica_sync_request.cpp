@@ -9,7 +9,7 @@
 
 
 void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, void *data,
-                                                      std::function<utils::Error(char *resp, size_t respLen)> cbf) {
+                                                      std::function<error::Error(char *resp, size_t respLen)> cbf) {
     proto::replica::SyncMessageResponse syncMessageResponse;
     proto::replica::SyncMessageRequest syncMessageRequest;
     auto link = static_cast<chakra::replica::Link*>(data);

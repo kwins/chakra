@@ -14,11 +14,11 @@ chakra::net::Link::Link(const std::string &ip, int port) {
     conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
     auto err = conn->connect();
     if (!err.success()){
-        throw std::logic_error(err.toString());
+        throw std::logic_error(err.what());
     }
 }
 
-chakra::utils::Error chakra::net::Link::sendMsg(google::protobuf::Message &msg, proto::types::Type type) {
+chakra::error::Error chakra::net::Link::sendMsg(google::protobuf::Message &msg, proto::types::Type type) {
     return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len){
         return conn->send(data, len);
     });

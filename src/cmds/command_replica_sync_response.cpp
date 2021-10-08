@@ -9,12 +9,12 @@
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, void *data,
-                                                       std::function<utils::Error(char *, size_t)> cbf) {
+                                                       std::function<error::Error(char *, size_t)> cbf) {
     auto link = static_cast<chakra::replica::Link*>(data);
     proto::replica::SyncMessageResponse syncMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, len, syncMessageResponse, proto::types::R_SYNC_RESPONSE);
     if (!err.success()){
-        LOG(ERROR) << "replica sync response deserialize error " << err.toString();
+        LOG(ERROR) << "replica sync response deserialize error " << err.what();
     } else if (syncMessageResponse.error().errcode() != 0){
         LOG(ERROR) << "unexpected errcode to PSYNC from primary " << syncMessageResponse.error().errmsg();
     } else {

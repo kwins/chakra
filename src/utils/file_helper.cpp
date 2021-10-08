@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <glog/logging.h>
+#include <error/err.h>
+#include "error/err_file_not_exist.h"
 
 size_t chakra::utils::FileHelper::size(const std::string &dir, const std::string &name) {
     std::string filepath;
@@ -31,24 +33,24 @@ size_t chakra::utils::FileHelper::size(const std::string &filepath) {
     return size;
 }
 
-chakra::utils::Error chakra::utils::FileHelper::saveFile(const nlohmann::json &j, const std::string& tofile) {
+chakra::error::Error chakra::utils::FileHelper::saveFile(const nlohmann::json &j, const std::string& tofile) {
     std::string tmpfile = tofile + ".tmp";
     std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
     if (!out.is_open()){
         if (errno == ENOENT){
-            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + tofile + " not exist");
+            return error::Error("file: " + tofile + " not exist");
         }
-        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+        return error::Error(strerror(errno));
     }
     out << j.dump(4);
     if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
-        return utils::Error(utils::Error::ERR_FILE_RENAME, strerror(errno));
+        return error::Error(strerror(errno));
     }
     out.close();
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error
+chakra::error::Error
 chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, const std::string &tofile) {
     google::protobuf::util::JsonOptions options;
     options.always_print_enums_as_ints = true;
@@ -58,56 +60,55 @@ chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, co
     std::string str;
     auto s = google::protobuf::util::MessageToJsonString(message, &str, options);
     if (!s.ok())
-        return utils::Error(s.error_code(), s.ToString());
+        return error::Error(s.ToString());
 
     std::string tmpfile = tofile + ".tmp";
     std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
     if (!out.is_open()){
         if (errno == ENOENT){
-            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + tofile + " not exist");
+            return error::Error("file: " + tofile + " not exist");
         }
-        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+        return error::Error( strerror(errno));
     }
     out << str;
     out.close();
     if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
-        return utils::Error(utils::Error::ERR_FILE_RENAME, strerror(errno));
+        return error::Error(strerror(errno));
     }
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error chakra::utils::FileHelper::loadFile(const std::string &fromfile, nlohmann::json &j) {
+chakra::error::Error chakra::utils::FileHelper::loadFile(const std::string &fromfile, nlohmann::json &j) {
     std::ifstream fileStream(fromfile);
     if (!fileStream.is_open()){
         if (errno == ENOENT){
-            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + fromfile + " not exist");
+            return error::Error("file: " + fromfile + " not exist");
         }
-        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+        return error::Error( strerror(errno));
     }
     fileStream >> j;
     fileStream.close();
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error
-chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::protobuf::Message &message) {
+void chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::protobuf::Message &message) {
     std::ifstream fileStream(fromfile);
     if (!fileStream.is_open()){
         if (errno == ENOENT){
-            return utils::Error(utils::Error::ERR_FILE_NOT_EXIST,  "file: " + fromfile + " not exist");
+            throw error::FileNotExistError("file " + fromfile + " not exist");
         }
-        return utils::Error(utils::Error::ERR_ERRNO, strerror(errno));
+        throw error::Error(strerror(errno));
     }
+
     std::istream_iterator<char> begin(fileStream), end;
     std::string str(begin, end);
     fileStream.close();
     auto s = google::protobuf::util::JsonStringToMessage(str, &message);
     if (!s.ok())
-        return utils::Error(s.error_code(), s.ToString());
-    return chakra::utils::Error();
+        throw error::Error(s.ToString());
 }
 
-chakra::utils::Error chakra::utils::FileHelper::mkDir(const std::string &path) {
+chakra::error::Error chakra::utils::FileHelper::mkDir(const std::string &path) {
     std::string str = path;
     std::string str1;
     int pos = 0;
@@ -117,10 +118,10 @@ chakra::utils::Error chakra::utils::FileHelper::mkDir(const std::string &path) {
         if (::access(str1.c_str(), 0) != 0){
             int ret = ::mkdir(str1.c_str(), S_IRWXU);
             if (ret != 0){
-                return utils::Error(utils::Error::ERR_FILE_CREATE, strerror(errno));
+                return error::Error(strerror(errno));
             }
         }
         str = str.substr(pos + 1, str.size());
     }
-    return utils::Error();
+    return error::Error();
 }

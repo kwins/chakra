@@ -11,10 +11,11 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 #include "cluster/cluster.h"
+#include "replica.pb.h"
+#include "error/err_file_not_exist.h"
 
 DECLARE_int32(cluster_port);
 DECLARE_string(replica_dir);
-DECLARE_string(replica_ip);
 DECLARE_int32(replica_tcp_back_log);
 DECLARE_int32(replica_timeout_ms);
 DECLARE_double(replica_cron_interval_sec);
@@ -24,23 +25,17 @@ DECLARE_double(replica_bulk_send_interval_sec);
 
 chakra::replica::Replica::Replica() {
     LOG(INFO) << "Replica init";
-    auto err = loadLinks();
-    if (!err.success() && !err.is(utils::Error::ERR_FILE_NOT_EXIST)){
-        LOG(ERROR) << "REPL load links error " << err.toString();
-        exit(-1);
-    }
-
-    err = net::Network::tpcListen(FLAGS_cluster_port + 1, FLAGS_replica_tcp_back_log, sfd);
+    loadLinks(); // 加载配置数据
+    auto err = net::Network::tpcListen(FLAGS_cluster_port + 1, FLAGS_replica_tcp_back_log, sfd);
     if (!err.success()){
-        LOG(ERROR) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_cluster_port + 1 << " " << err.toString();
+        LOG(ERROR) << "REPL listen on " << FLAGS_cluster_port + 1 << " " << err.what();
         exit(1);
     }
-
     replicaio.set<chakra::replica::Replica, &chakra::replica::Replica::onAccept>(this);
     replicaio.set(ev::get_default_loop());
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
-    LOG(INFO) << "REPL listen on " << FLAGS_replica_ip << ":" << FLAGS_cluster_port + 1;
+    LOG(INFO) << "REPL listen on " << FLAGS_cluster_port + 1;
 }
 
 void chakra::replica::Replica::startReplicaCron() {
@@ -49,35 +44,31 @@ void chakra::replica::Replica::startReplicaCron() {
     cronIO.start(FLAGS_replica_cron_interval_sec);
 }
 
-chakra::utils::Error chakra::replica::Replica::loadLinks() {
+void chakra::replica::Replica::loadLinks() {
     LOG(INFO) << "REPL load";
-    auto err = utils::FileHelper::mkDir(FLAGS_replica_dir);
-    if (!err.success()){
-        LOG(ERROR) << "REPL mkdir dir error " << err.toString();
-        exit(-1);
-    }
+
     nlohmann::json j;
     std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
-    err = utils::FileHelper::loadFile(filename, j);
-    if (!err.success()){
-        // TODO: error code judge
-        return err;
+    try {
+        proto::replica::ReplicaState replicaState;
+        utils::FileHelper::loadFile(filename, replicaState);
+        for(auto& replica : replicaState.replicas()){
+            chakra::replica::Link::PositiveOptions options;
+            options.ip = replica.ip();
+            options.port = replica.port();
+            options.dbName = replica.db_name();
+            options.dir = FLAGS_replica_dir;
+            auto link = std::make_shared<chakra::replica::Link>(options);
+            link->setRocksSeq(replica.delta_seq());
+            link->setPeerName(replica.primary());
+            primaryDBLinks.push_back(link);
+        }
+    } catch (error::FileNotExistError& err) {
+        return;
+    } catch (std::exception& err) {
+        LOG(ERROR) << "REPL load links from " << filename << " error " << err.what();
+        exit(-1);
     }
-
-    auto primarys = j.at("replicas");
-    for (int i = 0; i < primarys.size(); ++i) {
-        chakra::replica::Link::PositiveOptions options;
-        options.ip = primarys[i].at("ip").get<std::string>();
-        options.port = primarys[i].at("port").get<int>();;
-        options.dbName = primarys[i].at("db_name").get<std::string>();;
-        options.dir = FLAGS_replica_dir;
-        auto link = std::make_shared<chakra::replica::Link>(options);
-        link->setRocksSeq(primarys[i].at("delta_seq").get<int64_t>());
-        link->setPeerName(primarys[i].at("primary").get<std::string>());
-        primaryDBLinks.push_back(link);
-    }
-
-    return utils::Error();
 }
 
 std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
@@ -128,23 +119,12 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
         dumpLinks();
 
     // primary side
-    replicaLinks.remove_if([](const Link* link){
-//        if (!link->isTimeout() && link->getState() == Link::State::CONNECTED) link->heartBeat();
+    replicaLinks.remove_if([](Link* link){
+        if (!link->isTimeout() && link->getState() == Link::State::CONNECTED)
+            link->heartBeat();
         return link->isTimeout();
     });
-
     startReplicaCron();
-}
-
-int chakra::replica::Replica::replicaSuccDB(const std::string &dbname) {
-    int num = 0;
-    std::for_each(primaryDBLinks.begin(), primaryDBLinks.end(), [&num, dbname](const std::shared_ptr<Link>& link){
-        if (link->getDbName() == dbname &&
-            link->getState() == chakra::replica::Link::State::CONNECTED){
-            num++;
-        }
-    });
-    return num;
 }
 
 bool chakra::replica::Replica::replicated(const std::string &dbname, const std::string&ip, int port) {
@@ -157,15 +137,16 @@ void chakra::replica::Replica::dumpLinks() {
     if (primaryDBLinks.empty()) return;
 
     std::string tofile = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
-    nlohmann::json j;
+    proto::replica::ReplicaState replicaState;
     for(auto& link : primaryDBLinks){
-        j["replicas"].push_back(link->dumpLink());
+        auto metaReplica = replicaState.mutable_replicas()->Add();
+        (*metaReplica) = link->dumpLink();
     }
-    auto err = chakra::utils::FileHelper::saveFile(j, tofile);
+    auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
     if (!err.success()){
-        LOG(ERROR) << "## REPL dump links error " << err.toString();
+        LOG(ERROR) << "REPL dump links error " << err.what();
     } else {
-        LOG(INFO) << "### REPL dump links to filename " << tofile << " success.";
+        LOG(INFO) << "REPL dump links to filename " << tofile << " success.";
     }
 }
 

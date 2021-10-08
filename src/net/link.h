@@ -8,6 +8,7 @@
 #include "net/connect.h"
 #include <google/protobuf/message.h>
 #include "types.pb.h"
+#include "error/err.h"
 
 namespace chakra::net {
 
@@ -15,7 +16,7 @@ class Link {
 public:
     explicit Link(const std::string& ip, int port);
     explicit Link(int sockfd);
-    utils::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     bool connected() const;
     void close();
     ~Link();

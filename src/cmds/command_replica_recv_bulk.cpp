@@ -10,7 +10,7 @@
 #include "database/db_family.h"
 
 void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, void *data,
-                                                   std::function<utils::Error(char *, size_t)> cbf) {
+                                                   std::function<error::Error(char *, size_t)> cbf) {
     auto link = static_cast<chakra::replica::Link*>(data);
     if (link->getState() != chakra::replica::Link::State::TRANSFOR){
         LOG(WARNING) << "replica link state not transfor when recv bulk.";
@@ -23,7 +23,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
     proto::replica::BulkMessage bulkMessage;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, bulkMessage, proto::types::R_BULK);
     if (!err.success()){
-        LOG(ERROR) << "replica recv bulk deserialize error " << err.toString();
+        LOG(ERROR) << "replica recv bulk deserialize error " << err.what();
     } else if (bulkMessage.kvs_size() > 0){
         auto& dbptr = chakra::database::FamilyDB::get();
         rocksdb::WriteBatch batch;
@@ -32,7 +32,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
         }
         err = dbptr.put(bulkMessage.db_name(), batch);
         if (!err.success()){
-            LOG(ERROR) << "REPL set db " << bulkMessage.db_name() << " error " << err.toString();
+            LOG(ERROR) << "REPL set db " << bulkMessage.db_name() << " error " << err.what();
         } else {
             if (bulkMessage.end()){
                 link->setState(chakra::replica::Link::State::CONNECTED);

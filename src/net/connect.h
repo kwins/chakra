@@ -8,7 +8,7 @@
 #include <string>
 #include <chrono>
 #include <sys/socket.h>
-#include "utils/error.h"
+#include "error/err.h"
 #include <functional>
 #include <array>
 #include <atomic>
@@ -38,12 +38,12 @@ public:
 
 public:
     explicit Connect(chakra::net::Connect::Options opts);
-    utils::Error connect();
+    error::Error connect();
     int reconnect();
-    chakra::utils::Error send(const char* data, size_t len);
+    chakra::error::Error send(const char* data, size_t len);
     // 服务端尽可能一次读完，如果读不完，等下次再度，可以有效减少IO次数.
     // 处理数据的 回调函数 一次只会处理一个 pack
-    chakra::utils::Error receivePack(const std::function<utils::Error(char* ptr, size_t len)>& process);
+    chakra::error::Error receivePack(const std::function<error::Error(char* ptr, size_t len)>& process);
     // 返回远端地址和端口
     std::string remoteAddr();
     State connState() const;
@@ -55,14 +55,14 @@ public:
 
 private:
 
-    utils::Error setBlock(bool block);
-    utils::Error setError(const std::string& extra = "", bool closeConn = false);
-    utils::Error setError(int errNo, const std::string& extra = "", bool closeConn = false);
+    error::Error setBlock(bool block);
+    error::Error setError(const std::string& extra = "", bool closeConn = false);
+    error::Error setError(int errNo, const std::string& extra = "", bool closeConn = false);
 
-    utils::Error setConnectTimeout();
-    utils::Error waitConnectReady(long msec);
-    utils::Error checkConnectOK(int& completed);
-    utils::Error checkSockErr();
+    error::Error setConnectTimeout();
+    error::Error waitConnectReady(long msec);
+    error::Error checkConnectOK(int& completed);
+    error::Error checkSockErr();
 
     void moveBuf(int start, int end);
     static void toTimeVal(const milliseconds& duration, timeval& tv);

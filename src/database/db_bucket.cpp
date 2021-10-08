@@ -73,19 +73,20 @@ void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Ele
     if (dbput){
         val->serialize([this, &key](char* data, size_t len){
             auto s = self->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
-            if (!s.ok()) LOG(ERROR) << "DB put error " << s.ToString();
+            if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
+            // TODO: replica self
             s = dbptr->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
-            if (!s.ok()) LOG(ERROR) << "DB put error " << s.ToString();
+            if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
         });
     }
 }
 
-chakra::utils::Error chakra::database::BucketDB::put(rocksdb::WriteBatch& batch) {
+chakra::error::Error chakra::database::BucketDB::put(rocksdb::WriteBatch& batch) {
     auto s = batch.Iterate(this);
     if (!s.ok()){
-        return utils::Error(utils::Error::ERR_DB_ITERATOR, s.ToString());
+        return error::Error(s.ToString());
     }
-    return utils::Error();
+    return error::Error();
 }
 
 void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
@@ -93,7 +94,10 @@ void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
     blocks[hashed % FLAGS_db_block_size]->del(key);
     if (dbdel){
         auto s = self->Delete(rocksdb::WriteOptions(), key);
-        if (!s.ok()) LOG(ERROR) << "DB del error " << s.ToString();
+        if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
+        // TODO: replica self
+        s = dbptr->Delete(rocksdb::WriteOptions(), key);
+        if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
     }
 }
 
@@ -107,17 +111,17 @@ size_t chakra::database::BucketDB::size() {
 
 proto::peer::MetaDB chakra::database::BucketDB::getMetaDB(const std::string &dbname) { return metaDB; }
 
-chakra::utils::Error chakra::database::BucketDB::restoreDB() {
+chakra::error::Error chakra::database::BucketDB::restoreDB() {
     // backup
     rocksdb::BackupEngine* backupEngine;
     std::string backupdir = FLAGS_db_dir + "/" + metaDB.name();
     auto s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), rocksdb::BackupableDBOptions(backupdir), &backupEngine);
     if (!s.ok()){
-        return utils::Error(1, s.ToString());
+        return error::Error(s.ToString());
     }
     s = backupEngine->CreateNewBackup(self.get());
     if (!s.ok()){
-        return utils::Error(1, s.ToString());
+        return error::Error(s.ToString());
     }
     delete backupEngine;
 
@@ -126,38 +130,38 @@ chakra::utils::Error chakra::database::BucketDB::restoreDB() {
     std::string restoredir = FLAGS_db_dir + "/" + metaDB.name() + ".backup";
     s = rocksdb::BackupEngineReadOnly::Open(rocksdb::Env::Default(),rocksdb::BackupableDBOptions(restoredir), &restore);
     if (!s.ok()){
-        return utils::Error(1, s.ToString());
+        return error::Error(s.ToString());
     }
     s = restore->RestoreDBFromLatestBackup(restoredir, restoredir);
     if (!s.ok()){
-        return utils::Error(1, s.ToString());
+        return error::Error(s.ToString());
     }
     delete restore;
     lastRestore.seq = self->GetLatestSequenceNumber();
-    return utils::Error();
+    return error::Error();
 }
 
 chakra::database::BucketDB::RestoreDB chakra::database::BucketDB::getLastRestoreDB() {
     return chakra::database::BucketDB::RestoreDB();
 }
 
-chakra::utils::Error chakra::database::BucketDB::getUpdateSince(rocksdb::SequenceNumber seq,
+chakra::error::Error chakra::database::BucketDB::getUpdateSince(rocksdb::SequenceNumber seq,
                                                                 std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
     auto s = self->GetUpdatesSince(seq, iter);
     if (!s.ok()){
-        return utils::Error(s.code(), s.ToString());
+        return error::Error(s.ToString());
     }
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error
+chakra::error::Error
 chakra::database::BucketDB::snapshot(rocksdb::Iterator **iter, rocksdb::SequenceNumber &seq) {
     auto snapshot = self->GetSnapshot();
     rocksdb::ReadOptions readOptions;
     readOptions.snapshot = snapshot;
     seq = snapshot->GetSequenceNumber();
     (*iter) = self->NewIterator(readOptions);
-    return utils::Error();
+    return error::Error();
 }
 
 rocksdb::SequenceNumber chakra::database::BucketDB::getLastSeqNumber() {

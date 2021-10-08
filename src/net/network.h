@@ -4,13 +4,13 @@
 
 #ifndef CHAKRA_NETWORK_H
 #define CHAKRA_NETWORK_H
-#include "utils/error.h"
+#include "error/err.h"
 
 namespace chakra::net{
 
 class Network {
 public:
-    static utils::Error tpcListen(int port, int tcpBacklog, int& sockfd);
+    static error::Error tpcListen(int port, int tcpBacklog, int& sockfd);
     static int setSocketReuseAddr(int fd);
 };
 

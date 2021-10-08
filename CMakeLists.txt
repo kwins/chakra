@@ -26,6 +26,7 @@ file(GLOB_RECURSE NET_SRC ${CMAKE_SOURCE_DIR}/src/net/*.cpp)
 file(GLOB_RECURSE UTILS_SRC ${CMAKE_SOURCE_DIR}/src/utils/*.cpp)
 file(GLOB_RECURSE SERVICE_SRC ${CMAKE_SOURCE_DIR}/src/service/*.cpp)
 file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
+file(GLOB_RECURSE ERROR_SRC ${CMAKE_SOURCE_DIR}/src/error/*.cpp)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
@@ -46,6 +47,7 @@ add_executable(chakra src/main.cpp
         ${UTILS_SRC}
         ${SERVICE_SRC}
         ${REPLICA_SRC}
+        ${ERROR_SRC}
         )
 target_include_directories(
         chakra SYSTEM PRIVATE
@@ -64,6 +66,7 @@ add_executable(ut samples/unittest/ut_main.cpp
         ${NET_SRC}
         ${UTILS_SRC}
         ${DATABASE_SRC}
+        ${ERROR_SRC}
         )
 set_target_properties(ut PROPERTIES
         INSTALL_RPATH ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)

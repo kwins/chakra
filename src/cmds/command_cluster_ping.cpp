@@ -7,7 +7,7 @@
 #include "cluster/cluster.h"
 #include "net/packet.h"
 
-void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data, std::function<utils::Error(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) {
     proto::peer::GossipMessage gossip;
     if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PING).success()) return;
 

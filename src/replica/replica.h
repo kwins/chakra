@@ -15,7 +15,6 @@
 #include "types.pb.h"
 #include <fstream>
 #include "replica_link.h"
-#include "utils/error.h"
 #include <rocksdb/db.h>
 #include "utils/nocopy.h"
 #include <list>
@@ -26,17 +25,15 @@ class Replica : public utils::UnCopyable{
 public:
     Replica();
     void onAccept(ev::io& watcher, int event);
-    utils::Error loadLinks();
     static std::shared_ptr<Replica> get();
     void setReplicateDB(const std::string& name, const std::string& ip, int port);
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpLinks();
     bool replicated(const std::string& dbname, const std::string&ip, int port);
-    int replicaSuccDB(const std::string& dbname); // 复制DB状态正常的个数
     void stop();
-    
 private:
+    void loadLinks();
     uint64_t cronLoops = 0;
     ev::io replicaio;
     ev::timer cronIO;

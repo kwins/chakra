@@ -65,7 +65,7 @@ public:
     void updateMyselfDB(const proto::peer::MetaDB& metaDB);
     void increasingMyselfEpoch();
 private:
-    utils::Error loadConfigFile();
+    void loadPeers();
     void startEv();
     std::shared_ptr<Peer> randomPeer();
     void buildGossipSeader(proto::peer::GossipSender* sender, const std::string& data = "");

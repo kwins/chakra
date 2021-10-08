@@ -10,14 +10,14 @@
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data,
-                                                    std::function<utils::Error(char *resp, size_t respLen)> cbf) {
+                                                    std::function<error::Error(char *resp, size_t respLen)> cbf) {
     auto link = static_cast<replica::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_DELTA_REQUEST);
     if (!err.success()){
-        LOG(ERROR) << "replica delta pull deserialize error " << err.toString();
+        LOG(ERROR) << "replica delta pull deserialize error " << err.what();
         return;
     }
 

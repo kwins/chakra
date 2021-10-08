@@ -8,16 +8,16 @@
 #include <google/protobuf/message.h>
 #include "types.pb.h"
 #include <functional>
-#include "utils/error.h"
+#include "error/err.h"
 
 namespace chakra::net{
 
 class Packet {
 public:
-    static utils::Error serialize(const ::google::protobuf::Message& msg, proto::types::Type type,
-                          const std::function<utils::Error(char* reply, size_t len)>& cbf);
+    static error::Error serialize(const ::google::protobuf::Message& msg, proto::types::Type type,
+                          const std::function<error::Error(char* reply, size_t len)>& cbf);
 
-    static utils::Error deSerialize(char* src, size_t srcLen, ::google::protobuf::Message& msg, proto::types::Type type);
+    static error::Error deSerialize(char* src, size_t srcLen, ::google::protobuf::Message& msg, proto::types::Type type);
 
     static uint64_t getSize(char* src, size_t len);
     static uint32_t getFlag(char* src, size_t len);

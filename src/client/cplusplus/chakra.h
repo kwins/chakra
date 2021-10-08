@@ -7,21 +7,21 @@
 #include "net/connect.h"
 #include "peer.pb.h"
 #include "types.pb.h"
-#include "utils/error.h"
+#include "error/err.h"
 
 namespace chakra::client{
 class Chakra {
 public:
     explicit Chakra(net::Connect::Options options);
-    utils::Error meet(const std::string& ip, int port);
-    utils::Error set(const std::string& dbname, const std::string& key, const std::string& value);
-    utils::Error get(const std::string& dbname, const std::string& key, std::string& value);
-    utils::Error setdb(const std::string& dbname, int cached);
-    utils::Error state(proto::peer::ClusterState& clusterState);
-    utils::Error setEpoch(int64_t epoch, bool increasing);
+    error::Error meet(const std::string& ip, int port);
+    error::Error set(const std::string& dbname, const std::string& key, const std::string& value);
+    error::Error get(const std::string& dbname, const std::string& key, std::string& value);
+    error::Error setdb(const std::string& dbname, int cached);
+    error::Error state(proto::peer::ClusterState& clusterState);
+    error::Error setEpoch(int64_t epoch, bool increasing);
     void close();
 private:
-    utils::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
+    error::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
     std::shared_ptr<net::Connect> conn;
 };
 

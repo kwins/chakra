@@ -9,7 +9,7 @@
 #include "cluster/cluster.h"
 #include <glog/logging.h>
 
-void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data, std::function<utils::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> cbf) {
     proto::peer::MeetMessageRequest meet;
     proto::peer::MeetMessageResponse reply;
     auto err = chakra::net::Packet::deSerialize(req, len, meet, proto::types::P_MEET);

@@ -7,17 +7,16 @@
 #include "client.pb.h"
 #include <glog/logging.h>
 #include "database/db_object.h"
-#include "replica.pb.h"
 
 chakra::client::Chakra::Chakra(chakra::net::Connect::Options options) {
     conn = std::make_shared<net::Connect>(options);
     auto err = conn->connect();
     if (!err.success()){
-        throw std::logic_error(err.toString());
+        throw std::logic_error(err.what());
     }
 }
 
-chakra::utils::Error chakra::client::Chakra::meet(const std::string &ip, int port) {
+chakra::error::Error chakra::client::Chakra::meet(const std::string &ip, int port) {
     proto::peer::MeetMessageRequest meet;
     meet.set_port(port);
     meet.set_ip(ip);
@@ -26,12 +25,12 @@ chakra::utils::Error chakra::client::Chakra::meet(const std::string &ip, int por
     auto err = executeCmd(meet, proto::types::P_MEET, meetMessageResponse);
     if (!err.success()) return err;
     if (meetMessageResponse.error().errcode() != 0){
-        return utils::Error(meetMessageResponse.error().errcode(), meetMessageResponse.error().errmsg());
+        return error::Error(meetMessageResponse.error().errmsg());
     }
     return err;
 }
 
-chakra::utils::Error chakra::client::Chakra::set(const std::string& dbname, const std::string &key, const std::string &value) {
+chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string &key, const std::string &value) {
     proto::client::SetMessageRequest setMessageRequest;
     setMessageRequest.set_db_name(dbname);
     setMessageRequest.set_key(key);
@@ -43,12 +42,12 @@ chakra::utils::Error chakra::client::Chakra::set(const std::string& dbname, cons
     if (!err.success()) return err;
 
     if (setMessageResponse.error().errcode() != 0){
-        return utils::Error(setMessageResponse.error().errcode(), setMessageResponse.error().errmsg());
+        return error::Error(setMessageResponse.error().errmsg());
     }
     return err;
 }
 
-chakra::utils::Error
+chakra::error::Error
 chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
     proto::client::GetMessageRequest getMessageRequest;
     getMessageRequest.set_db_name(dbname);
@@ -59,7 +58,7 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, s
     auto err = executeCmd(getMessageRequest, proto::types::C_GET, getMessageResponse);
     if (!err.success()) return err;
     if (getMessageResponse.error().errcode() != 0){
-        return utils::Error(getMessageResponse.error().errcode(), getMessageResponse.error().errmsg());
+        return error::Error(getMessageResponse.error().errmsg());
     }
 
     if(getMessageResponse.value_case() == proto::client::GetMessageResponse::ValueCase::kS){
@@ -69,12 +68,12 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, s
     } else if (getMessageResponse.value_case() == proto::client::GetMessageResponse::ValueCase::kF){
         value = std::to_string(getMessageResponse.f());
     } else {
-        return utils::Error(utils::Error::ERR_DATA_TYPE, "data type error");
+        return error::Error("data type error");
     }
     return err;
 }
 
-chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, int cached) {
+chakra::error::Error chakra::client::Chakra::setdb(const std::string &dbname, int cached) {
     proto::peer::DBSetMessageRequest dbSetMessageRequest;
     auto db = dbSetMessageRequest.mutable_db();
     db->set_name(dbname);
@@ -83,19 +82,19 @@ chakra::utils::Error chakra::client::Chakra::setdb(const std::string &dbname, in
     auto err = executeCmd(dbSetMessageRequest, proto::types::P_SET_DB, dbSetMessageResponse);
     if (!err.success()) return err;
     if (dbSetMessageResponse.error().errcode() != 0){
-        return utils::Error(dbSetMessageResponse.error().errcode(), dbSetMessageResponse.error().errmsg());
+        return error::Error(dbSetMessageResponse.error().errmsg());
     }
     return err;
 }
 
-chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
+chakra::error::Error chakra::client::Chakra::executeCmd(google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
     return chakra::net::Packet::serialize(msg, type,[this, &reply, type](char* req, size_t reqlen){
         auto err = this->conn->send(req, reqlen);
         if (err.success()){
             return this->conn->receivePack([this, &reply, type](char *resp, size_t resplen) {
                 auto reqtype = chakra::net::Packet::getType(resp, resplen);
                 if (reqtype == 0){
-                    return utils::Error(utils::Error::ERR_COMMAND_NOT_FOUND, "command not found");
+                    return error::Error("command not found");
                 }
                 return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
             });
@@ -104,20 +103,20 @@ chakra::utils::Error chakra::client::Chakra::executeCmd(google::protobuf::Messag
     });
 }
 
-chakra::utils::Error chakra::client::Chakra::state(proto::peer::ClusterState &clusterState) {
+chakra::error::Error chakra::client::Chakra::state(proto::peer::ClusterState &clusterState) {
     proto::peer::StateMessageRequest stateMessageRequest;
     stateMessageRequest.set_from(" ");
     proto::peer::StateMessageResponse stateMessageResponse;
     auto err = executeCmd(stateMessageRequest, proto::types::P_STATE, stateMessageResponse);
     if (!err.success()) return err;
     if (stateMessageResponse.error().errcode() != 0){
-        return utils::Error(stateMessageResponse.error().errcode(), stateMessageResponse.error().errmsg());
+        return error::Error(stateMessageResponse.error().errmsg());
     }
     clusterState = stateMessageResponse.state();
     return err;
 }
 
-chakra::utils::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increasing) {
+chakra::error::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increasing) {
     proto::peer::EpochSetMessageRequest epochSetMessageRequest;
     epochSetMessageRequest.set_epoch(epoch);
     epochSetMessageRequest.set_increasing(increasing);
@@ -125,7 +124,7 @@ chakra::utils::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increa
     auto err = executeCmd(epochSetMessageRequest, proto::types::P_SET_EPOCH, epochSetMessageResponse);
     if (!err.success()) return err;
     if (epochSetMessageResponse.error().errcode() != 0){
-        return utils::Error(epochSetMessageResponse.error().errcode(), epochSetMessageResponse.error().errmsg());
+        return error::Error(epochSetMessageResponse.error().errmsg());
     }
     return err;
 }

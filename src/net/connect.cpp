@@ -10,7 +10,6 @@
 #include <poll.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "utils/error.h"
 #include "packet.h"
 #include <glog/logging.h>
 
@@ -27,7 +26,7 @@ chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->bufLen = 0;
     this->bufFree = FLAGS_connect_buff_size;
     if (this->opts.fd > 0){
-        this->FD = opts.fd;
+        this->FD = this->opts.fd;
         this->state = State::CONNECTED;
     } else{
         this->FD = -1;
@@ -35,8 +34,8 @@ chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     }
 }
 
-chakra::utils::Error chakra::net::Connect::send(const char *data, size_t len) {
-    if (data == nullptr || len <= 0) return utils::Error(ERR_BAD_ARGS, "data or len error");
+chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
+    if (data == nullptr || len <= 0) return error::Error("data or len error");
     long size = len;
     long nextLen = size;
     ssize_t sendSize = 0;
@@ -59,10 +58,10 @@ chakra::utils::Error chakra::net::Connect::send(const char *data, size_t len) {
             }
         }
     }
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error chakra::net::Connect::receivePack(const std::function< utils::Error (char* ptr, size_t len)>& process) {
+chakra::error::Error chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0){
         return setError(ERR_RECEIVE, "connect closed");
@@ -82,7 +81,7 @@ chakra::utils::Error chakra::net::Connect::receivePack(const std::function< util
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
     if ((packSize == 0) || (packSize > 0 && bufLen < packSize)){
         LOG(WARNING) << "connect recv pack not enough, pack size is " << packSize << " recved is " << bufLen;
-        return utils::Error(); // 这里不返回错误，只是打印日志，下次继续读取
+        return error::Error(); // 这里不返回错误，只是打印日志，下次继续读取
     }
 
     // 处理整个包
@@ -107,8 +106,8 @@ std::string chakra::net::Connect::remoteAddr()  {
     return opts.host + ":" + std::to_string(opts.port);
 }
 
-chakra::utils::Error chakra::net::Connect::connect() {
-    if (state == State::CONNECTED) return utils::Error();
+chakra::error::Error chakra::net::Connect::connect() {
+    if (state == State::CONNECTED) return error::Error();
 
     int retryTimes = 0;
     int clientFd;
@@ -158,7 +157,7 @@ chakra::utils::Error chakra::net::Connect::connect() {
     return err;
 }
 
-chakra::utils::Error chakra::net::Connect::setBlock(bool block) {
+chakra::error::Error chakra::net::Connect::setBlock(bool block) {
     int flags;
     if ((flags = fcntl(fd(), F_GETFL)) == -1){
         return setError("F_GETFL");
@@ -174,14 +173,14 @@ chakra::utils::Error chakra::net::Connect::setBlock(bool block) {
         return setError(ERR_SET_BLOCK,"F_SETFL", true);
     }
 
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error chakra::net::Connect::setError(const std::string& extra, bool closeConn) {
+chakra::error::Error chakra::net::Connect::setError(const std::string& extra, bool closeConn) {
     return setError(errno, extra, closeConn);
 }
 
-chakra::utils::Error chakra::net::Connect::setError(int code, const std::string &extra, bool closeConn) {
+chakra::error::Error chakra::net::Connect::setError(int code, const std::string &extra, bool closeConn) {
     errMsg.clear();
     if (!extra.empty()){
         errMsg.append(extra);
@@ -192,10 +191,10 @@ chakra::utils::Error chakra::net::Connect::setError(int code, const std::string 
         errMsg.append(":").append(buf);
     }
     if (closeConn) close();
-    return utils::Error(code, errMsg);
+    return error::Error(errMsg);
 }
 
-chakra::utils::Error chakra::net::Connect::setConnectTimeout() {
+chakra::error::Error chakra::net::Connect::setConnectTimeout() {
     timeval readv{}, writev{};
     toTimeVal(opts.readTimeOut, readv);
     toTimeVal(opts.writeTimeOut, writev);
@@ -207,7 +206,7 @@ chakra::utils::Error chakra::net::Connect::setConnectTimeout() {
     if (setsockopt(fd(), SOL_SOCKET, SO_SNDTIMEO, &writev, sizeof(writev))){
         return setError("SO_SNDTIMEO");
     }
-    return utils::Error();
+    return error::Error();
 }
 
 void chakra::net::Connect::toTimeVal(const std::chrono::milliseconds &duration, timeval &tv) {
@@ -219,7 +218,7 @@ long chakra::net::Connect::toMsec(const std::chrono::milliseconds &duration) {
     return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
-chakra::utils::Error chakra::net::Connect::waitConnectReady(long msec) {
+chakra::error::Error chakra::net::Connect::waitConnectReady(long msec) {
     struct pollfd wfd[1];
     wfd[0].fd = fd();
     wfd[0].events = POLLOUT;
@@ -240,10 +239,10 @@ chakra::utils::Error chakra::net::Connect::waitConnectReady(long msec) {
         return checkSockErr();
     }
 
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error chakra::net::Connect::checkSockErr() {
+chakra::error::Error chakra::net::Connect::checkSockErr() {
     int err1 = 0;
     int err_saved = errno;
     socklen_t err1len = sizeof(err1);
@@ -256,14 +255,14 @@ chakra::utils::Error chakra::net::Connect::checkSockErr() {
     if (err1){
         return setError("CHECK SOCK");
     }
-    return utils::Error();
+    return error::Error();
 }
 
-chakra::utils::Error chakra::net::Connect::checkConnectOK(int &completed) {
+chakra::error::Error chakra::net::Connect::checkConnectOK(int &completed) {
     int rc = ::connect(fd(), const_cast<const struct sockaddr*>(sar), sizeof(sar));
     if (rc == 0){
         completed = 1;
-        return utils::Error();
+        return error::Error();
     }
 
     switch (errno) {
@@ -274,11 +273,11 @@ chakra::utils::Error chakra::net::Connect::checkConnectOK(int &completed) {
         case EINPROGRESS:
         case EWOULDBLOCK:
             completed = 0;
-            return utils::Error();
+            return error::Error();
         default:
-            return utils::Error(ERR_CONNECT, "check connect");
+            return error::Error("check connect");
     }
-    return utils::Error();
+    return error::Error();
 }
 
 int chakra::net::Connect::fd() const { return FD; }

@@ -11,7 +11,7 @@
 #include "replica/replica.h"
 
 void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data,
-                                                std::function<utils::Error(char *, size_t)> cbf) {
+                                                std::function<error::Error(char *, size_t)> cbf) {
 
     proto::peer::DBSetMessageRequest dbSetMessage;
     proto::peer::DBSetMessageResponse dbSetMessageResponse;
