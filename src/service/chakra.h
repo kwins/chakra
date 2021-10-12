@@ -48,7 +48,7 @@ public:
     void startServCron();
     void onServCron(ev::timer& watcher, int event);
     static void onSignal(ev::sig&, int);
-    void startUp();
+    void startUp() const;
     void stop();
     ~Chakra();
 

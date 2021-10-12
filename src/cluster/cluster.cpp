@@ -225,26 +225,6 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         }
     }
 
-    /* 检查是否有新的副本上线，触发复制流程 */
-    auto replicaptr = chakra::replica::Replica::get();
-    for(auto& it : peers){
-        auto& peer = it.second;
-        if (peer->isMyself()) continue;
-        for(auto& db : peer->getPeerDBs()){
-            auto& metaDB = db.second;
-            if (myself->servedDB(metaDB.name())  /* 当前节点处理正在处理这个db */
-                && metaDB.state() == proto::peer::MetaDB_State_ONLINE /* db 处于 online 状态*/
-                && !replicaptr->replicated(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
-                // 在多主的集群中，当某个db增加一个副本时
-                // 当前副本的所有节点需要立刻复制新增的副本节点，以保证db的最终的一致性
-                replicaptr->setReplicateDB(metaDB.name(), peer->getIp(), peer->getPort() + 1);
-                LOG(INFO) << "Cluster add db " << metaDB.name() << " new copy, starting replicate from("
-                          << peer->getIp() << ":" << (peer->getPort() + 1)
-                          << ").";
-            }
-        }
-    }
-
     if (FLAG_UPDATE_STATE & cronTodo){
         updateClusterState();
         cronTodo &= ~FLAG_UPDATE_STATE;
@@ -488,6 +468,9 @@ std::shared_ptr<chakra::cluster::Peer> chakra::cluster::Cluster::getPeer(const s
     }
     return nullptr;
 }
+
+std::unordered_map<std::string, std::shared_ptr<chakra::cluster::Peer>>&
+chakra::cluster::Cluster::getPeers() { return peers; }
 
 std::vector<std::shared_ptr<chakra::cluster::Peer>> chakra::cluster::Cluster::getPeers(const std::string &dbName) {
     std::vector<std::shared_ptr<chakra::cluster::Peer>> dbPeers;

@@ -37,6 +37,8 @@ public:
     std::shared_ptr<Peer> getPeer(const std::string& ip, int port);
     std::shared_ptr<Peer> getPeer(const std::string& name);
     std::vector<std::shared_ptr<Peer>> getPeers(const std::string& dbName);
+    std::unordered_map<std::string, std::shared_ptr<Peer>>& getPeers();
+
     size_t size();
     void sendPingOrMeet(std::shared_ptr<Peer> peer, proto::types::Type type);
     int getCurrentEpoch() const;

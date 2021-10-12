@@ -291,11 +291,11 @@ void chakra::replica::Link::setRocksSeq(int64_t seq) { Link::deltaSeq = seq; }
 
 long chakra::replica::Link::getLastTransferMs() const { return lastTransferMs; }
 
-void chakra::replica::Link::setLastTransferMs(long ms) { Link::lastTransferMs = ms; }
+void chakra::replica::Link::setLastTransferMs(long ms) { lastTransferMs = ms; }
 
 long chakra::replica::Link::getLastInteractionMs() const { return lastInteractionMs; }
 
-void chakra::replica::Link::setLastInteractionMs(long ms) { Link::lastInteractionMs = ms; }
+void chakra::replica::Link::setLastInteractionMs(long ms) { lastInteractionMs = ms; }
 
 const std::string &chakra::replica::Link::getIp() const {return ip; }
 

@@ -30,7 +30,7 @@ public:
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicaStates();
-    void replicaSelfDBs();
+    std::list<std::shared_ptr<Link>>& getPrimaryDBLinks();
     bool replicated(const std::string& dbname, const std::string&ip, int port);
     void stop();
 private:

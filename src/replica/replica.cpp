@@ -89,34 +89,6 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
     for(auto& link : primaryDBLinks)
         link->replicaEventHandler();
 
-    std::unordered_map<std::string, std::list<std::shared_ptr<Link>>> replicatings;
-    for(auto& link : primaryDBLinks){
-        if (link->getState() == Link::State::CONNECTED){
-            replicatings[link->getDbName()].push_back(link);
-        }
-    }
-
-    auto clusptr = chakra::cluster::Cluster::get();
-    for(auto& it : replicatings){
-        auto peers = clusptr->getPeers(it.first);
-        int num = std::count_if(peers.begin(), peers.end(), [](const std::shared_ptr<chakra::cluster::Peer>& peer){
-            return !peer->isMyself();
-        }); /* 除本节点外 某个db在集群中节点个数 */
-
-        auto dbs = clusptr->getMyself()->getPeerDBs();
-        auto db = dbs.find(it.first);
-        if (db == dbs.end()){
-            LOG(ERROR) << "not found db " << it.first << " in this node. ";
-        } else if(it.second.size() == num
-                  && db->second.state() != proto::peer::MetaDB_State_ONLINE){
-            proto::peer::MetaDB info;
-            info.CopyFrom(db->second);
-            info.set_state(proto::peer::MetaDB_State_ONLINE);
-            clusptr->updateMyselfDB(info);
-            LOG(INFO) << "REPL set db " << it.first << " state online.";
-        }
-    }
-
     if (cronLoops % 10 == 0)
         dumpReplicaStates();
 
@@ -127,17 +99,10 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
         return link->isTimeout();
     });
 
-    replicaSelfDBs();
-
     startReplicaCron();
 }
 
-void chakra::replica::Replica::replicaSelfDBs() {
-    auto& db = database::FamilyDB::get();
-    for(auto& replica : selfStates){
-        // TODO: replica self
-    }
-}
+std::list<std::shared_ptr<chakra::replica::Link>> &chakra::replica::Replica::getPrimaryDBLinks() {return primaryDBLinks; }
 
 bool chakra::replica::Replica::replicated(const std::string &dbname, const std::string&ip, int port) {
     return std::any_of(primaryDBLinks.begin(), primaryDBLinks.end(), [dbname, ip, port](const std::shared_ptr<Link>& link){

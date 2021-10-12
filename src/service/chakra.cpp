@@ -89,7 +89,7 @@ void chakra::serv::Chakra::initLibev() {
     sigkill.set(ev::get_default_loop());
     sigkill.start(SIGKILL);
 
-//    startServCron();
+    startServCron();
 }
 
 void chakra::serv::Chakra::onSignal(ev::sig & sig, int event) {
@@ -123,11 +123,70 @@ void chakra::serv::Chakra::startServCron() {
 }
 
 void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
+    auto replicaptr = replica::Replica::get();
+    auto clusptr = chakra::cluster::Cluster::get();
+
+    /*  在多主的集群中，当在集群中增加一个副本时
+    副本节点需要获取所有其他副本的写数据，并Merge到自己的全局rocksdb中，以保证数据和其他副本节点的最终一致性。
+    因为要获取多个节点的写数据，所以当有新副本加入集群，需要检查是否已经完成历史数据Merge，并且开始增量复制。
+    当所有的副本节点历史数据都已Merge完成，历史数据保持一致后，则通知集群新的副本上线。*/
+    std::unordered_map<std::string, std::list<std::shared_ptr<replica::Link>>> replicatings;
+    for(auto& link : replicaptr->getPrimaryDBLinks()){
+        if (link->getState() == replica::Link::State::CONNECTED){
+            replicatings[link->getDbName()].push_back(link);
+        }
+    }
+
+    for(auto& it : replicatings){
+        auto peers = clusptr->getPeers(it.first);
+        int num = std::count_if(peers.begin(), peers.end(), [](const std::shared_ptr<chakra::cluster::Peer>& peer){
+            return !peer->isMyself();
+        }); /* 除本节点外 某个db在集群中节点个数 */
+
+        auto dbs = clusptr->getMyself()->getPeerDBs();
+        auto db = dbs.find(it.first);
+        if (db == dbs.end()){
+            LOG(ERROR) << "Not found db " << it.first << " in this node. ";
+        } else if(it.second.size() == num
+                  && db->second.state() != proto::peer::MetaDB_State_ONLINE){
+            /* 复制成功的个数 等于 集群中副本个数(除自己外的) 且 当前db状态为非ONLINE */
+            proto::peer::MetaDB info;
+            info.CopyFrom(db->second);
+            info.set_state(proto::peer::MetaDB_State_ONLINE);
+            clusptr->updateMyselfDB(info);
+            LOG(INFO) << "Replicate set db " << it.first << " state online to cluster.";
+        }
+    }
+
+    /* 检查是否有新的副本上线，触发复制流程
+    新的副本上线，通知到集群后，其他副本节点同样也需要向新的副本节点发起复制请求
+    以获取新副本节点的写数据，保证数据的一致性 */
+    for(auto& it : clusptr->getPeers()){
+        auto& peer = it.second;
+        if (peer->isMyself()) continue;
+        for(auto& db : peer->getPeerDBs()){
+            auto& metaDB = db.second;
+            if (clusptr->getMyself()->servedDB(metaDB.name())  /* 当前节点处理正在处理这个db */
+                && metaDB.state() == proto::peer::MetaDB_State_ONLINE /* db 处于 online 状态*/
+                && !replicaptr->replicated(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
+
+                replicaptr->setReplicateDB(metaDB.name(), peer->getIp(), peer->getPort() + 1);
+                LOG(INFO) << "Cluster add db " << metaDB.name() << " new copy, starting replicate from("
+                          << peer->getIp() << ":" << (peer->getPort() + 1)
+                          << ").";
+            }
+        }
+    }
+
+    // TODO: replica self
+    /* self replica
+     *
+     * */
 
     startServCron();
 }
 
-void chakra::serv::Chakra::startUp() {
+void chakra::serv::Chakra::startUp() const {
     LOG(INFO) << "Chakra start works " << workNum;
     LOG(INFO) << "Chakra start and listen on "
               << FLAGS_server_ip << ":" << FLAGS_server_port << " success.";
