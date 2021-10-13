@@ -75,18 +75,37 @@ void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Ele
             auto s = self->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
             if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
             // TODO: replica self
-            s = dbptr->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
-            if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
+//            s = dbptr->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
+//            if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
         });
     }
 }
 
-chakra::error::Error chakra::database::BucketDB::put(rocksdb::WriteBatch& batch) {
+// 增量同步过来的数据，需要写入到全量的rocksdb中，并清除缓存
+chakra::error::Error chakra::database::BucketDB::putAll(rocksdb::WriteBatch& batch) {
     auto s = batch.Iterate(this);
     if (!s.ok()){
         return error::Error(s.ToString());
     }
     return error::Error();
+}
+
+
+chakra::error::Error
+chakra::database::BucketDB::putAll(const std::string &key, const std::string &value) {
+    auto s = dbptr->Put(rocksdb::WriteOptions(), key, value);
+    if (!s.ok()){
+        return chakra::error::Error(s.ToString());
+    }
+    return chakra::error::Error();
+}
+
+chakra::error::Error chakra::database::BucketDB::putAll(const rocksdb::Slice &key, const rocksdb::Slice &value) {
+    auto s = dbptr->Put(rocksdb::WriteOptions(), key, value);
+    if (!s.ok()){
+        return chakra::error::Error(s.ToString());
+    }
+    return chakra::error::Error();
 }
 
 void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
@@ -96,8 +115,8 @@ void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
         auto s = self->Delete(rocksdb::WriteOptions(), key);
         if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
         // TODO: replica self
-        s = dbptr->Delete(rocksdb::WriteOptions(), key);
-        if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
+//        s = dbptr->Delete(rocksdb::WriteOptions(), key);
+//        if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
     }
 }
 
@@ -147,6 +166,11 @@ chakra::database::BucketDB::RestoreDB chakra::database::BucketDB::getLastRestore
 
 chakra::error::Error chakra::database::BucketDB::getUpdateSince(rocksdb::SequenceNumber seq,
                                                                 std::unique_ptr<rocksdb::TransactionLogIterator> *iter) {
+    /* 1、请求seq小于lastseq 且 size > 0 有效
+     * 2、请求seq小于lastseq 且 size = 0 无效，增量日志已经被删除了
+     * 3、请求seq等于lastseq 且 size > 0 有效，但是size=1 这个数据已经被获取过了
+     * 4、请求seq等于lastseq 且 size = 0 有效，增量日志已经被删了，但是lastseq并没有变化，说并在此期间并没有新的数据写入
+     * */
     auto s = self->GetUpdatesSince(seq, iter);
     if (!s.ok()){
         return error::Error(s.ToString());

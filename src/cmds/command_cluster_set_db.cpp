@@ -36,6 +36,8 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         if (!peers.empty()){ // 非空至少有两个
             for(auto& peer: peers){
                 if (peer->isMyself()) continue;
+                if (replicaptr->replicatedPeer(dbSetMessage.db().name(), peer->getIp(), peer->getPort() + 1))
+                    continue;
                 replicaptr->setReplicateDB(dbSetMessage.db().name(), peer->getIp(), peer->getPort() + 1);
                 LOG(INFO) << "Cluster have been " << dbSetMessage.db().name()
                           << " db before set it, start replica from ("
@@ -48,6 +50,9 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         }
 
         clsptr->setMyselfDB(info);
+        if (peers.empty() && !replicaptr->replicatedSelf(dbSetMessage.db().name())){ /* replica self */
+            replicaptr->setReplicateDB(dbSetMessage.db().name(), "", 0, true);
+        }
         LOG(INFO) << "Cluster set db " << dbSetMessage.db().name()
                   << " state " << proto::peer::MetaDB_State_Name(info.state());
     }

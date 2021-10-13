@@ -25,7 +25,9 @@ public:
     size_t size();
     std::shared_ptr<Element> get(const std::string& key);
     void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
-    error::Error put(rocksdb::WriteBatch &batch);
+    error::Error putAll(rocksdb::WriteBatch &batch);
+    error::Error putAll(const std::string& key, const std::string& value);
+    error::Error putAll(const rocksdb::Slice& key, const rocksdb::Slice& value);
     void del(const std::string& key, bool dbdel = true);
 
     proto::peer::MetaDB getMetaDB(const std::string& dbname);

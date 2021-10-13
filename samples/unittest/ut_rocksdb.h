@@ -341,14 +341,16 @@ public:
         options.WAL_ttl_seconds = 100000;
 
         rocksdb::DB* data3;
-        auto s = rocksdb::DB::Open(options, "./data/node2/db1.self", &data3);
+        auto s = rocksdb::DB::Open(options, "./data/node4/db4.self", &data3);
 
-        LOG(INFO) << "latest seq:" << data3->GetLatestSequenceNumber();
+        s = data3->Put(rocksdb::WriteOptions(), "key_1", "value_1");
+
+        LOG(INFO) << "write state:" << s.ToString() << "latest seq:" << data3->GetLatestSequenceNumber();
 
         std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-        s = data3->GetUpdatesSince(data3->GetLatestSequenceNumber()+10, &iter);
+        s = data3->GetUpdatesSince(data3->GetLatestSequenceNumber(), &iter);
 
-        LOG(INFO) << "state:" << s.ToString();
+        LOG(INFO) << "state:" << s.ToString() << " valid:" << iter->Valid();
 
 //        assert(s.ok());
         int size = 0;

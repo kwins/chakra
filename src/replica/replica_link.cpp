@@ -17,7 +17,9 @@
 DECLARE_int32(replica_timeout_ms);
 DECLARE_int64(connect_buff_size);
 DECLARE_double(replica_delta_pull_interval_sec);
+DECLARE_int64(replica_delta_batch_bytes);
 DECLARE_double(replica_bulk_send_interval_sec);
+DECLARE_int64(replica_bulk_batch_bytes);
 
 chakra::replica::Link::Link(const chakra::replica::Link::NegativeOptions& options) {
     setState(State::CONNECT);
@@ -139,7 +141,7 @@ void chakra::replica::Link::onSendBulk(ev::timer &watcher, int event) {
     while (bulkiter->Valid()){
         size += bulkiter->key().size();
         size += bulkiter->value().size();
-        if (size > BULK_LEN || size > FLAGS_connect_buff_size)
+        if (size > FLAGS_replica_bulk_batch_bytes || size > FLAGS_connect_buff_size)
             break;
         auto data = bulkMessage.mutable_kvs()->Add();
         data->set_key(bulkiter->key().ToString());
@@ -179,7 +181,7 @@ void chakra::replica::Link::onPullDelta(ev::timer &watcher, int event) {
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     deltaMessageRequest.set_db_name(dbName);
     deltaMessageRequest.set_seq(deltaSeq);
-    deltaMessageRequest.set_size(DELTA_LEN);
+    deltaMessageRequest.set_size(FLAGS_replica_delta_batch_bytes);
     auto err = sendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
     if (!err.success()){
         LOG(INFO) << "REPL send delta pull message eror " << err.what();

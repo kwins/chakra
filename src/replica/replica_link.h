@@ -105,8 +105,6 @@ private:
     rocksdb::Iterator* bulkiter = nullptr;
     int64_t deltaSeq = -1;
     ev::timer transferIO;
-    static const int BULK_LEN = 1024 * 4;
-    static const int DELTA_LEN = 1024 * 4;
 };
 
 }

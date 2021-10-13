@@ -109,13 +109,33 @@ chakra::database::FamilyDB::put(const std::string& name, const std::string &key,
     it->second->put(key, val);
 }
 
-chakra::error::Error chakra::database::FamilyDB::put(const std::string& name, rocksdb::WriteBatch &batch) {
+chakra::error::Error chakra::database::FamilyDB::putAll(const std::string& name, rocksdb::WriteBatch &batch) {
     int pos = index.load();
     auto it = columnBuckets[pos].find(name);
     if (it == columnBuckets[pos].end()){
         return error::Error("db " + name + " not found");
     }
-    return it->second->put(batch);
+    return it->second->putAll(batch);
+}
+
+chakra::error::Error
+chakra::database::FamilyDB::putAll(const std::string &name, const std::string &key, const std::string &value) {
+    int pos = index.load();
+    auto it = columnBuckets[pos].find(name);
+    if (it == columnBuckets[pos].end()){
+        return error::Error("db " + name + " not found");
+    }
+    return it->second->putAll(key, value);
+}
+
+chakra::error::Error
+chakra::database::FamilyDB::putAll(const std::string &name, const rocksdb::Slice &key, const rocksdb::Slice &value) {
+    int pos = index.load();
+    auto it = columnBuckets[pos].find(name);
+    if (it == columnBuckets[pos].end()){
+        return error::Error("db " + name + " not found");
+    }
+    return it->second->putAll(key, value);
 }
 
 void chakra::database::FamilyDB::del(const std::string &name, const std::string &key) {

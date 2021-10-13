@@ -18,6 +18,7 @@ DECLARE_string(server_ip);
 DECLARE_int32(server_port);
 DECLARE_int32(server_tcp_backlog);
 DECLARE_double(server_cron_interval_sec);
+DECLARE_int64(replica_delta_batch_bytes);
 
 chakra::serv::Chakra::Chakra() {
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
@@ -136,7 +137,6 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             replicatings[link->getDbName()].push_back(link);
         }
     }
-
     for(auto& it : replicatings){
         auto peers = clusptr->getPeers(it.first);
         int num = std::count_if(peers.begin(), peers.end(), [](const std::shared_ptr<chakra::cluster::Peer>& peer){
@@ -157,18 +157,17 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             LOG(INFO) << "Replicate set db " << it.first << " state online to cluster.";
         }
     }
-
     /* 检查是否有新的副本上线，触发复制流程
     新的副本上线，通知到集群后，其他副本节点同样也需要向新的副本节点发起复制请求
     以获取新副本节点的写数据，保证数据的一致性 */
     for(auto& it : clusptr->getPeers()){
         auto& peer = it.second;
         if (peer->isMyself()) continue;
-        for(auto& db : peer->getPeerDBs()){
-            auto& metaDB = db.second;
+        for(auto& dbit : peer->getPeerDBs()){
+            auto& metaDB = dbit.second;
             if (clusptr->getMyself()->servedDB(metaDB.name())  /* 当前节点处理正在处理这个db */
                 && metaDB.state() == proto::peer::MetaDB_State_ONLINE /* db 处于 online 状态*/
-                && !replicaptr->replicated(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
+                && !replicaptr->replicatedPeer(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
 
                 replicaptr->setReplicateDB(metaDB.name(), peer->getIp(), peer->getPort() + 1);
                 LOG(INFO) << "Cluster add db " << metaDB.name() << " new copy, starting replicate from("
@@ -178,11 +177,12 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
         }
     }
 
-    // TODO: replica self
-    /* self replica
-     *
-     * */
-
+    for(auto& selfDB : clusptr->getMyself()->getPeerDBs()){
+        if (!replicaptr->replicatedSelf(selfDB.first)){
+            replicaptr->setReplicateDB(selfDB.first,"", 0, true);
+            LOG(INFO) << "Replica self db " << selfDB.first;
+        }
+    }
     startServCron();
 }
 
@@ -265,9 +265,7 @@ chakra::serv::Chakra::Link::~Link() {
 
 void chakra::serv::Chakra::Worker::startUp(int id) {
     workID = id;
-//    LOG(INFO) << "Chakra worker " << id << " start up.";
     loop.loop();
-//    LOG(INFO) << "Chakra worker " << id << " break.";
 }
 
 void chakra::serv::Chakra::Worker::onAsync(ev::async &watcher, int event) {

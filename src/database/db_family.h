@@ -44,7 +44,9 @@ public:
     void del(const std::string& name, const std::string& key);
 
     // 写全量rocksDB
-    error::Error put(const std::string& name, rocksdb::WriteBatch& batch);
+    error::Error putAll(const std::string& name, rocksdb::WriteBatch& batch);
+    error::Error putAll(const std::string& name, const std::string& key, const std::string& value);
+    error::Error putAll(const std::string& name, const rocksdb::Slice& key, const rocksdb::Slice& value);
     ~FamilyDB();
 private:
     using ColumnName = std::string;

@@ -62,8 +62,10 @@ void chakra::replica::Replica::loadLinks() {
             link->setPeerName(replica.primary());
             primaryDBLinks.push_back(link);
         }
+
         for(auto& replica : replicaStates.selfs()){
-            selfStates.push_back(replica);
+            auto selfLink = std::make_shared<chakra::replica::LinkSelf>(replica.db_name(), replica.delta_seq());
+            selfDBLinks.push_back(selfLink);
         }
     } catch (error::FileNotExistError& err) {
         return;
@@ -104,14 +106,21 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 
 std::list<std::shared_ptr<chakra::replica::Link>> &chakra::replica::Replica::getPrimaryDBLinks() {return primaryDBLinks; }
 
-bool chakra::replica::Replica::replicated(const std::string &dbname, const std::string&ip, int port) {
+bool chakra::replica::Replica::replicatedPeer(const std::string &dbname, const std::string&ip, int port) {
     return std::any_of(primaryDBLinks.begin(), primaryDBLinks.end(), [dbname, ip, port](const std::shared_ptr<Link>& link){
        return link->getDbName() == dbname && ip == link->getIp() && port == link->getPort();
     });
 }
 
+bool chakra::replica::Replica::replicatedSelf(const std::string &dbname) {
+    return std::any_of(selfDBLinks.begin(), selfDBLinks.end(), [dbname](const std::shared_ptr<LinkSelf>& link){
+        return link->getDbName() == dbname;
+    });
+}
+
+
 void chakra::replica::Replica::dumpReplicaStates() {
-    if (primaryDBLinks.empty() && selfStates.empty()) return;
+    if (primaryDBLinks.empty() && selfDBLinks.empty()) return;
 
     std::string tofile = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     proto::replica::ReplicaStates replicaState;
@@ -119,9 +128,10 @@ void chakra::replica::Replica::dumpReplicaStates() {
         auto metaReplica = replicaState.mutable_replicas()->Add();
         (*metaReplica) = link->dumpLink();
     }
-    for(auto& replica : selfStates){
-        auto info = replicaState.mutable_replicas()->Add();
-        info->CopyFrom(replica);
+    for(auto& self : selfDBLinks){
+        auto info = replicaState.mutable_selfs()->Add();
+        info->set_delta_seq(self->getDeltaSeq());
+        info->set_db_name(self->getDbName());
     }
     auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
     if (!err.success()){
@@ -131,14 +141,19 @@ void chakra::replica::Replica::dumpReplicaStates() {
     }
 }
 
-void chakra::replica::Replica::setReplicateDB(const std::string &name, const std::string &ip, int port) {
-    chakra::replica::Link::PositiveOptions options;
-    options.ip = ip;
-    options.port = port;
-    options.dbName = name;
-    options.dir = FLAGS_replica_dir;
-    auto link = std::make_shared<chakra::replica::Link>(options);
-    primaryDBLinks.push_back(link);
+void chakra::replica::Replica::setReplicateDB(const std::string &name, const std::string &ip, int port, bool self) {
+    if (self){
+        selfDBLinks.push_back(std::make_shared<chakra::replica::LinkSelf>(name));
+    } else {
+        chakra::replica::Link::PositiveOptions options;
+        options.ip = ip;
+        options.port = port;
+        options.dbName = name;
+        options.dir = FLAGS_replica_dir;
+        auto link = std::make_shared<chakra::replica::Link>(options);
+        primaryDBLinks.push_back(link);
+    }
+    dumpReplicaStates();
 }
 
 void chakra::replica::Replica::onAccept(ev::io &watcher, int event) {

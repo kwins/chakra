@@ -22,7 +22,6 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
         syncMessageResponse.set_seq(syncMessageRequest.seq());
         if (!syncMessageRequest.db_name().empty() && syncMessageRequest.seq() >= 0){ // 增量同步
-            LOG(INFO) << "command replica execute part sync.";
             syncMessageResponse.set_db_name(syncMessageRequest.db_name());
             syncMessageResponse.set_seq(syncMessageRequest.seq());
 
@@ -32,20 +31,21 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
             if (!err.success()){
                 chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
             } else {
-                if (iter->Valid() && iter->GetBatch().sequence > syncMessageRequest.seq()){ // 执行全量同步
+                if (iter->Valid() && iter->GetBatch().sequence == syncMessageRequest.seq()){
+                    link->setState(replica::Link::State::CONNECTED);
+                    syncMessageResponse.set_psync_type(proto::types::R_PARTSYNC);
+                } else {
+                    /* 1、delta 有效，但是获取的 第一个增量的delta seq 非请求的 seq 则说明历史delta已经被删除了 */
+                    /* 2、delta 无效 */
                     err = link->snapshotBulk(syncMessageRequest.db_name());
                     if (!err.success()){
                         chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
                     } else {
                         syncMessageResponse.set_psync_type(proto::types::R_FULLSYNC);
                     }
-                }else{ // 执行增量同步
-                    link->setState(replica::Link::State::CONNECTED);
-                    syncMessageResponse.set_psync_type(proto::types::R_PARTSYNC);
                 }
             }
         } else if (!syncMessageRequest.db_name().empty() && syncMessageRequest.seq() < 0){ // 全量同步
-            LOG(INFO) << "command replica execute full sync.";
             err = link->snapshotBulk(syncMessageRequest.db_name());
             if (!err.success()){
                 chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
@@ -54,6 +54,9 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
             }
         } else {
             chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, "parameter illegal");
+        }
+        if (!syncMessageResponse.error().errcode()){
+            LOG(INFO) << "Peer execute" << link->getPeerName() << " replica request with " << proto::types::Type_Name(syncMessageResponse.psync_type());
         }
     }
     chakra::net::Packet::serialize(syncMessageResponse, proto::types::R_SYNC_RESPONSE, cbf);
