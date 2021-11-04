@@ -28,13 +28,15 @@ public:
     void onAccept(ev::io& watcher, int event);
     static std::shared_ptr<Replica> get();
     // self is  true ,ignore ip and port
-    void setReplicateDB(const std::string& name, const std::string& ip, int port, bool self = false);
+    void setReplicateDB(const std::string& dbname, const std::string& ip, int port);
+    void setReplicateDB(const std::string& dbname);
+
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicaStates();
     std::list<std::shared_ptr<Link>>& getPrimaryDBLinks();
-    bool replicatedPeer(const std::string& dbname, const std::string&ip, int port);
-    bool replicatedSelf(const std::string& dbname);
+    bool hasReplicated(const std::string& dbname, const std::string&ip, int port); // peer
+    bool hasReplicated(const std::string& dbname); // self
     void stop();
 private:
     void loadLinks();

@@ -13,7 +13,6 @@
 #include "cluster/cluster.h"
 #include "replica.pb.h"
 #include "error/err_file_not_exist.h"
-#include "database/db_family.h"
 
 DECLARE_int32(cluster_port);
 DECLARE_string(replica_dir);
@@ -106,13 +105,13 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 
 std::list<std::shared_ptr<chakra::replica::Link>> &chakra::replica::Replica::getPrimaryDBLinks() {return primaryDBLinks; }
 
-bool chakra::replica::Replica::replicatedPeer(const std::string &dbname, const std::string&ip, int port) {
+bool chakra::replica::Replica::hasReplicated(const std::string &dbname, const std::string&ip, int port) {
     return std::any_of(primaryDBLinks.begin(), primaryDBLinks.end(), [dbname, ip, port](const std::shared_ptr<Link>& link){
        return link->getDbName() == dbname && ip == link->getIp() && port == link->getPort();
     });
 }
 
-bool chakra::replica::Replica::replicatedSelf(const std::string &dbname) {
+bool chakra::replica::Replica::hasReplicated(const std::string &dbname) {
     return std::any_of(selfDBLinks.begin(), selfDBLinks.end(), [dbname](const std::shared_ptr<LinkSelf>& link){
         return link->getDbName() == dbname;
     });
@@ -141,18 +140,19 @@ void chakra::replica::Replica::dumpReplicaStates() {
     }
 }
 
-void chakra::replica::Replica::setReplicateDB(const std::string &name, const std::string &ip, int port, bool self) {
-    if (self){
-        selfDBLinks.push_back(std::make_shared<chakra::replica::LinkSelf>(name));
-    } else {
-        chakra::replica::Link::PositiveOptions options;
-        options.ip = ip;
-        options.port = port;
-        options.dbName = name;
-        options.dir = FLAGS_replica_dir;
-        auto link = std::make_shared<chakra::replica::Link>(options);
-        primaryDBLinks.push_back(link);
-    }
+void chakra::replica::Replica::setReplicateDB(const std::string &dbname, const std::string &ip, int port) {
+    chakra::replica::Link::PositiveOptions options;
+    options.ip = ip;
+    options.port = port;
+    options.dbName = dbname;
+    options.dir = FLAGS_replica_dir;
+    auto link = std::make_shared<chakra::replica::Link>(options);
+    primaryDBLinks.push_back(link);
+    dumpReplicaStates();
+}
+
+void chakra::replica::Replica::setReplicateDB(const std::string &dbname) {
+    selfDBLinks.push_back(std::make_shared<chakra::replica::LinkSelf>(dbname));
     dumpReplicaStates();
 }
 

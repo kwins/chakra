@@ -3,7 +3,7 @@ include(ExternalProject)
 include(cmake/misc.cmake)
 
 project(chakra)
-add_compile_options(-g -std=c++17)
+add_compile_options(-g -std=c++17 -march=native)
 
 #SET(CMAKE_BUILD_TYPE "Debug")
 
@@ -17,6 +17,7 @@ add_compile_options(-g -std=c++17)
 #    MESSAGE(STATUS "Release Mode")
 #    MESSAGE(STATUS "Flags:" ${CMAKE_CXX_FLAGS_RELEASE})
 #endif ()
+set_property(DIRECTORY PROPERTY EP_BASE ${CMAKE_CURRENT_BINARY_DIR}/depends)
 
 file(GLOB_RECURSE CLIENT_SRC ${CMAKE_SOURCE_DIR}/src/client/*.cpp)
 file(GLOB_RECURSE CLUSTER_SRC ${CMAKE_SOURCE_DIR}/src/cluster/*.cpp)

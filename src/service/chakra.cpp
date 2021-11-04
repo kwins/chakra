@@ -167,7 +167,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             auto& metaDB = dbit.second;
             if (clusptr->getMyself()->servedDB(metaDB.name())  /* 当前节点处理正在处理这个db */
                 && metaDB.state() == proto::peer::MetaDB_State_ONLINE /* db 处于 online 状态*/
-                && !replicaptr->replicatedPeer(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
+                && !replicaptr->hasReplicated(metaDB.name(), peer->getIp(), peer->getPort() + 1)){ /* 当前节点没有复制这个db */
 
                 replicaptr->setReplicateDB(metaDB.name(), peer->getIp(), peer->getPort() + 1);
                 LOG(INFO) << "Cluster add db " << metaDB.name() << " new copy, starting replicate from("
@@ -177,10 +177,12 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
         }
     }
 
+    /* 自我复制 */
     for(auto& selfDB : clusptr->getMyself()->getPeerDBs()){
-        if (!replicaptr->replicatedSelf(selfDB.first)){
-            replicaptr->setReplicateDB(selfDB.first,"", 0, true);
-            LOG(INFO) << "Replica self db " << selfDB.first;
+        if (!replicaptr->hasReplicated(selfDB.first)){
+            replicaptr->setReplicateDB(selfDB.first);
+            LOG(INFO) << "Cluster add db " << selfDB.first
+                << " new copy, starting replicate from self.";
         }
     }
     startServCron();
