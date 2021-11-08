@@ -65,7 +65,7 @@ public:
     void heartBeat();
     error::Error tryPartialReSync();
 
-    proto::replica::ReplicaState dumpLink();
+    proto::replica::ReplicaState dumpLinkState();
     bool isTimeout() const;
     const std::string &getPeerName() const;
     void setPeerName(const std::string &name);

@@ -33,23 +33,6 @@ size_t chakra::utils::FileHelper::size(const std::string &filepath) {
     return size;
 }
 
-chakra::error::Error chakra::utils::FileHelper::saveFile(const nlohmann::json &j, const std::string& tofile) {
-    std::string tmpfile = tofile + ".tmp";
-    std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
-    if (!out.is_open()){
-        if (errno == ENOENT){
-            return error::Error("file: " + tofile + " not exist");
-        }
-        return error::Error(strerror(errno));
-    }
-    out << j.dump(4);
-    if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
-        return error::Error(strerror(errno));
-    }
-    out.close();
-    return error::Error();
-}
-
 chakra::error::Error
 chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, const std::string &tofile) {
     google::protobuf::util::JsonOptions options;
@@ -75,19 +58,6 @@ chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, co
     if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
         return error::Error(strerror(errno));
     }
-    return error::Error();
-}
-
-chakra::error::Error chakra::utils::FileHelper::loadFile(const std::string &fromfile, nlohmann::json &j) {
-    std::ifstream fileStream(fromfile);
-    if (!fileStream.is_open()){
-        if (errno == ENOENT){
-            return error::Error("file: " + fromfile + " not exist");
-        }
-        return error::Error( strerror(errno));
-    }
-    fileStream >> j;
-    fileStream.close();
     return error::Error();
 }
 

@@ -25,7 +25,7 @@ DECLARE_double(replica_bulk_send_interval_sec);
 
 chakra::replica::Replica::Replica() {
     LOG(INFO) << "Replica init";
-    loadLinks(); // 加载配置数据
+    loadLastStateDB(); // 加载配置数据
     auto err = net::Network::tpcListen(FLAGS_cluster_port + 1, FLAGS_replica_tcp_back_log, sfd);
     if (!err.success()){
         LOG(ERROR) << "REPL listen on " << FLAGS_cluster_port + 1 << " " << err.what();
@@ -44,12 +44,13 @@ void chakra::replica::Replica::startReplicaCron() {
     cronIO.start(FLAGS_replica_cron_interval_sec);
 }
 
-void chakra::replica::Replica::loadLinks() {
+void chakra::replica::Replica::loadLastStateDB() {
     LOG(INFO) << "REPL load";
     std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     try {
         proto::replica::ReplicaStates replicaStates;
         utils::FileHelper::loadFile(filename, replicaStates);
+
         for(auto& replica : replicaStates.replicas()){
             chakra::replica::Link::PositiveOptions options;
             options.ip = replica.ip();
@@ -63,7 +64,8 @@ void chakra::replica::Replica::loadLinks() {
         }
 
         for(auto& replica : replicaStates.selfs()){
-            auto selfLink = std::make_shared<chakra::replica::LinkSelf>(replica.db_name(), replica.delta_seq());
+            auto selfLink = std::make_shared<chakra::replica::LinkSelf>(
+                    replica.db_name(), replica.delta_seq());
             selfDBLinks.push_back(selfLink);
         }
     } catch (error::FileNotExistError& err) {
@@ -79,12 +81,6 @@ std::shared_ptr<chakra::replica::Replica> chakra::replica::Replica::get() {
     return replicaptr;
 }
 
-// 多主复制策略
-// 因为是多主模式，这里并没有选择主流选举加同步首次全量和后续增量的方式，
-// 而是采用同时向所有的在线节点发起复制请求，每个节点只返回自己的分片数据
-// 复制者拿到各分片首次全量后，再merge到一起得到一个首次全量数据，再继续复制各分片的增量数据。
-// 这样做的方式简化了集群的操作。
-// 如果采用选举的方式，则需要在拿到首次全量后，还要进行各节点之间沟通，获取到首次全量之后的增量位置信息，这增加了复杂度。
 void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
     cronLoops++;
     for(auto& link : primaryDBLinks)
@@ -95,9 +91,13 @@ void chakra::replica::Replica::onReplicaCron(ev::timer &watcher, int event) {
 
     // primary side
     replicaLinks.remove_if([](Link* link){
-        if (!link->isTimeout() && link->getState() == Link::State::CONNECTED)
-            link->heartBeat();
-        return link->isTimeout();
+        auto timeout = link->isTimeout();
+        if (timeout){
+            link->close();
+            LOG(WARNING)<< "Replica close and delete timeout db link "
+                << link->getDbName() << " peer name " << link->getPeerName();
+        }
+        return timeout;
     });
 
     startReplicaCron();
@@ -125,7 +125,7 @@ void chakra::replica::Replica::dumpReplicaStates() {
     proto::replica::ReplicaStates replicaState;
     for(auto& link : primaryDBLinks){
         auto metaReplica = replicaState.mutable_replicas()->Add();
-        (*metaReplica) = link->dumpLink();
+        (*metaReplica) = link->dumpLinkState();
     }
     for(auto& self : selfDBLinks){
         auto info = replicaState.mutable_selfs()->Add();

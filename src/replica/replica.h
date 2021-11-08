@@ -38,8 +38,9 @@ public:
     bool hasReplicated(const std::string& dbname, const std::string&ip, int port); // peer
     bool hasReplicated(const std::string& dbname); // self
     void stop();
+
 private:
-    void loadLinks();
+    void loadLastStateDB();
     uint64_t cronLoops = 0;
     ev::io replicaio;
     ev::timer cronIO;

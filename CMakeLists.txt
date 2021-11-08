@@ -3,7 +3,7 @@ include(ExternalProject)
 include(cmake/misc.cmake)
 
 project(chakra)
-add_compile_options(-g -std=c++17 -march=native)
+add_compile_options(-g -std=c++17)
 
 #SET(CMAKE_BUILD_TYPE "Debug")
 

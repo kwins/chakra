@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.14)
 # 在现有编译过程中, 本文件可能会被重复地include多次
 # 这有可能导致cpp-base会被编译两次, 下面的判断可以避免
 # 这种情况
-message(STATUS CMAKE_BINARY_DIR:${CMAKE_BINARY_DIR})
 if (NOT EPBase)
     set(EPBase ${CMAKE_BINARY_DIR}/depends)
 endif()
@@ -12,7 +11,6 @@ endif()
 file(MAKE_DIRECTORY ${EPBase}/Install/include)
 file(MAKE_DIRECTORY ${EPBase}/Install/lib)
 
-message(STATUS ${CMAKE_C_COMPILER} -- ${CMAKE_CXX_COMPILER})
 set(CMakeConfig
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}

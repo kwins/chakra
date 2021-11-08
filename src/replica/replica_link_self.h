@@ -30,7 +30,7 @@ public:
     void setDeltaSeq(int64_t seq);
 
 private:
-    void replicaPrepare();
+    void prepareReplica();
     std::string dbName;
     rocksdb::Iterator* bulkiter = nullptr;
     long startMs;

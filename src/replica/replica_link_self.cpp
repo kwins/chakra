@@ -13,15 +13,15 @@ DECLARE_int64(replica_bulk_batch_bytes);
 
 chakra::replica::LinkSelf::LinkSelf(std::string dbname)
 : dbName(std::move(dbname)),deltaSeq(-1), startMs(0), bulkCnt(0){
-    replicaPrepare();
+    prepareReplica();
 }
 
 chakra::replica::LinkSelf::LinkSelf(std::string  dbname, int64_t seq)
 : dbName(std::move(dbname)),deltaSeq(seq),startMs(0), bulkCnt(0) {
-    replicaPrepare();
+    prepareReplica();
 }
 
-void chakra::replica::LinkSelf::replicaPrepare() {
+void chakra::replica::LinkSelf::prepareReplica() {
     if (deltaSeq < 0){
         LOG(INFO) << "replica self " << getDbName()
                   << " delta seq " << deltaSeq

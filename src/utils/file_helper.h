@@ -17,9 +17,7 @@ class FileHelper {
 public:
     static size_t size(const std::string& dir, const std::string& name);
     static size_t size(const std::string& filepath);
-    static error::Error saveFile(const nlohmann::json& j, const std::string& tofile);
     static error::Error saveFile(const google::protobuf::Message& message, const std::string& tofile);
-    static error::Error loadFile(const std::string& fromfile, nlohmann::json& j);
     static void loadFile(const std::string& fromfile, google::protobuf::Message& message);
     static error::Error mkDir(const std::string& path);
 };

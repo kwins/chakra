@@ -102,8 +102,6 @@ void chakra::replica::Link::replicaEventHandler() {
     }
     // 尝试开始连接被复制的服务器
     if (state == State::CONNECT) connectPrimary();
-    // 定时心跳
-    if (state == State::CONNECTED) heartBeat();
 }
 
 chakra::error::Error chakra::replica::Link::snapshotBulk(const std::string &dbname) {
@@ -199,7 +197,8 @@ void chakra::replica::Link::connectPrimary() {
         return;
     }
 
-    conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
+    conn = std::make_shared<net::Connect>(
+            net::Connect::Options{ .host = ip, .port = port });
     auto err = conn->connect();
     if (!err.success()){
         LOG(ERROR) << "REPL connect primary "
@@ -260,7 +259,7 @@ chakra::error::Error chakra::replica::Link::tryPartialReSync() {
     return sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
-proto::replica::ReplicaState chakra::replica::Link::dumpLink() {
+proto::replica::ReplicaState chakra::replica::Link::dumpLinkState() {
     proto::replica::ReplicaState metaReplica;
     metaReplica.set_primary(peerName);
     metaReplica.set_db_name(dbName);
