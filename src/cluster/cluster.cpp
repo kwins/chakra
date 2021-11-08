@@ -15,7 +15,6 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 #include "database/db_family.h"
-#include "replica/replica.h"
 #include "error/err_file_not_exist.h"
 
 DECLARE_string(cluster_dir);
