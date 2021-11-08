@@ -9,13 +9,13 @@
 #include <glog/logging.h>
 #include "utils/file_helper.h"
 
-DEFINE_string(server_ip, "127.0.0.1", "chakra server ip");                                      /* NOLINT */
-DEFINE_int32(server_port, 7290, "chakra server listen port");                                   /* NOLINT */
-DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                            /* NOLINT */
-DEFINE_double(server_cron_interval_sec, 1.0, "chakra server tcp back log");                     /* NOLINT */
+DEFINE_string(server_ip, "127.0.0.1", "chakra server ip");                                          /* NOLINT */
+DEFINE_int32(server_port, 7290, "chakra server listen port");                                       /* NOLINT */
+DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                                /* NOLINT */
+DEFINE_double(server_cron_interval_sec, 1.0, "chakra server tcp back log");                         /* NOLINT */
+DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");  /* NOLINT */
 
-
-DEFINE_string(replica_dir, "data", "replica dir");                                              /* NOLINT */
+DEFINE_string(replica_dir, "data", "replica dir");                                                  /* NOLINT */
 static bool validReplicaDir(const char* flagname, const std::string& value){
     if (value.empty()) return false;
     auto err = chakra::utils::FileHelper::mkDir(value);

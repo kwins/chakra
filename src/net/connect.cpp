@@ -13,8 +13,7 @@
 #include "packet.h"
 #include <glog/logging.h>
 
-DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");                 /* NOLINT */
-// TODO: connect flag difine
+DECLARE_int64(connect_buff_size);
 
 chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->opts = std::move(opts);
