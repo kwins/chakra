@@ -5,7 +5,6 @@
 #include "db_family.h"
 #include "utils/basic.h"
 #include <glog/logging.h>
-#include <nlohmann/json.hpp>
 #include <fstream>
 #include <zlib.h>
 #include "utils/file_helper.h"

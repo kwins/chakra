@@ -216,7 +216,6 @@ void chakra::serv::Chakra::stop() {
 }
 
 chakra::serv::Chakra::~Chakra() {
-    LOG(INFO) << "~Chakra";
     for(auto worker : workers){
         delete worker;
     }

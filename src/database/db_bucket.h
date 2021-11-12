@@ -7,7 +7,6 @@
 #include <rocksdb/db.h>
 #include <vector>
 #include "error/err.h"
-#include <nlohmann/json.hpp>
 #include "utils/nocopy.h"
 #include "peer.pb.h"
 #include "utils/lru.h"

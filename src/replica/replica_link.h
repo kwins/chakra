@@ -10,7 +10,6 @@
 #include <google/protobuf/message.h>
 #include "types.pb.h"
 #include "net/connect.h"
-#include <nlohmann/json.hpp>
 #include <rocksdb/db.h>
 #include "net/link.h"
 #include "replica.pb.h"

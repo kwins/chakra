@@ -4,7 +4,6 @@
 
 #include "cluster.h"
 #include "utils/basic.h"
-#include <nlohmann/json.hpp>
 #include <glog/logging.h>
 #include "net/network.h"
 #include <netinet/in.h>

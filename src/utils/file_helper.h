@@ -7,7 +7,6 @@
 
 #include <fstream>
 #include "error/err.h"
-#include <nlohmann/json.hpp>
 #include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
 

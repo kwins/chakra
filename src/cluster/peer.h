@@ -8,7 +8,6 @@
 #include <string>
 #include <list>
 #include <unordered_map>
-#include <nlohmann/json.hpp>
 #include "net/connect.h"
 #include "types.pb.h"
 #include <google/protobuf/message.h>
