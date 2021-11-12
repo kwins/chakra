@@ -47,7 +47,7 @@ public:
     error::Error putAll(const std::string& name, rocksdb::WriteBatch& batch);
     error::Error putAll(const std::string& name, const std::string& key, const std::string& value);
     error::Error putAll(const std::string& name, const rocksdb::Slice& key, const rocksdb::Slice& value);
-    ~FamilyDB();
+    void stop();
 private:
     using ColumnName = std::string;
     using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;

@@ -211,6 +211,7 @@ void chakra::serv::Chakra::stop() {
 
     chakra::cluster::Cluster::get()->stop();
     chakra::replica::Replica::get()->stop();
+    chakra::database::FamilyDB::get()->stop();
     ev::get_default_loop().break_loop(ev::ALL);
 }
 

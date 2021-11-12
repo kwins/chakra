@@ -16,7 +16,7 @@ DEFINE_int32(port, 7290, "port");
 class TestChakra : public ::testing::Test{
 public:
     void SetUp() override {
-        int port = 9290;
+        int port = 7290;
         chakra::net::Connect::Options clientOpts;
         clientOpts.host = "127.0.0.1";
         clientOpts.port = port;
@@ -89,17 +89,22 @@ TEST_F(TestChakra, client){
 
 //testState();
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
-    testSetDB("db3");
+//    testSetDB("db3");
 //    testSetEpoch();
 //for (int i = 0; i < 100; i ++){
 //    std::string is = std::to_string(i);
 //    testSetKeyValue("db3", "key" + is, "value" + is);
 //}
 
-//for (int i = 0; i < 100; i ++){
-//    std::string is = std::to_string(i);
-//    testGetValue("db3", "key" + is);
-//}
+for (int i = 1; i < 6; i ++){
+    std::string is = std::to_string(i);
+    testGetValue("db1", "key" + is);
+}
+
+for (int i = 1; i < 6; i ++){
+    std::string is = std::to_string(i);
+    testGetValue("db1", "key" + is);
+}
 
 //testReplicaOf("db1");
 }

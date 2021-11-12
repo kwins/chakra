@@ -10,6 +10,7 @@ endif()
 
 file(MAKE_DIRECTORY ${EPBase}/Install/include)
 file(MAKE_DIRECTORY ${EPBase}/Install/lib)
+file(MAKE_DIRECTORY ${EPBase}/Install/lib64)
 
 set(CMakeConfig
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}

@@ -68,7 +68,7 @@ ExternalProject_Add (
 ExternalProject_Add (
         rocksdb
         DEPENDS lz4
-        URL ${PROJECT_SOURCE_DIR}/3rdparty/rocksdb-6.10.1.zip
+        URL ${PROJECT_SOURCE_DIR}/3rdparty/rocksdb-6.20.3.tar.gz
         CONFIGURE_COMMAND cmake ${CMakeConfig} . -DWITH_TESTS=OFF -DWITH_TOOLS=OFF -DWITH_GFLAGS=OFF -DWITH_LZ4=ON -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DWITH_BENCHMARK_TOOLS=OFF -DUSE_RTTI=ON
         BUILD_IN_SOURCE 1
         INSTALL_COMMAND ${Make} install PREFIX=${EPBase}/Install

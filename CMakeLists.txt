@@ -5,18 +5,6 @@ include(cmake/misc.cmake)
 project(chakra)
 add_compile_options(-g -std=c++17)
 
-#SET(CMAKE_BUILD_TYPE "Debug")
-
-#SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -glldb")
-#SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
-#
-#if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-#    MESSAGE(STATUS "Debug Mode")
-#    MESSAGE(STATUS "Flags:" ${CMAKE_CXX_FLAGS_DEBUG})
-#elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-#    MESSAGE(STATUS "Release Mode")
-#    MESSAGE(STATUS "Flags:" ${CMAKE_CXX_FLAGS_RELEASE})
-#endif ()
 set_property(DIRECTORY PROPERTY EP_BASE ${CMAKE_CURRENT_BINARY_DIR}/depends)
 
 file(GLOB_RECURSE CLIENT_SRC ${CMAKE_SOURCE_DIR}/src/client/*.cpp)
@@ -57,7 +45,8 @@ target_include_directories(
         )
 add_dependencies(chakra ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 target_link_directories(chakra PRIVATE
-        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
 target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
 
 
@@ -69,8 +58,6 @@ add_executable(ut samples/unittest/ut_main.cpp
         ${DATABASE_SRC}
         ${ERROR_SRC}
         )
-set_target_properties(ut PROPERTIES
-        INSTALL_RPATH ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)
 target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/samples/unittest
@@ -78,6 +65,7 @@ target_include_directories(ut SYSTEM PRIVATE
 )
 add_dependencies(ut ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 target_link_directories(ut PRIVATE
-        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib)
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
 target_link_libraries(ut ${TEST_LIB} ${LINUX_LINKS})
 

@@ -6,11 +6,12 @@
 #define CHAKRA_DB_BUCKET_H
 #include <rocksdb/db.h>
 #include <vector>
-#include "db_block.h"
 #include "error/err.h"
 #include <nlohmann/json.hpp>
 #include "utils/nocopy.h"
 #include "peer.pb.h"
+#include "utils/lru.h"
+#include "element.h"
 
 namespace chakra::database{
 
@@ -41,6 +42,7 @@ public:
     ~BucketDB() override;
 
 private:
+    using Cache = typename utils::LruCache<std::string, std::shared_ptr<Element>>;
     // implement rocksdb WriteBatch Handler interface
     void Put(const rocksdb::Slice &key, const rocksdb::Slice &value) override;
     void Delete(const rocksdb::Slice &key) override;
@@ -49,7 +51,7 @@ private:
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
     std::shared_ptr<rocksdb::DB> dbptr = nullptr;                     // 全量
-    std::vector<std::shared_ptr<BlockDB>> blocks;
+    std::vector<std::shared_ptr<Cache>> caches;
 };
 
 }

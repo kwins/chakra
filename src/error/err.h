@@ -6,6 +6,7 @@
 #define CHAKRA_ERR_H
 #include <exception>
 #include <string>
+#include <stdexcept>
 
 namespace chakra::error {
 

@@ -32,9 +32,9 @@ chakra::database::BucketDB::BucketDB(const proto::peer::MetaDB& meta) {
         throw std::logic_error(s.ToString());
     }
     dbptr = std::shared_ptr<rocksdb::DB>(db);
-    blocks.resize(FLAGS_db_block_size);
+    caches.resize(FLAGS_db_block_size);
     for (int i = 0; i < FLAGS_db_block_size; ++i) {
-        blocks[i] = std::make_shared<BlockDB>(metaDB.cached());
+        caches[i] = std::make_shared<Cache>(metaDB.cached());
     }
 
     // 加载一些热数据
@@ -49,26 +49,30 @@ chakra::database::BucketDB::BucketDB(const proto::peer::MetaDB& meta) {
             break;
         }
     }
+    LOG(INFO) << "db " << meta.name() << " preheat cache size " << num;
     delete iter;
 }
 
 std::shared_ptr<chakra::database::Element>
 chakra::database::BucketDB::get(const std::string &key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return blocks.at(hashed % FLAGS_db_block_size)->get(key, [this](const std::string& key, std::string& value)->bool{
-        auto s = dbptr->Get(rocksdb::ReadOptions(), key, &value);
-        if (!s.ok()){
-            if (!s.IsNotFound())
-                LOG(ERROR) << "DB get error " << s.ToString();
-            return false;
+    int i = hashed % FLAGS_db_block_size;
+    std::shared_ptr<chakra::database::Element> val = nullptr;
+    if (!caches[i]->get(key, val)){
+        std::string oriVal;
+        auto s = dbptr->Get(rocksdb::ReadOptions(), key, &oriVal);
+        if (s.ok()){
+            val = std::make_shared<Element>();
+            val->deSeralize(oriVal.data(), oriVal.size());
+            caches[i]->put(key, val);
         }
-        return true;
-    });
+    }
+    return val;
 }
 
 void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Element> val, bool dbput) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % FLAGS_db_block_size]->put(key, val);
+    caches[hashed % FLAGS_db_block_size]->put(key, val);
     if (dbput){
         val->serialize([this, &key](char* data, size_t len){
             auto s = self->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
@@ -106,7 +110,7 @@ chakra::error::Error chakra::database::BucketDB::putAll(const rocksdb::Slice &ke
 
 void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % FLAGS_db_block_size]->del(key);
+    caches[hashed % FLAGS_db_block_size]->del(key);
     if (dbdel){
         auto s = self->Delete(rocksdb::WriteOptions(), key);
         if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
@@ -118,7 +122,7 @@ void chakra::database::BucketDB::del(const std::string &key, bool dbdel) {
 
 size_t chakra::database::BucketDB::size() {
     size_t num = 0;
-    for(auto & block : blocks){
+    for(auto & block : caches){
         num += block->size();
     }
     return num;
@@ -189,14 +193,9 @@ rocksdb::SequenceNumber chakra::database::BucketDB::getLastSeqNumber() {
 }
 
 chakra::database::BucketDB::~BucketDB() {
-    LOG(INFO) << "~BucketDB 1";
     if (self){
-        // TODO: it will generate error like pthread lock: Invalid argument error
-        //      when use static pointer hold this bucket object
-        //      why?
         self->Close();
     }
-    LOG(INFO) << "~BucketDB 2";
     if (dbptr){
         dbptr->Close();
     }
@@ -204,16 +203,16 @@ chakra::database::BucketDB::~BucketDB() {
 
 void chakra::database::BucketDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
     auto s = dbptr->Put(rocksdb::WriteOptions(), key, value);
-    if (!s.ok()) LOG(ERROR) << "DB delta put error " << s.ToString();
+    if (!s.ok()) LOG(ERROR) << "db delta put error " << s.ToString();
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % FLAGS_db_block_size]->del(key.ToString());
+    caches[hashed % FLAGS_db_block_size]->del(key.ToString());
 }
 
 void chakra::database::BucketDB::Delete(const rocksdb::Slice &key) {
     auto s = dbptr->Delete(rocksdb::WriteOptions(), key);
-    if (!s.ok()) LOG(ERROR) << "DB delta del error " << s.ToString();
+    if (!s.ok()) LOG(ERROR) << "db delta del error " << s.ToString();
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    blocks[hashed % FLAGS_db_block_size]->del(key.ToString());
+    caches[hashed % FLAGS_db_block_size]->del(key.ToString());
 }

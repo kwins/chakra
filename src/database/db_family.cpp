@@ -32,7 +32,7 @@ chakra::database::FamilyDB::FamilyDB() {
     } catch (error::FileNotExistError& err) {
         return;
     } catch (std::exception& err) {
-        LOG(INFO) << "FamilyDB load " << filename << " error " << err.what();
+        LOG(INFO) << "load db from" << filename << " error " << err.what();
         exit(-1);
     }
 }
@@ -49,7 +49,6 @@ chakra::error::Error chakra::database::FamilyDB::getMetaDB(const std::string &db
 
 std::shared_ptr<chakra::database::FamilyDB>& chakra::database::FamilyDB::get() {
     static auto familyptr = std::make_shared<chakra::database::FamilyDB>();
-//    static chakra::database::FamilyDB familyDb;
     return familyptr;
 }
 
@@ -72,7 +71,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
     auto bucket = std::make_shared<BucketDB>(meta);
     columnBuckets[next].emplace(std::make_pair(name, bucket));
     index = next;
-    LOG(INFO) << "RocksDB add db " << name << " success.";
+    LOG(INFO) << "add db " << name << " success.";
 }
 
 bool chakra::database::FamilyDB::servedDB(const std::string &name) {
@@ -88,7 +87,7 @@ void chakra::database::FamilyDB::dropDB(const std::string &name) {
         }
     }
     index = next;
-    LOG(INFO) << "RocksDB drop column name " << name << " success.";
+    LOG(INFO) << "drop column name " << name << " success.";
 }
 
 std::shared_ptr<chakra::database::Element> chakra::database::FamilyDB::get(const std::string& name, const std::string &key) {
@@ -202,8 +201,9 @@ chakra::database::FamilyDB::snapshot(const std::string &name, rocksdb::Iterator 
     return it->second->snapshot(iter, seq);
 }
 
-chakra::database::FamilyDB::~FamilyDB() {
-    LOG(INFO) << "~FamilyDB";
+void chakra::database::FamilyDB::stop() {
+    columnBuckets[0].clear();
+    columnBuckets[1].clear();
 }
 
 const std::string chakra::database::FamilyDB::DB_FILE = "dbs.json";
