@@ -107,7 +107,7 @@ void chakra::replica::Link::replicaEventHandler() {
 chakra::error::Error chakra::replica::Link::snapshotBulk(const std::string &dbname) {
     auto& dbptr = chakra::database::FamilyDB::get();
     rocksdb::SequenceNumber lastSeq;
-    auto err = dbptr.snapshot(dbname, &bulkiter, lastSeq);
+    auto err = dbptr->snapshot(dbname, &bulkiter, lastSeq);
     if (!err.success()){
         LOG(ERROR) << "REPL create db " << dbname << " snapshot error " << err.what();
     } else {

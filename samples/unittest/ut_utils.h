@@ -26,8 +26,6 @@ TEST(Utils, genRandomID){
     auto db = peer->mutable_dbs()->Add();
     db->set_name("test_db");
     db->set_cached(100000);
-    db->set_shard(1);
-    db->set_shard_size(3);
 
     google::protobuf::util::JsonOptions options;
     options.always_print_primitive_fields = true;

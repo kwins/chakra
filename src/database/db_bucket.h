@@ -45,7 +45,6 @@ private:
     void Put(const rocksdb::Slice &key, const rocksdb::Slice &value) override;
     void Delete(const rocksdb::Slice &key) override;
 
-//    Options opts = {};
     proto::peer::MetaDB metaDB;
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量

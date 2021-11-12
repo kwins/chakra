@@ -31,7 +31,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             for(auto& it : bulkMessage.kvs()){
                 batch.Put(it.key(), it.value());
             }
-            err = dbptr.putAll(bulkMessage.db_name(), batch);
+            err = dbptr->putAll(bulkMessage.db_name(), batch);
             if (!err.success()){
                 LOG(ERROR) << "REPL set db " << bulkMessage.db_name() << " error " << err.what();
             }

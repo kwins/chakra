@@ -16,7 +16,7 @@ chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::
         chakra::net::Packet::fillError(getMessageResponse.mutable_error(), err.getCode(), err.getMsg());
     } else {
         auto& dbptr = chakra::database::FamilyDB::get();
-        auto value = dbptr.get(getMessageRequest.db_name(), getMessageRequest.key());
+        auto value = dbptr->get(getMessageRequest.db_name(), getMessageRequest.key());
         if (!value){
             chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, "data not found");
         } else {

@@ -26,7 +26,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster state fail");
     }else if (dbSetMessage.db().name().empty() || dbSetMessage.db().cached() <= 0){
         chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Bad request");
-    } else if (dbptr.servedDB(dbSetMessage.db().name())
+    } else if (dbptr->servedDB(dbSetMessage.db().name())
             || clsptr->getMyself()->servedDB(dbSetMessage.db().name())){ /* 当前节点没有处理请求的DB */
         chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster has served db " + dbSetMessage.db().name());
     } else {

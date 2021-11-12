@@ -21,7 +21,7 @@ public:
     };
 public:
     FamilyDB();
-    static FamilyDB& get();
+    static std::shared_ptr<chakra::database::FamilyDB>& get();
 
     bool servedDB(const std::string& name);
     error::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);

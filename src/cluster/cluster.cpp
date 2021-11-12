@@ -594,7 +594,7 @@ bool chakra::cluster::Cluster::stateOK() const { return state == STATE_OK; }
 
 void chakra::cluster::Cluster::setMyselfDB(const proto::peer::MetaDB &metaDB) {
     auto& dbptr = chakra::database::FamilyDB::get();
-    dbptr.addDB(metaDB.name(), metaDB.cached());
+    dbptr->addDB(metaDB.name(), metaDB.cached());
     updateMyselfDB(metaDB);
 }
 

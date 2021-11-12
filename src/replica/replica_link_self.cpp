@@ -30,16 +30,16 @@ void chakra::replica::LinkSelf::prepareReplica() {
         return;
     }
 
-    auto& db = chakra::database::FamilyDB::get();
+    auto& dbptr = chakra::database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-    auto err = db.getUpdateSince(dbName, deltaSeq, &iter);
+    auto err = dbptr->getUpdateSince(dbName, deltaSeq, &iter);
     if (!err.success()){
         LOG(ERROR) << err.what();
         exit(-1);
     }
 
     rocksdb::SequenceNumber lastSeq;
-    db.getLastSeqNumber(getDbName(), lastSeq);
+    dbptr->getLastSeqNumber(getDbName(), lastSeq);
     if ((iter->Valid() && iter->GetBatch().sequence == deltaSeq)
         || (!iter->Valid() && lastSeq == deltaSeq)){
         LOG(INFO) << "replica self " << getDbName()
@@ -59,7 +59,7 @@ void chakra::replica::LinkSelf::prepareReplica() {
 chakra::error::Error chakra::replica::LinkSelf::snapshotBulk() {
     auto& dbptr = chakra::database::FamilyDB::get();
     rocksdb::SequenceNumber lastSeq;
-    auto err = dbptr.snapshot(getDbName(), &bulkiter, lastSeq);
+    auto err = dbptr->snapshot(getDbName(), &bulkiter, lastSeq);
     if (!err.success()){
         LOG(ERROR) << "replica self create db " << getDbName() << " snapshot error " << err.what();
     } else {
@@ -87,7 +87,7 @@ void chakra::replica::LinkSelf::onSendBulk(ev::timer &watcher, int event) {
         size += bulkiter->value().size();
         if (size > FLAGS_replica_bulk_batch_bytes)
             break;
-        auto err = dbptr.putAll(getDbName(), bulkiter->key(), bulkiter->value());
+        auto err = dbptr->putAll(getDbName(), bulkiter->key(), bulkiter->value());
         if (!err.success()){
             LOG(ERROR) << err.what();
         }
@@ -118,9 +118,9 @@ void chakra::replica::LinkSelf::startPullDelta() {
 }
 
 void chakra::replica::LinkSelf::onPullDelta(ev::timer &watcher, int event) {
-    auto&db = database::FamilyDB::get();
+    auto&dbptr = database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-    auto err = db.getUpdateSince(dbName, deltaSeq, &iter);
+    auto err = dbptr->getUpdateSince(dbName, deltaSeq, &iter);
     if (!err.success()){
         LOG(ERROR) << "replica self fetch update error " << err.what();
     } else {
@@ -130,7 +130,7 @@ void chakra::replica::LinkSelf::onPullDelta(ev::timer &watcher, int event) {
             if (bytes >= FLAGS_replica_delta_batch_bytes) break;
             if (batch.sequence > deltaSeq){
                 bytes += batch.writeBatchPtr->Data().size();
-                err = db.putAll(dbName, *batch.writeBatchPtr);
+                err = dbptr->putAll(dbName, *batch.writeBatchPtr);
                 if (err.success()){
                     deltaSeq = batch.sequence;
                 } else {

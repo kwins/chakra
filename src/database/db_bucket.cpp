@@ -67,16 +67,12 @@ chakra::database::BucketDB::get(const std::string &key) {
 }
 
 void chakra::database::BucketDB::put(const std::string &key, std::shared_ptr<Element> val, bool dbput) {
-    // TODO: 找一个支持多语言的hash函数
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     blocks[hashed % FLAGS_db_block_size]->put(key, val);
     if (dbput){
         val->serialize([this, &key](char* data, size_t len){
             auto s = self->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
             if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
-            // TODO: replica self
-//            s = dbptr->Put(rocksdb::WriteOptions(), key, rocksdb::Slice(data, len));
-//            if (!s.ok()) LOG(ERROR) << "db put error " << s.ToString();
         });
     }
 }
@@ -200,7 +196,7 @@ chakra::database::BucketDB::~BucketDB() {
         //      why?
         self->Close();
     }
-
+    LOG(INFO) << "~BucketDB 2";
     if (dbptr){
         dbptr->Close();
     }

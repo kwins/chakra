@@ -27,7 +27,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
 
             // 如果请求的 seq 已经过期，则需要全量同步
             std::unique_ptr<rocksdb::TransactionLogIterator> iter;
-            err = dbptr.getUpdateSince(syncMessageRequest.db_name(), syncMessageRequest.seq(), &iter);
+            err = dbptr->getUpdateSince(syncMessageRequest.db_name(), syncMessageRequest.seq(), &iter);
             if (!err.success()){
                 chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), err.getCode(), err.getMsg());
             } else {

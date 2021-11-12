@@ -10,10 +10,8 @@
 #include <glog/logging.h>
 
 TEST(FamilyDB, test){
-    chakra::database::FamilyDB::Options options;
-    options.dir = "./test/node1";
     auto& dbptr = chakra::database::FamilyDB::get();
-    auto value = dbptr.get("test_db", "key_1");
+    auto value = dbptr->get("test_db", "key_1");
     if (value){
         value->getObject()->debugString();
     }

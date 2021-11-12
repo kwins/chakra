@@ -47,9 +47,10 @@ chakra::error::Error chakra::database::FamilyDB::getMetaDB(const std::string &db
     return chakra::error::Error();
 }
 
-chakra::database::FamilyDB &chakra::database::FamilyDB::get() {
-    static chakra::database::FamilyDB familyDb;
-    return familyDb;
+std::shared_ptr<chakra::database::FamilyDB>& chakra::database::FamilyDB::get() {
+    static auto familyptr = std::make_shared<chakra::database::FamilyDB>();
+//    static chakra::database::FamilyDB familyDb;
+    return familyptr;
 }
 
 void chakra::database::FamilyDB::addDB(const std::string &name, size_t cached) { addDB(name, FLAGS_db_block_size, cached); }
