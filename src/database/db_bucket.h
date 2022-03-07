@@ -14,7 +14,7 @@
 
 namespace chakra::database{
 
-class BucketDB :public rocksdb::WriteBatch::Handler{
+class BucketDB : public rocksdb::WriteBatch::Handler{
 public:
     struct RestoreDB{
         rocksdb::SequenceNumber seq;

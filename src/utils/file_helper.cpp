@@ -4,6 +4,7 @@
 
 #include "file_helper.h"
 #include <iostream>
+#include <iterator>
 #include <cstdio>
 #include <unistd.h>
 #include <sys/stat.h>

@@ -52,7 +52,7 @@ private:
     using ColumnName = std::string;
     using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;
 
-    std::atomic<int> index = 0;
+    std::atomic<int> index;
     std::array<ColumnBuckets, 2> columnBuckets;
     RestoreDB lastRestore;
     static const std::string DB_FILE;

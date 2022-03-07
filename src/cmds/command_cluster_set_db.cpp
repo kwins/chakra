@@ -30,7 +30,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
             || clsptr->getMyself()->servedDB(dbSetMessage.db().name())){ /* 当前节点没有处理请求的DB */
         chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster has served db " + dbSetMessage.db().name());
     } else {
-        /* 找到集群中目前正在处理此DB的节点, 开始复制流程 */
+        /* 找到集群中目前正在处理此DB的节点,创建新的DB 或者 开始复制流程 */
         auto info = dbSetMessage.db();
         auto peers = clsptr->getPeers(dbSetMessage.db().name());
         if (!peers.empty()){ // 非空至少有两个

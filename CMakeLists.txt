@@ -28,12 +28,12 @@ endif()
 
 # chakra
 add_executable(chakra src/main.cpp
+        ${UTILS_SRC}
         ${CLIENT_SRC}
         ${CLUSTER_SRC}
         ${CMDS_SRC}
         ${DATABASE_SRC}
         ${NET_SRC}
-        ${UTILS_SRC}
         ${SERVICE_SRC}
         ${REPLICA_SRC}
         ${ERROR_SRC}
