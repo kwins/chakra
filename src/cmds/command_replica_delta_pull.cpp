@@ -6,12 +6,12 @@
 #include "replica.pb.h"
 #include "database/db_family.h"
 #include "net/packet.h"
-#include "replica/replica_link.h"
+#include "replica/replica.h"
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data,
                                                     std::function<error::Error(char *resp, size_t respLen)> cbf) {
-    auto link = static_cast<replica::Link*>(data);
+    auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
     proto::replica::DeltaMessageRequest deltaMessageRequest;

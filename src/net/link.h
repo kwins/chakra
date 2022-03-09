@@ -14,7 +14,7 @@ namespace chakra::net {
 
 class Link {
 public:
-    explicit Link(const std::string& ip, int port);
+    explicit Link(const std::string& ip, int port, bool connect = true);
     explicit Link(int sockfd);
     error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     bool connected() const;

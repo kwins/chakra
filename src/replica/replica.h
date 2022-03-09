@@ -9,34 +9,139 @@
 #include <string>
 #include <vector>
 #include <array>
-#include <unordered_map>
-#include "net/connect.h"
-#include <google/protobuf/message.h>
-#include "types.pb.h"
-#include <fstream>
-#include "replica_link.h"
-#include <rocksdb/db.h>
-#include "utils/nocopy.h"
 #include <list>
-#include "replica_link_self.h"
+#include <unordered_map>
+#include <fstream>
+#include <google/protobuf/message.h>
+#include <rocksdb/db.h>
 
-namespace chakra::replica{
+#include "net/connect.h"
+#include "net/link.h"
+#include "types.pb.h"
+#include "utils/nocopy.h"
+#include "error/err.h"
+#include "replica.pb.h"
 
-class Replica : public utils::UnCopyable{
+namespace chakra::replica {
+
+class Replicate : public utils::UnCopyable {
 public:
-    Replica();
-    void onAccept(ev::io& watcher, int event);
-    static std::shared_ptr<Replica> get();
-    // self is  true ,ignore ip and port
-    void setReplicateDB(const std::string& dbname, const std::string& ip, int port);
-    void setReplicateDB(const std::string& dbname);
+    class Link : public chakra::net::Link , std::enable_shared_from_this<Link>{
+    public:
+        enum Type {
+            NEGATIVE = 1,
+            POSITIVE = 2,
+        };
 
+        enum class State {
+            CONNECT = 1,       // 初始连接
+            CONNECTING,        // socket建立完成，准备接收或发送PING
+            CONNECTED,         // 首次全量同步已经完成
+
+            REPLICA_INIT,              // ReplicateDB INIT
+            REPLICA_TRANSFORING,       // 全量同步中
+            REPLICA_TRANSFORED,        // 全量同步完成
+        };
+
+        struct ReplicateDB { /* 复制的DB信息*/
+            void startPullDelta(); // 触发拉取增量数据
+            void onPullDelta(ev::timer& watcher, int event); // 执行增量拉取
+
+            void startSendBulk(); // 触发全量复制
+            void onSendBulk(ev::timer& watcher, int event); // 执行全量复制
+
+            void reset();
+            ~ReplicateDB();
+
+            std::string name; /* DB name */
+            long lastTransferMs = 0;
+            State state = State::REPLICA_INIT; /* 复制状态 */
+            rocksdb::SequenceNumber deltaSeq = -1; /* 增量同步使用 */
+
+            ev::timer deltaIO;
+            ev::timer transferIO;
+            rocksdb::Iterator* bulkiter = nullptr; /* 全量同步使用 */
+            std::shared_ptr<Link> link = nullptr;
+        };
+        
+        struct NegativeOptions {
+            int sockfd;
+        };
+
+        struct PositiveOptions {
+            std::string ip;
+            int port = 0;
+            bool connect = true; /* 是否立即连接 */
+        };
+
+        explicit Link(const PositiveOptions& options);
+        explicit Link(const NegativeOptions& options);
+        
+        // 创建db snapshot, 为后续传输 db 做准备
+        error::Error snapshotDB(const std::string& name, rocksdb::SequenceNumber lastSeq);
+
+        void startReplicateRecvMsg(); // 开始接收命令
+        static void onReplicateRecvMsg(ev::io& watcher, int event);
+
+        void handshake();
+        void heartbeat();
+        void reconnect();
+
+        void tryPartialReSync();
+        void tryPartialReSync(const std::string& name);
+
+        void startPullDelta(const std::string& name); // 触发拉取增量数据
+        void startSendBulk(const std::string& name); // 触发全量复制
+
+        void setRocksSeq(const std::string& name, int64_t seq);
+        // void setReplicate
+        void close();
+        bool isTimeout() const;
+
+        /* 针对这个连接上所有DB定时检查是否有事件需要处理 */
+        void replicateEventLoop();
+        void replicaEvent(const std::string& name);
+        void replicateLinkEvent();
+
+        void replicateState(proto::replica::ReplicaStates& rs);
+        void setReplicateDB(std::shared_ptr<ReplicateDB> relicateDB);
+        std::shared_ptr<ReplicateDB> getReplica(const std::string& name);
+        const std::unordered_map<std::string, std::shared_ptr<ReplicateDB>>& getReplicas();
+        void setPeerName(const std::string& name);
+        std::string getPeerName() const;
+        void setLastInteractionMs(int64_t ms);
+        int64_t getLastInteractionMs() const;
+        void setLastTransferMs(const std::string& name, int64_t ms);
+        int64_t getLastTransferMs(const std::string& name);
+        State getState() const;
+        void setState(State st);
+        std::string getIp() const;
+        void setIp(const std::string& v);
+        int getPort() const;
+        void setPort(int p);
+        
+    private:  
+        std::string ip;
+        int port = 0;
+        long lastInteractionMs = 0;
+        Type type;
+        State state; /* 网络连接状态 */
+        std::string peerName;
+        /* 当前连接上复制的所有DB，key是 DB 名称，value 是DB的信息 */
+        std::unordered_map<std::string, std::shared_ptr<ReplicateDB>> replicas;
+    };
+
+public:
+    Replicate();
+    void onAccept(ev::io& watcher, int event);
+    static std::shared_ptr<Replicate> get();
+    // self is  true ,ignore ip and port
+    bool hasReplicateDB(const std::string& peername, const std::string &dbname); // peer
+    error::Error setReplicateDB(const std::string& peername, const std::string &dbname, const std::string& ip, int port);
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
-    void dumpReplicaStates();
-    std::list<std::shared_ptr<Link>>& getPrimaryDBLinks();
-    bool hasReplicated(const std::string& dbname, const std::string&ip, int port); // peer
-    bool hasReplicated(const std::string& dbname); // self
+    void dumpReplicateStates();
+    std::unordered_map<std::string, std::vector<std::shared_ptr<Link>>> dbLinks(chakra::replica::Replicate::Link::State state);
     void stop();
 
 private:
@@ -44,13 +149,10 @@ private:
     uint64_t cronLoops = 0;
     ev::io replicaio;
     ev::timer cronIO;
+    ev::timer transferIO;
     int sfd = -1;
-    // 复制的主节点链表
-    std::list<std::shared_ptr<Link>> primaryDBLinks;
-    std::list<std::shared_ptr<LinkSelf>> selfDBLinks;
-
-    // 请求复制的连接列表
-    std::list<Link*> replicaLinks;
+    std::unordered_map<std::string, std::shared_ptr<Link>> positiveLinks; // key=peername
+    std::list<std::shared_ptr<Link>> negativeLinks;
     static const std::string REPLICA_FILE_NAME;
 };
 

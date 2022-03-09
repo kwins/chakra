@@ -3,11 +3,11 @@
 //
 
 #include "command_replica_heartbeat.h"
-#include "replica/replica_link.h"
+#include "replica/replica.h"
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaHeartbeat::execute(char *req, size_t len, void *data,
                                                     std::function<error::Error(char *, size_t)> cbf) {
-    auto link = static_cast<replica::Link*>(data);
+    auto link = static_cast<replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 }

@@ -12,19 +12,20 @@
 #include <glog/logging.h>
 #include <thread>
 DEFINE_int32(port, 7290, "port");
+DEFINE_bool(test_meet, false, "test meet");
+DEFINE_bool(test_set_db, false, "test set db");
 
 class TestChakra : public ::testing::Test{
 public:
     void SetUp() override {
-        int port = 7290;
         chakra::net::Connect::Options clientOpts;
         clientOpts.host = "127.0.0.1";
-        clientOpts.port = port;
+        clientOpts.port = FLAGS_port;
         client = std::make_shared<chakra::client::Chakra>(clientOpts);
 
         chakra::net::Connect::Options clusterOpts;
         clusterOpts.host = "127.0.0.1";
-        clusterOpts.port = port + 1;
+        clusterOpts.port = FLAGS_port + 1;
         clusterptr = std::make_shared<chakra::client::Chakra>(clusterOpts);
     }
 
@@ -83,28 +84,29 @@ public:
 };
 
 TEST_F(TestChakra, client){
+
 //    testReplicaOf("db1");
 //    testMeet("127.0.0.1", 8291);
 //    testMeet("127.0.0.1", 9291);
 
 //testState();
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
-//    testSetDB("db3");
+   testSetDB("db1");
 //    testSetEpoch();
 //for (int i = 0; i < 100; i ++){
 //    std::string is = std::to_string(i);
 //    testSetKeyValue("db3", "key" + is, "value" + is);
 //}
 
-for (int i = 1; i < 6; i ++){
-    std::string is = std::to_string(i);
-    testGetValue("db1", "key" + is);
-}
+// for (int i = 1; i < 6; i ++){
+//     std::string is = std::to_string(i);
+    // testGetValue("db1", "key" + is);
+// }
 
-for (int i = 1; i < 6; i ++){
-    std::string is = std::to_string(i);
-    testGetValue("db1", "key" + is);
-}
+// for (int i = 1; i < 6; i ++){
+//     std::string is = std::to_string(i);
+//     testGetValue("db1", "key" + is);
+// }
 
 //testReplicaOf("db1");
 }

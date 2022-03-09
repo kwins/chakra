@@ -51,6 +51,7 @@ chakra::database::BucketDB::BucketDB(const proto::peer::MetaDB& meta) {
     }
     LOG(INFO) << "db " << meta.name() << " preheat cache size " << num;
     delete iter;
+    LOG(INFO) << "bucket end";
 }
 
 std::shared_ptr<chakra::database::Element>

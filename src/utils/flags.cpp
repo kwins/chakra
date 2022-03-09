@@ -25,8 +25,7 @@ static bool validReplicaDir(const char* flagname, const std::string& value){
     }
     return true;
 }
-DEFINE_validator(replica_dir, validReplicaDir);                                                         /* NOLINT */
-
+DEFINE_validator(replica_dir, validReplicaDir);                                                 /* NOLINT */
 DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                                /* NOLINT */
 DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                                 /* NOLINT */
 DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");         /* NOLINT */

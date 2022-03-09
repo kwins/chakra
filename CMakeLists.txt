@@ -52,9 +52,9 @@ target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
 
 # ut
 add_executable(ut samples/unittest/ut_main.cpp
+        ${UTILS_SRC}
         ${CLIENT_SRC}
         ${NET_SRC}
-        ${UTILS_SRC}
         ${DATABASE_SRC}
         ${ERROR_SRC}
         )

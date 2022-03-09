@@ -15,6 +15,8 @@ const std::string &chakra::cluster::Peer::getIp() const { return ip; }
 
 int chakra::cluster::Peer::getPort() const { return port; }
 
+int chakra::cluster::Peer::getReplicatePort() { return port + 1; }
+
 uint64_t chakra::cluster::Peer::getFg() const { return fg; }
 
 uint64_t chakra::cluster::Peer::getEpoch() const { return epoch; }

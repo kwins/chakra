@@ -65,7 +65,7 @@ void chakra::cluster::Cluster::loadPeers() {
         }
     } catch (error::FileNotExistError& err) {
         myself = std::make_shared<Peer>(); // 第一次初始化
-        myself->setIp("0.0.0.0");
+        myself->setIp("127.0.0.1");
         myself->setPort(FLAGS_cluster_port);
         myself->setName(utils::Basic::genRandomID());
         myself->setFlag(Peer::FLAG_MYSELF);
@@ -590,12 +590,6 @@ void chakra::cluster::Cluster::stateDesc(proto::peer::ClusterState& clusterState
 }
 
 bool chakra::cluster::Cluster::stateOK() const { return state == STATE_OK; }
-
-void chakra::cluster::Cluster::setMyselfDB(const proto::peer::MetaDB &metaDB) {
-    auto& dbptr = chakra::database::FamilyDB::get();
-    dbptr->addDB(metaDB.name(), metaDB.cached());
-    updateMyselfDB(metaDB);
-}
 
 void chakra::cluster::Cluster::updateMyselfDB(const proto::peer::MetaDB &metaDB) {
     getMyself()->updateMetaDB(metaDB.name(), metaDB);

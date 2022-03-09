@@ -10,11 +10,13 @@ chakra::net::Link::Link(int sockfd) {
     conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = sockfd });
 }
 
-chakra::net::Link::Link(const std::string &ip, int port) {
+chakra::net::Link::Link(const std::string &ip, int port, bool connect) {
     conn = std::make_shared<net::Connect>(net::Connect::Options{ .host = ip, .port = port });
-    auto err = conn->connect();
-    if (!err.success()){
-        throw std::logic_error(err.what());
+    if (connect) {
+        auto err = conn->connect();
+        if (!err.success()){
+            throw std::logic_error(err.what());
+        }
     }
 }
 

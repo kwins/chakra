@@ -63,7 +63,6 @@ public:
     std::shared_ptr<Peer> getMyself();
     void setCronTODO(uint64_t todo);
     bool stateOK() const;
-    void setMyselfDB(const proto::peer::MetaDB& metaDB);
     void updateMyselfDB(const proto::peer::MetaDB& metaDB);
     void increasingMyselfEpoch();
 private:

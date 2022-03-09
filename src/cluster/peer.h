@@ -21,7 +21,7 @@ using namespace std::chrono;
 
 class Peer : public std::enable_shared_from_this<Peer> {
 public:
-    struct Link : public chakra::net::Link{
+    struct Link : public chakra::net::Link {
         explicit Link(int sockfd);
         explicit Link(const std::string& ip, int port, const std::shared_ptr<Peer>& peer);
         void onPeerRead(ev::io& watcher, int event);
@@ -30,7 +30,7 @@ public:
         std::shared_ptr<Peer> reletedPeer;
     };
 
-    struct FailReport{
+    struct FailReport {
         // 报告目标节点已经下线的节点
         std::shared_ptr<Peer> peer;
         // 最后一次从 node 节点收到下线报告的时间
@@ -52,6 +52,7 @@ public:
     const std::string &getName() const;
     const std::string &getIp() const;
     int getPort() const;
+    int getReplicatePort();
     uint64_t getFg() const;
     uint64_t getEpoch() const;
 

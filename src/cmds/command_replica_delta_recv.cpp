@@ -6,21 +6,21 @@
 #include "replica.pb.h"
 #include "database/db_family.h"
 #include "net/packet.h"
-#include "replica/replica_link.h"
+#include "replica/replica.h"
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, void *data,
                                                     std::function<error::Error(char *, size_t)> cbf) {
 
     proto::replica::DeltaMessageResponse deltaMessageResponse;
-    auto link = static_cast<replica::Link*>(data);
+    auto link = static_cast<replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
     if (!err.success()){
-        LOG(ERROR) << "replica delta recv deserialize error " << err.what();
+        LOG(ERROR) << "Replicate delta receive deserialize error " << err.what();
     } else if (deltaMessageResponse.error().errcode() != 0){
-        LOG(ERROR) << "replica delta recv response error " << deltaMessageResponse.error().errmsg();
+        LOG(ERROR) << "Replicate delta receive response error " << deltaMessageResponse.error().errmsg();
     } else {
         auto& dbptr = database::FamilyDB::get();
         for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
@@ -28,11 +28,11 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
             rocksdb::WriteBatch batch(seq.data());
             err = dbptr->putAll(deltaMessageResponse.db_name(), batch);
             if (err.success()){
-                link->setRocksSeq(seq.seq());
+                link->setRocksSeq(deltaMessageResponse.db_name(), seq.seq());
             } else {
                 LOG(ERROR) << "replica delta recv error " << err.what();
             }
         }
     }
-    link->startPullDelta(); // 轮询触发 pull delta
+    link->startPullDelta(deltaMessageResponse.db_name()); // next pull delta
 }
