@@ -40,7 +40,7 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
     while (true) {
         ssize_t writed = ::send(fd(), &data[sendSize], nextLen, MSG_NOSIGNAL);
         if (writed == 0) {
-            return error::Error("closed");;
+            return error::Error("connect closed");;
         } else if (writed < 0) {
             if ((errno == EWOULDBLOCK && !opts.block) || errno == EINTR) {
                 /* try aganin later */
@@ -62,7 +62,7 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
 chakra::error::Error chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0) {
-        return error::Error("closed");
+        return error::Error("connect closed");
     } else if (readn < 0) {
         if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
             /* Try again later */
@@ -134,7 +134,7 @@ chakra::error::Error chakra::net::Connect::connect() {
             }
         } else if (errno == EADDRNOTAVAIL) {
             if (++retryTimes >= opts.connectRetrys) {
-                return error::Error("retry limit");
+                return error::Error("connect retry limit");
             } else {
                 close();
                 goto retry;

@@ -17,11 +17,11 @@ chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::
     } else {
         auto dbptr = chakra::database::FamilyDB::get();
         auto value = dbptr->get(getMessageRequest.db_name(), getMessageRequest.key());
-        if (!value){
+        if (!value) {
             chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, "data not found");
         } else {
             if (value->getObject()->type() == database::Object::Type::STRING){
-                value->getObject()->serialize([&getMessageResponse](char* data, size_t len){
+                value->getObject()->serialize([&getMessageResponse](char* data, size_t len) {
                     getMessageResponse.set_type(database::Object::Type::STRING);
                     getMessageResponse.set_s(data, len);
                 });
