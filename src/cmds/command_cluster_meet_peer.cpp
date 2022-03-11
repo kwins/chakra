@@ -9,7 +9,8 @@
 
 void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, void* data, std::function<error::Error(char *, size_t)> cbf) {
     proto::peer::GossipMessage gossip;
-    if (!chakra::net::Packet::deSerialize(req, reqLen, gossip, proto::types::P_MEET_PEER).success()) return;
+    auto err = chakra::net::Packet::deSerialize(req, reqLen, gossip, proto::types::P_MEET_PEER);
+    if (err) return;
 
 //    LOG(INFO) << "Receive meet peer message " << gossip.DebugString();
 

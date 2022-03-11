@@ -18,8 +18,8 @@ DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, d
 DEFINE_string(replica_dir, "data", "replica dir");                                                  /* NOLINT */
 static bool validReplicaDir(const char* flagname, const std::string& value){
     if (value.empty()) return false;
-    auto err = chakra::utils::FileHelper::mkDir(value);
-    if (!err.success()){
+    auto err = chakra::utils::FileHelper::mkdir(value);
+    if (err){
         LOG(ERROR) << "valid replica dir error " << err.what();
         return false;
     }
@@ -30,6 +30,7 @@ DEFINE_int32(replica_tcp_back_log, 512, "replica tcp back log");                
 DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                                 /* NOLINT */
 DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");         /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                               /* NOLINT */
+DEFINE_int64(replica_last_try_resync_timeout_ms, 1000, "last try resync timeout");              /* NOLINT */
 DEFINE_double(replica_delta_pull_interval_sec, 1.0, "replica pull db dalta interval sec");      /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 4096, "replica delta batch size");                      /* NOLINT */
 DEFINE_double(replica_bulk_send_interval_sec, 1.0, "replica send db bulk interval sec");        /* NOLINT */
@@ -38,8 +39,8 @@ DEFINE_int64(replica_bulk_batch_bytes, 4096, "replica bulk batch size");        
 DEFINE_string(db_dir, "data", "rocksdb save dir");                                              /* NOLINT */
 static bool validDbDir(const char* flagname, const std::string& value){
     if (value.empty()) return false;
-    auto err = chakra::utils::FileHelper::mkDir(value);
-    if (!err.success()){
+    auto err = chakra::utils::FileHelper::mkdir(value);
+    if (err){
         LOG(ERROR) << "valid db dir error " << err.what();
         return false;
     }
@@ -56,8 +57,8 @@ DEFINE_int64(db_wal_ttl_seconds, 86400, "rocksdb wal log ttl seconds");         
 DEFINE_string(cluster_dir, "data", "cluster dir");                                              /* NOLINT */
 static bool validClusterDir(const char* flagname, const std::string& value){
     if (value.empty()) return false;
-    auto err = chakra::utils::FileHelper::mkDir(value);
-    if (!err.success()){
+    auto err = chakra::utils::FileHelper::mkdir(value);
+    if (err){
         LOG(ERROR) << "valid cluster dir error " << err.what();
         return false;
     }
@@ -69,7 +70,7 @@ DEFINE_int32(cluster_port, 7291, "cluster port");                               
 DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");              /* NOLINT */
 DEFINE_int32(cluster_peer_timeout_ms, 10000, "cluster peer timeout ms");                        /* NOLINT */
 DEFINE_int32(cluster_peer_link_retry_timeout_ms, 10000, "cluster peer link retry timeout ms");  /* NOLINT */
-DEFINE_double(cluster_cron_interval_sec, 1.0, "cluster cron interval sec");                     /* NOLINT */
+DEFINE_double(cluster_cron_interval_sec, 0.5, "cluster cron interval sec");                     /* NOLINT */
 DEFINE_int32(cluster_tcp_back_log, 512, "cluster tcp back log");                                /* NOLINT */
 
 #endif //CHAKRA_FLAGS_CPP

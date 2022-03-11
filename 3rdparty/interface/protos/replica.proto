@@ -5,7 +5,7 @@ import "types.proto";
 
 message ReplicaState{
   string db_name = 1;
-  int32 delta_seq = 2;
+  uint64 delta_seq = 2;
 }
 
 message LinkReplicaState{
@@ -30,7 +30,7 @@ message ReplicaOfResponse{
 
 message SyncMessageRequest{
   string db_name = 1;
-  int64 seq = 2;
+  uint64 seq = 2;
 }
 
 message SyncMessageResponse{
@@ -65,14 +65,14 @@ message BulkMessage{
 
 message DeltaMessageRequest{
   string db_name = 1;
-  int64 seq = 2;
+  uint64 seq = 2;
   int64 size = 3; // 每次最大同步字节数
 }
 
 // 截止到某个时间点之后的增量数据
 message DeltaMessageResponse{
   message Sequence{
-    int64 seq = 1; // 新的序列号
+    uint64 seq = 1; // 新的序列号
     bytes data = 2; // 序列化后的数据，已经包含了 key value信息
   }
   types.Error error = 1;
@@ -82,5 +82,5 @@ message DeltaMessageResponse{
 
 message HeartBeatMessage{
   int64 heartbeat_ms = 1;
-  int64 seq = 2;
+  uint64 seq = 2;
 }

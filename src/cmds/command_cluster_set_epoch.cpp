@@ -14,8 +14,8 @@ void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, voi
     proto::peer::EpochSetMessageRequest epochSetMessageRequest;
     proto::peer::EpochSetMessageResponse epochSetMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, epochSetMessageRequest, proto::types::P_SET_EPOCH);
-    if (!err.success()){
-        chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(epochSetMessageResponse.mutable_error(), 1, err.what());
     } else {
         auto clsptr = cluster::Cluster::get();
         if (epochSetMessageRequest.increasing()){

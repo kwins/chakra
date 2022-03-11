@@ -16,7 +16,7 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
 
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_DELTA_REQUEST);
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "replica delta pull deserialize error " << err.what();
         return;
     }
@@ -27,11 +27,11 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     auto& dbptr = database::FamilyDB::get();
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
     err = dbptr->getUpdateSince(deltaMessageRequest.db_name(), deltaMessageRequest.seq(), &iter);
-    if (!err.success()){
-        chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), 1, err.what());
     } else {
         int bytes = 0;
-        int64_t seq = -1;
+        uint64_t seq = 0;
         while (iter->Valid()){
             auto batch = iter->GetBatch();
             if (bytes >= deltaMessageRequest.size())

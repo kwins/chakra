@@ -79,7 +79,7 @@ bool chakra::cluster::Peer::connect() {
     try {
         delete link; // 删除之前的 link
         link = new Link(ip, port, shared_from_this());
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         link = nullptr; // ~Link
         if (!retryLinkTime)
             retryLinkTime = utils::Basic::getNowMillSec();
@@ -225,7 +225,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
         return err;
     });
 
-    if (!err.success()){
+    if (err){
         LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.what();
         close();
         if (!reletedPeer) delete this; // 这里直接 delete this，因为后面不会再使用到此对象
@@ -258,7 +258,7 @@ void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
 }
 
 chakra::cluster::Peer::Link::~Link() {
-    LOG(INFO) << "### chakra::cluster::Peer::Link::~Link";
+    DLOG(INFO) << "chakra::cluster::Peer::Link::~Link";
     close();
     if (reletedPeer) reletedPeer = nullptr;
 }

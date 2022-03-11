@@ -50,18 +50,20 @@ public:
             void startSendBulk(); // 触发全量复制
             void onSendBulk(ev::timer& watcher, int event); // 执行全量复制
 
-            void reset();
+            void reset(); // 清空所有成员配置
+            void close(); // 关闭当前正在进行的任务，成员信息保持不变
             ~ReplicateDB();
 
             std::string name; /* DB name */
             long lastTransferMs = 0;
+            long lastTryReSyncMs = 0;
             State state = State::REPLICA_INIT; /* 复制状态 */
-            rocksdb::SequenceNumber deltaSeq = -1; /* 增量同步使用 */
+            rocksdb::SequenceNumber deltaSeq = 0; /* 增量同步使用 */
 
             ev::timer deltaIO;
             ev::timer transferIO;
             rocksdb::Iterator* bulkiter = nullptr; /* 全量同步使用 */
-            std::shared_ptr<Link> link = nullptr;
+            Link* link = nullptr;
         };
         
         struct NegativeOptions {
@@ -78,16 +80,15 @@ public:
         explicit Link(const NegativeOptions& options);
         
         // 创建db snapshot, 为后续传输 db 做准备
-        error::Error snapshotDB(const std::string& name, rocksdb::SequenceNumber lastSeq);
+        error::Error snapshotDB(const std::string& name, rocksdb::SequenceNumber& lastSeq);
 
         void startReplicateRecvMsg(); // 开始接收命令
-        static void onReplicateRecvMsg(ev::io& watcher, int event);
+        void onReplicateRecvMsg(ev::io& watcher, int event);
 
         void handshake();
         void heartbeat();
         void reconnect();
 
-        void tryPartialReSync();
         void tryPartialReSync(const std::string& name);
 
         void startPullDelta(const std::string& name); // 触发拉取增量数据
@@ -105,7 +106,7 @@ public:
 
         void replicateState(proto::replica::ReplicaStates& rs);
         void setReplicateDB(std::shared_ptr<ReplicateDB> relicateDB);
-        std::shared_ptr<ReplicateDB> getReplica(const std::string& name);
+        std::shared_ptr<ReplicateDB> getReplicateDB(const std::string& name);
         const std::unordered_map<std::string, std::shared_ptr<ReplicateDB>>& getReplicas();
         void setPeerName(const std::string& name);
         std::string getPeerName() const;
@@ -141,7 +142,7 @@ public:
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicateStates();
-    std::unordered_map<std::string, std::vector<std::shared_ptr<Link>>> dbLinks(chakra::replica::Replicate::Link::State state);
+    std::unordered_map<std::string, std::vector<Link*>> dbLinks(chakra::replica::Replicate::Link::State state);
     void stop();
 
 private:
@@ -151,8 +152,8 @@ private:
     ev::timer cronIO;
     ev::timer transferIO;
     int sfd = -1;
-    std::unordered_map<std::string, std::shared_ptr<Link>> positiveLinks; // key=peername
-    std::list<std::shared_ptr<Link>> negativeLinks;
+    std::unordered_map<std::string, Link*> positiveLinks; // key=peername
+    std::list<Link*> negativeLinks;
     static const std::string REPLICA_FILE_NAME;
 };
 

@@ -13,16 +13,16 @@ void chakra::cmds::CommandClusterMeet::execute(char *req, size_t len, void* data
     proto::peer::MeetMessageRequest meet;
     proto::peer::MeetMessageResponse reply;
     auto err = chakra::net::Packet::deSerialize(req, len, meet, proto::types::P_MEET);
-    if (!err.success()){
-        chakra::net::Packet::fillError(*reply.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(*reply.mutable_error(), 1, err.what());
         chakra::net::Packet::serialize(reply, proto::types::Type::P_MEET, cbf);
         return;
     }
 
     auto clsptr = chakra::cluster::Cluster::get();
-    if (meet.ip().empty() || meet.port() <= 0){
+    if (meet.ip().empty() || meet.port() <= 0) {
         chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Ip empty Or Bad Port");
-    } else{
+    } else {
         auto peer = clsptr->getPeer(meet.ip(), meet.port());
         if (peer){
             chakra::net::Packet::fillError(*reply.mutable_error(), 1, "Peer has exist in cluster");

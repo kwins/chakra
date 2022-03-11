@@ -10,7 +10,7 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 #include "peer.pb.h"
-#include "error/err_file_not_exist.h"
+#include "error/err.h"
 
 DECLARE_string(cluster_dir);
 DECLARE_string(db_dir);
@@ -25,14 +25,14 @@ chakra::database::FamilyDB::FamilyDB() : index(0) {
     std::string filename = FLAGS_cluster_dir + "/" + DB_FILE;
     try {
         utils::FileHelper::loadFile(filename, metaDBs);
-        for(auto& info : metaDBs.dbs()){
+        for(auto& info : metaDBs.dbs()) {
             auto bucket = std::make_shared<BucketDB>(info);
             columnBuckets[index.load()].emplace(std::make_pair(info.name(), bucket));
         }
-    } catch (error::FileNotExistError& err) {
-        return;
-    } catch (std::exception& err) {
-        LOG(INFO) << "load db from" << filename << " error " << err.what();
+    } catch (const error::FileError& err) {
+        /* 文件不存在或者首次运行 */
+    } catch (const std::exception& err) {
+        LOG(INFO) << "FamilyDB load db from" << filename << " error " << err.what();
         exit(-1);
     }
     LOG(INFO) << "FamilyDB success";

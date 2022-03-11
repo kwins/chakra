@@ -18,13 +18,12 @@ DECLARE_int64(connect_buff_size);
 chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->opts = std::move(opts);
     this->sar = nullptr;
-    this->errMsg = "";
     this->lastActive = system_clock::now();
     this->buf = (char*) malloc(sizeof(char) * FLAGS_connect_buff_size);
     this->bufSize = FLAGS_connect_buff_size;
     this->bufLen = 0;
     this->bufFree = FLAGS_connect_buff_size;
-    if (this->opts.fd > 0){
+    if (this->opts.fd > 0) {
         this->FD = this->opts.fd;
         this->state = State::CONNECTED;
     } else{
@@ -34,23 +33,23 @@ chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
 }
 
 chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
-    if (data == nullptr || len <= 0) return error::Error("data or len error");
+    if (data == nullptr || len <= 0) return error::Error("bad data or len");
     long size = len;
     long nextLen = size;
     ssize_t sendSize = 0;
-    while (true){
-        ssize_t writed = ::send(fd(), &data[sendSize], nextLen, MSG_WAITALL);
-        if (writed == 0){
-            return setError(ERR_SEND,"conect closed");
-        } else if (writed < 0){
-            if ((errno == EWOULDBLOCK && !opts.block) || errno == EINTR){
+    while (true) {
+        ssize_t writed = ::send(fd(), &data[sendSize], nextLen, MSG_NOSIGNAL);
+        if (writed == 0) {
+            return error::Error("closed");;
+        } else if (writed < 0) {
+            if ((errno == EWOULDBLOCK && !opts.block) || errno == EINTR) {
                 /* try aganin later */
             } else {
-                return setError(ERR_SEND,"send");
+                return error::Error(strerror(errno));
             }
         } else {
             sendSize += writed;
-            if (sendSize == size){
+            if (sendSize == size) {
                 break;
             } else {
                 nextLen = size - sendSize;
@@ -62,15 +61,15 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
 
 chakra::error::Error chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
-    if (readn == 0){
-        return setError(ERR_RECEIVE, "connect closed");
-    } else if (readn < 0){
-        if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR){
+    if (readn == 0) {
+        return error::Error("closed");
+    } else if (readn < 0) {
+        if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
             /* Try again later */
-        } else if (errno == ETIMEDOUT && opts.block){
-            return setError(ERR_RECEIVE, "read timeout");
+        } else if (errno == ETIMEDOUT && opts.block) {
+            return error::Error(strerror(errno));
         } else {
-            return setError(ERR_RECEIVE, "read io");
+            return error::Error(strerror(errno));
         }
     } else {
         bufLen += readn;
@@ -78,7 +77,7 @@ chakra::error::Error chakra::net::Connect::receivePack(const std::function< erro
         buf[bufLen] = '\0';
     }
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
-    if ((packSize == 0) || (packSize > 0 && bufLen < packSize)){
+    if ((packSize == 0) || (packSize > 0 && bufLen < packSize)) {
         LOG(WARNING) << "connect recv pack not enough, pack size is " << packSize << " recved is " << bufLen;
         return error::Error(); // 这里不返回错误，只是打印日志，下次继续读取
     }
@@ -107,7 +106,6 @@ std::string chakra::net::Connect::remoteAddr()  {
 
 chakra::error::Error chakra::net::Connect::connect() {
     if (state == State::CONNECTED) return error::Error();
-
     int retryTimes = 0;
     int clientFd;
     struct sockaddr_in addr{};
@@ -120,37 +118,35 @@ chakra::error::Error chakra::net::Connect::connect() {
     sar = (struct sockaddr*) malloc(sizeof(struct sockaddr));
     memcpy(sar, (sockaddr*)&addr, sizeof(struct sockaddr));
 
-    if ((clientFd = ::socket(PF_INET, SOCK_STREAM, 0)) < 0){
-        return setError("SOCK_STREAM");
+    if ((clientFd = ::socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+        return error::Error(strerror(errno));
     }
-
     FD = clientFd;
 
     retry:
-    if (::connect(clientFd, (sockaddr*) &addr, sizeof(addr)) < 0){
-        if (errno == EHOSTUNREACH){
-            return setError("EHOSTUNREACH", true);
+    if (::connect(clientFd, (sockaddr*) &addr, sizeof(addr)) < 0) {
+        if (errno == EHOSTUNREACH) {
+            close();
+            return error::Error(strerror(errno));
         } else if (errno == EINPROGRESS){
             if (!opts.block){
                 waitConnectReady(toMsec(opts.connectTimeOut));
             }
-        } else if (errno == EADDRNOTAVAIL){
-            if (++retryTimes >= opts.connectRetrys){
-                return setError("retry");
+        } else if (errno == EADDRNOTAVAIL) {
+            if (++retryTimes >= opts.connectRetrys) {
+                return error::Error("retry limit");
             } else {
                 close();
                 goto retry;
             }
         }
-
-        return setError("connect");
+        return error::Error(strerror(errno));
     }
-
     auto err = setBlock(false);
-    if (!err.success())
+    if (err)
         return err;
     err = setConnectTimeout();
-    if (!err.success())
+    if (err)
         return err;
     state = State::CONNECTED;
     return err;
@@ -159,7 +155,7 @@ chakra::error::Error chakra::net::Connect::connect() {
 chakra::error::Error chakra::net::Connect::setBlock(bool block) {
     int flags;
     if ((flags = fcntl(fd(), F_GETFL)) == -1){
-        return setError("F_GETFL");
+        return error::Error(strerror(errno));
     }
 
     if (block){
@@ -168,29 +164,12 @@ chakra::error::Error chakra::net::Connect::setBlock(bool block) {
         flags &= O_NONBLOCK; // 非阻塞
     }
 
-    if (fcntl(fd(), F_SETFL, flags) == -1){
-        return setError(ERR_SET_BLOCK,"F_SETFL", true);
+    if (fcntl(fd(), F_SETFL, flags) == -1) {
+        close();
+        return error::Error(strerror(errno));
     }
 
     return error::Error();
-}
-
-chakra::error::Error chakra::net::Connect::setError(const std::string& extra, bool closeConn) {
-    return setError(errno, extra, closeConn);
-}
-
-chakra::error::Error chakra::net::Connect::setError(int code, const std::string &extra, bool closeConn) {
-    errMsg.clear();
-    if (!extra.empty()){
-        errMsg.append(extra);
-    }
-    if (errno > 0){
-        char buf[128] = {0};
-        strerror_r(errno, buf, sizeof(buf));
-        errMsg.append(":").append(buf);
-    }
-    if (closeConn) close();
-    return error::Error(errMsg);
 }
 
 chakra::error::Error chakra::net::Connect::setConnectTimeout() {
@@ -199,11 +178,11 @@ chakra::error::Error chakra::net::Connect::setConnectTimeout() {
     toTimeVal(opts.writeTimeOut, writev);
 
     if (setsockopt(fd(), SOL_SOCKET, SO_RCVTIMEO, &readv, sizeof(readv))){
-        return setError("SO_RCVTIMEO");
+        return error::Error(strerror(errno));
     }
 
     if (setsockopt(fd(), SOL_SOCKET, SO_SNDTIMEO, &writev, sizeof(writev))){
-        return setError("SO_SNDTIMEO");
+        return error::Error(strerror(errno));
     }
     return error::Error();
 }
@@ -223,21 +202,22 @@ chakra::error::Error chakra::net::Connect::waitConnectReady(long msec) {
     wfd[0].events = POLLOUT;
 
     if (errno != EINPROGRESS){
-        return setError("NOT EINPROGRESS");
+        return error::Error(strerror(errno));;
     }
 
     int res;
     if ((res = poll(wfd, 1, msec)) == -1){
-        return setError("poll", true);
+        close();
+        return error::Error(strerror(errno));;
     } else if (res == 0){
         errno = ETIMEDOUT;
-        return setError( "ETIMEDOUT", true);
+        close();
+        return error::Error(strerror(errno));
     }
 
-    if (!checkConnectOK(res).success() || res == 0){
+    auto err = checkConnectOK(res);
+    if (err || res == 0)
         return checkSockErr();
-    }
-
     return error::Error();
 }
 
@@ -246,13 +226,13 @@ chakra::error::Error chakra::net::Connect::checkSockErr() {
     int err_saved = errno;
     socklen_t err1len = sizeof(err1);
     if (getsockopt(fd(), SOL_SOCKET, SO_ERROR, &err1, &err1len) == -1){
-        return setError("SO_ERROR");
+        return error::Error(strerror(errno));
     }
 
     if (err1 == 0) err1 = err_saved;
 
     if (err1){
-        return setError("CHECK SOCK");
+        return error::Error(strerror(err1));
     }
     return error::Error();
 }
@@ -274,7 +254,7 @@ chakra::error::Error chakra::net::Connect::checkConnectOK(int &completed) {
             completed = 0;
             return error::Error();
         default:
-            return error::Error("check connect");
+            return error::Error(strerror(errno));
     }
     return error::Error();
 }
@@ -287,7 +267,8 @@ long chakra::net::Connect::lastActiveTime() { return lastActive.time_since_epoch
 
 int chakra::net::Connect::reconnect() {
     Connect conn(opts);
-    if (!conn.connect().success()){
+    auto err = conn.connect();
+    if (err) {
         return -1;
     }
     swap(*this, conn);
@@ -312,7 +293,6 @@ void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexc
     std::swap(lc.FD, rc.FD);
     std::swap(lc.sar, rc.sar);
     std::swap(lc.state, rc.state);
-    std::swap(lc.errMsg, rc.errMsg);
     std::swap(lc.buf, rc.buf);
     std::swap(lc.bufFree, rc.bufFree);
     std::swap(lc.bufSize, rc.bufSize);

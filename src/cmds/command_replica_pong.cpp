@@ -21,7 +21,7 @@ void chakra::cmds::CommandReplicaPong::execute(char *req, size_t len, void *data
 
     proto::replica::PongMessage pong;
     auto err = chakra::net::Packet::deSerialize(req, len, pong, proto::types::R_PONG);
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "Replicate handshake deserilize requesst error " << err.what();
     } else if (pong.error().errcode() != 0) {
         LOG(ERROR) << "Replicate receive bad pong message " << pong.DebugString();

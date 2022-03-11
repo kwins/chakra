@@ -18,7 +18,7 @@ public:
     static size_t size(const std::string& filepath);
     static error::Error saveFile(const google::protobuf::Message& message, const std::string& tofile);
     static void loadFile(const std::string& fromfile, google::protobuf::Message& message);
-    static error::Error mkDir(const std::string& path);
+    static error::Error mkdir(const std::string& path);
 };
 
 }

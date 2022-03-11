@@ -16,34 +16,39 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     proto::replica::BulkMessage bulkMessage;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, bulkMessage, proto::types::R_BULK);
-    if (!err.success()) {
+    if (err) {
         LOG(ERROR) << "Replicate recv bulk deserialize error " << err.what();
     } else if (link->getState() != chakra::replica::Replicate::Link::State::CONNECTED) {
-        LOG(WARNING) << "Replicate link state not connected when recv bulk.";
+        LOG(WARNING) << "Replicate link state not connected when recv bulk(" << (int)link->getState() << ")";
     } else {
         LOG(INFO) << "Replicate receive bulk message" << bulkMessage.DebugString();
-
-        auto nowms = utils::Basic::getNowMillSec();
-        link->setLastInteractionMs(nowms);
-        link->setLastTransferMs(bulkMessage.db_name(), nowms);
-        if (bulkMessage.kvs_size() > 0){
-            auto dbptr = chakra::database::FamilyDB::get();
-            rocksdb::WriteBatch batch;
-            for(auto& it : bulkMessage.kvs()){
-                batch.Put(it.key(), it.value());
+        auto replicateDB = link->getReplicateDB(bulkMessage.db_name());
+        if (!replicateDB) {
+            LOG(ERROR) << "Replicate receive bulk message db " << bulkMessage.db_name() << " not found in server.";
+        } else {
+            link->setLastInteractionMs(utils::Basic::getNowMillSec());
+            replicateDB->lastTransferMs = link->getLastInteractionMs();
+            if (bulkMessage.kvs_size() > 0) {
+                auto dbptr = chakra::database::FamilyDB::get();
+                rocksdb::WriteBatch batch;
+                for(auto& it : bulkMessage.kvs()) {
+                    batch.Put(it.key(), it.value());
+                }
+                err = dbptr->putAll(bulkMessage.db_name(), batch);
+                if (err) {
+                    LOG(ERROR) << err.what();
+                    link->close();
+                    return;
+                }
             }
-            err = dbptr->putAll(bulkMessage.db_name(), batch);
-            if (!err.success()) {
-                LOG(ERROR) << "REPL set db " << bulkMessage.db_name() << " error " << err.what();
+            if (bulkMessage.end()) {
+                replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
+                replicateDB->deltaSeq = bulkMessage.seq();
+                replica::Replicate::get()->dumpReplicateStates();
+                replicateDB->startPullDelta(); // 触发 pull delta
+                LOG(INFO) << "Full replicate db " << bulkMessage.db_name() 
+                            << " from " << link->getPeerName() << " finished and start pull delta.";
             }
-        }
-        
-        if (bulkMessage.end()) {
-            link->setState(chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED);
-            link->setRocksSeq(bulkMessage.db_name(), bulkMessage.seq());
-            link->startPullDelta(bulkMessage.db_name()); // 触发 pull delta
-            LOG(INFO) << "Full replicate db " << bulkMessage.db_name() 
-                        << " from " << link->getPeerName() << " finished and start pull delta.";
         }
     }
 }

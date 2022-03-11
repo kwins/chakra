@@ -9,8 +9,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <glog/logging.h>
-#include <error/err.h>
-#include "error/err_file_not_exist.h"
+#include "error/err.h"
 
 size_t chakra::utils::FileHelper::size(const std::string &dir, const std::string &name) {
     std::string filepath;
@@ -50,14 +49,14 @@ chakra::utils::FileHelper::saveFile(const google::protobuf::Message &message, co
     std::ofstream out(tmpfile, std::ios::out|std::ios::trunc);
     if (!out.is_open()){
         if (errno == ENOENT){
-            return error::Error("file: " + tofile + " not exist");
+            return error::Error(tofile + " not exist");
         }
-        return error::Error( strerror(errno));
+        return error::Error(strerror(errno));
     }
     out << str;
     out.close();
     if (::rename(tmpfile.c_str(), tofile.c_str()) == -1){
-        return error::Error(strerror(errno));
+        return error::FileError(strerror(errno));
     }
     return error::Error();
 }
@@ -66,7 +65,7 @@ void chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::pr
     std::ifstream fileStream(fromfile);
     if (!fileStream.is_open()){
         if (errno == ENOENT){
-            throw error::FileNotExistError("file " + fromfile + " not exist");
+            throw error::FileError(fromfile + " not exist");
         }
         throw error::Error(strerror(errno));
     }
@@ -79,16 +78,16 @@ void chakra::utils::FileHelper::loadFile(const std::string &fromfile, google::pr
         throw error::Error(s.ToString());
 }
 
-chakra::error::Error chakra::utils::FileHelper::mkDir(const std::string &path) {
+chakra::error::Error chakra::utils::FileHelper::mkdir(const std::string &path) {
     std::string str = path;
     std::string str1;
     int pos = 0;
-    while (pos >= 0){
+    while (pos >= 0) {
         pos = str.find('/');
         str1 += str.substr(0, pos) + "/";
-        if (::access(str1.c_str(), 0) != 0){
+        if (::access(str1.c_str(), 0) != 0) {
             int ret = ::mkdir(str1.c_str(), S_IRWXU);
-            if (ret != 0){
+            if (ret != 0) {
                 return error::Error(strerror(errno));
             }
         }

@@ -56,9 +56,6 @@ public:
 private:
 
     error::Error setBlock(bool block);
-    error::Error setError(const std::string& extra = "", bool closeConn = false);
-    error::Error setError(int errNo, const std::string& extra = "", bool closeConn = false);
-
     error::Error setConnectTimeout();
     error::Error waitConnectReady(long msec);
     error::Error checkConnectOK(int& completed);
@@ -68,18 +65,10 @@ private:
     static void toTimeVal(const milliseconds& duration, timeval& tv);
     static long toMsec(const milliseconds& duration);
 
-    static const int ERR_TIMEOUT = 1;
-    static const int ERR_CONNECT = 2;
-    static const int ERR_SET_BLOCK = 3;
-    static const int ERR_RECEIVE = 4;
-    static const int ERR_SEND = 5;
-    static const int ERR_BAD_ARGS = 5;
-
     Options opts {};
     int FD;
     sockaddr* sar;
     State state;
-    std::string errMsg;
 
     char* buf;
     size_t bufFree; // 可用长度

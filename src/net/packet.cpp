@@ -19,7 +19,7 @@ chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::type
 chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg, proto::types::Type type) {
     proto::types::Type reqtype;
     if ((reqtype = chakra::net::Packet::getType(src, srcLen)) != type){
-        return error::Error("pack type not match(req is " + std::to_string(reqtype) + " : need is " + std::to_string(type) + ")");
+        return  error::Error("pack type not match(req is " + std::to_string(reqtype) + " : need is " + std::to_string(type) + ")");
     }
 
     auto packSize = read<uint64_t>(src, srcLen, 0);
@@ -30,7 +30,7 @@ chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, 
     uint64_t bodyLen = packSize - HEAD_LEN - FLAG_LEN - TYPE_LEN;
     auto ok = msg.ParseFromArray(&src[BODY_IDX], bodyLen);
     if (!ok){
-        return error::Error("pack parse error");
+        return error::Error("message parse error");
     }
     return error::Error();
 }

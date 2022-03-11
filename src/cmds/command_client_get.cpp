@@ -12,8 +12,8 @@ chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::
     proto::client::GetMessageResponse getMessageResponse;
     proto::client::GetMessageRequest getMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, len, getMessageRequest, proto::types::C_GET);
-    if (!err.success()){
-        chakra::net::Packet::fillError(getMessageResponse.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, err.what());
     } else {
         auto dbptr = chakra::database::FamilyDB::get();
         auto value = dbptr->get(getMessageRequest.db_name(), getMessageRequest.key());

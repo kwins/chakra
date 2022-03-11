@@ -11,7 +11,8 @@
 
 void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) {
     proto::peer::GossipMessage gossip;
-    if (!chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG).success()) return;
+    auto err = chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG);
+    if (err) return;
 
     auto clsptr = cluster::Cluster::get();
     auto sender = clsptr->getPeer(gossip.sender().name());

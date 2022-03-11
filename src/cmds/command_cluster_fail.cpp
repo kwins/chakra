@@ -11,7 +11,8 @@
 
 void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> reply) {
     proto::peer::FailMessage failMessage;
-    if (!chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL).success()) return;
+    auto err = chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL);
+    if (err) return;
 
     LOG(INFO) << "Receive fail message " << failMessage.DebugString();
 

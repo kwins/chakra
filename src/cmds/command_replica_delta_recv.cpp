@@ -17,17 +17,18 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "Replicate delta receive deserialize error " << err.what();
     } else if (deltaMessageResponse.error().errcode() != 0){
         LOG(ERROR) << "Replicate delta receive response error " << deltaMessageResponse.error().errmsg();
     } else {
-        auto& dbptr = database::FamilyDB::get();
+        DLOG(INFO) << "Replicate delta receive response " << deltaMessageResponse.DebugString();
+        auto dbptr = database::FamilyDB::get();
         for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
             auto& seq = deltaMessageResponse.seqs(i);
             rocksdb::WriteBatch batch(seq.data());
             err = dbptr->putAll(deltaMessageResponse.db_name(), batch);
-            if (err.success()){
+            if (!err) {
                 link->setRocksSeq(deltaMessageResponse.db_name(), seq.seq());
             } else {
                 LOG(ERROR) << "replica delta recv error " << err.what();

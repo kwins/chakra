@@ -21,6 +21,7 @@ DECLARE_double(server_cron_interval_sec);
 DECLARE_int64(replica_delta_batch_bytes);
 
 chakra::serv::Chakra::Chakra() {
+    LOG(INFO) << "Chakra 1";
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
@@ -59,6 +60,7 @@ chakra::serv::Chakra::Chakra() {
     chakra::replica::Replicate::get();
     // sig
     initLibev();
+    LOG(INFO) << "Chakra 2";
 }
 
 // Chakra
@@ -71,7 +73,7 @@ void chakra::serv::Chakra::initLibev() {
     // listen
     sfd = -1;
     auto err = net::Network::tpcListen(FLAGS_server_port ,FLAGS_server_tcp_backlog, sfd);
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.what();
         exit(1);
     }
@@ -162,7 +164,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             if (pdb.second.state() != proto::peer::MetaDB_State_ONLINE) continue;
             if (replicaptr->hasReplicateDB(clusptr->getMyself()->getName(), pdb.second.name())) continue;
             auto err = replicaptr->setReplicateDB(it.second->getName(), pdb.second.name(), it.second->getIp(), it.second->getReplicatePort());
-            if (err.success()) {
+            if (!err) {
                 LOG(INFO) << "Replicate new db " << pdb.second.name() 
                     << "(" << it.second->getIp() << ":" << it.second->getReplicatePort() << ") to this node";
                 replicaptr->dumpReplicateStates();
@@ -231,7 +233,7 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
         return err;
     });
 
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.what();
         delete link;
     }
@@ -246,7 +248,6 @@ void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worke
 
 
 chakra::serv::Chakra::Link::~Link() {
-    LOG(INFO) << "### chakra::serv::Chakra::Link::~Link";
     close();
 }
 

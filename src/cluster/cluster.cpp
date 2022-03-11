@@ -14,7 +14,7 @@
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
 #include "database/db_family.h"
-#include "error/err_file_not_exist.h"
+#include "error/err.h"
 
 DECLARE_string(cluster_dir);
 DECLARE_int32(cluster_port);
@@ -63,7 +63,7 @@ void chakra::cluster::Cluster::loadPeers() {
             peers.emplace(info.name(), peer);
             if (peer->isMyself()) { myself = peer; }
         }
-    } catch (error::FileNotExistError& err) {
+    } catch (const error::FileError& err) {
         myself = std::make_shared<Peer>(); // 第一次初始化
         myself->setIp("127.0.0.1");
         myself->setPort(FLAGS_cluster_port);
@@ -71,7 +71,7 @@ void chakra::cluster::Cluster::loadPeers() {
         myself->setFlag(Peer::FLAG_MYSELF);
         peers.insert(std::make_pair(myself->getName(), myself));
         LOG(INFO) << "Cluster init first, peers size:" << peers.size();
-    } catch (std::exception& err) {
+    } catch (const std::exception& err) {
         LOG(ERROR) << "Cluster exit with error " << err.what();
         exit(-1);
     }
@@ -86,7 +86,7 @@ std::shared_ptr<chakra::cluster::Cluster> chakra::cluster::Cluster::get() {
 void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
     auto err = net::Network::tpcListen(FLAGS_cluster_port ,FLAGS_cluster_tcp_back_log, sfd);
-    if (!err.success() || sfd == -1){
+    if (err || sfd == -1) {
         LOG(ERROR) << "Cluster listen on " << FLAGS_cluster_port << " " << err.what();
         exit(1);
     }
@@ -113,7 +113,6 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
             it++;
             continue;
         }
-
         // 如果 handshake 节点已超时，释放它
         auto spends = nowMillSec - peer->createTimeMs();
         if (it->second->isHandShake() && spends > FLAGS_cluster_handshake_timeout_ms){
@@ -159,7 +158,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         }
 
         if (minPingPeer){
-            LOG(INFO) << "Find min pong peer " << minPingPeer->getName() << ":" << minPingPeer->getLastPongRecv() << ", Try to send PING.";
+            DLOG(INFO) << "Find min pong peer " << minPingPeer->getName() << ":" << minPingPeer->getLastPongRecv() << ", Try to send PING.";
             sendPingOrMeet(minPingPeer, proto::types::P_PING);
         }
 
@@ -185,12 +184,12 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
                 && nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms/2  /* 等待Pong超过超时的一半时间 */
                 && !peer->isPfail()
                 && !peer->isFail()  /* 节点不能为 FAIL or PFAIL 状态 */
-                ){
+                ) {
             // TODO: use other way fix this fail reason
-            LOG(WARNING) << "*** NOTE peer "
+            LOG(INFO) << "*** NOTE peer "
                          << peer->getName()
                          << " connect ok, but always not received pong since " << peer->getLastPongRecv()
-                         << ", try free link and reconnect";
+                         << ", try free link and reconnect(" << (nowMillSec - peer->getLastPingSend()) << "ms)";
             peer->linkFree(); // 下次重连
         }
 
@@ -202,10 +201,9 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
                 && peer->getLastPingSend() == 0 /* 没发送PING */
                 && (nowMillSec - peer->getLastPongRecv()) > FLAGS_cluster_peer_timeout_ms/2){
             sendPingOrMeet(peer, proto::types::P_PING);
-            LOG(WARNING) << "*** NOTE peer "
-                         << peer->getName()
+            DLOG(INFO) << "Peer " << peer->getName()
                          << " connect ok, but not send PING for a long time " << peer->getLastPongRecv()
-                         << ", try to send ping to weak up it.(" << (nowMillSec - peer->getLastPongRecv()) << ")";
+                         << ", try to send ping to weak up it.(" << (nowMillSec - peer->getLastPongRecv()) << "ms)";
             continue;
         }
         // PING 等到 PONG 超时
@@ -233,6 +231,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         dumpMyselfDBs();
         cronTodo &= ~FLAG_SAVE_CONFIG;
     }
+
     startPeersCron();
 }
 
@@ -283,10 +282,10 @@ bool chakra::cluster::Cluster::dumpPeers() {
     }
 
     auto err = utils::FileHelper::saveFile(clusterState, filename);
-    if (!err.success()){
+    if (err){
         LOG(ERROR) << "Cluster dump peers error " << err.what();
     }else {
-        LOG(INFO) << "Cluster dump peers to filename " << filename << " success.";
+        DLOG(INFO) << "Cluster dump peers to filename " << filename << " success.";
     }
     return true;
 }
@@ -299,10 +298,10 @@ void chakra::cluster::Cluster::dumpMyselfDBs() {
         db->CopyFrom(it.second);
     }
     auto err = utils::FileHelper::saveFile(metaDBs, filename);
-    if (!err.success()){
+    if (err) {
         LOG(ERROR) << "Cluster dump myself dbs error " << err.what();
     } else {
-        LOG(INFO) << "Cluster dump myself dbs to filename " << filename << " success.";
+        DLOG(INFO) << "Cluster dump myself dbs to filename " << filename << " success.";
     }
 }
 
@@ -389,7 +388,6 @@ void chakra::cluster::Cluster::sendPingOrMeet(std::shared_ptr<Peer> peer, proto:
     } else{
         buildGossipMessage(gossip);
     }
-
     // 记录下ping的时间点，
     if (type == proto::types::P_PING){
         auto millSec = utils::Basic::getNowMillSec();

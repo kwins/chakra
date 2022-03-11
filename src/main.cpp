@@ -1,7 +1,8 @@
 #include "service/chakra.h"
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
+#include <thread>
+#include <chrono>
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -10,6 +11,6 @@ int main(int argc, char* argv[]) {
 
     gflags::ShutDownCommandLineFlags();
 //    google::ShutdownGoogleLogging();
-    LOG(INFO) << "end";
+    LOG(INFO) << "end.";
     return 0;
 }

@@ -10,20 +10,31 @@
 
 namespace chakra::error {
 
-class Error : public std::logic_error{
+class Error : public std::logic_error {
 public:
-    explicit Error();
-    explicit Error(const char* message);
-    explicit Error(const std::string& message);
-    bool success() const;
-    int getCode() const;
-    const std::string &getMsg() const;
-    ~Error() noexcept override = default;
-
+    explicit Error() : std::logic_error(""), message_("") {}
+    explicit Error(const std::string& message) : std::logic_error(message), message_(message) {}
+    virtual bool operator == (const bool value) { return (!message_.empty()) == value; }
+    virtual operator bool() { return !message_.empty(); };
+    virtual ~Error() noexcept override = default;
 private:
-    int errcode;
-    std::string errmsg;
+    std::string message_;
 };
+
+#define DEFINE_ERROR(name, error)                                                                       \
+class name##Error : public Error {                                                                      \
+public:                                                                                                 \
+    explicit name##Error(const std::string& message) : Error((std::string(#name) + ":" + message)) {}   \
+    bool operator == (const bool value) { return error == value; }                                      \
+    operator bool() override { return error; }                                                          \
+    ~name##Error() noexcept override = default;                                                         \
+};
+
+/* 这里定义的Error一般在try catch时使用，
+ * 可以判断为某类错误，而不是使用错误码
+ * 一般情况下就使用Error类即可
+ */
+DEFINE_ERROR(File, true)
 
 }
 

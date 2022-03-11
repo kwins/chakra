@@ -12,8 +12,8 @@ void chakra::cmds::CommandClusterState::execute(char *req, size_t reqLen, void *
     proto::peer::StateMessageRequest stateMessageRequest;
     proto::peer::StateMessageResponse stateMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, stateMessageRequest, proto::types::P_STATE);
-    if (!err.success()){
-        chakra::net::Packet::fillError(stateMessageResponse.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(stateMessageResponse.mutable_error(), 1, err.what());
     } else {
         auto clsptr = chakra::cluster::Cluster::get();
         clsptr->stateDesc(*stateMessageResponse.mutable_state());

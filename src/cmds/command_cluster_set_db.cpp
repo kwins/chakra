@@ -21,8 +21,8 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
     auto myself = clsptr->getMyself();
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, dbSetMessage, proto::types::P_SET_DB);
-    if (!err.success()){
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), err.getCode(), err.getMsg());
+    if (err) {
+        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, err.what());
     } else if (!clsptr->stateOK()){ /* 集群状态正常 */
         chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster state fail");
     } else if (dbSetMessage.db().name().empty() || dbSetMessage.db().cached() <= 0){ /* 请求参数正常 */
@@ -36,20 +36,22 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         auto peers = clsptr->getPeers(dbSetMessage.db().name());
         int num = 0;
         for (auto& peer : peers) {
-            if (replicaptr->hasReplicateDB(peer->getName(), dbSetMessage.db().name()))
+            if (replicaptr->hasReplicateDB(peer->getName(), dbSetMessage.db().name()) ||
+                    !peer->connected())
                 num++;
         }
 
         if (num > 0 && num == peers.size()) { /* 有这个DB的所有后节点都已经复制了 */
-            chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "All peers has been served db " + dbSetMessage.db().name());
+            chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "All peers has been served db or down" + dbSetMessage.db().name());
         } else {
-            if (!peers.empty()) { /* 因为是多主，所以需要复制所有节点, 非空 */
+            if (!peers.empty()) { /* 因为是多主，所以需要复制所有节点 */
                 for(auto& peer: peers) {
                     if (replicaptr->hasReplicateDB(peer->getName(), dbSetMessage.db().name()))
                         continue;
+                    if (!peer->connected()) continue;
                     auto err = replicaptr->setReplicateDB(peer->getName(), dbSetMessage.db().name(), 
                                     peer->getIp(), peer->getReplicatePort());
-                    if (err.success()) {
+                    if (!err) {
                         LOG(INFO) << "Replicate db " << dbSetMessage.db().name() << " FROM " << peer->getName();
                     }
                 }
