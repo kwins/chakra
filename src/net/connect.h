@@ -19,13 +19,13 @@ using namespace std::chrono;
 
 class Connect {
 public:
-    enum class State{
+    enum class State {
         INIT,
         CONNECTED,
         CLOSE
     };
 
-    struct Options{
+    struct Options {
         std::string host;
         int port = 7290;
         milliseconds connectTimeOut { 100 };

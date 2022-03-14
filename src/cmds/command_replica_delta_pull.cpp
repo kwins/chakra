@@ -28,15 +28,15 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     std::unique_ptr<rocksdb::TransactionLogIterator> iter;
     err = dbptr->getUpdateSince(deltaMessageRequest.db_name(), deltaMessageRequest.seq(), &iter);
     if (err) {
-        chakra::net::Packet::fillError(*deltaMessageResponse.mutable_error(), 1, err.what());
+        chakra::net::Packet::fillError(deltaMessageResponse.mutable_error(), 1, err.what());
     } else {
         int bytes = 0;
         uint64_t seq = 0;
-        while (iter->Valid()){
+        while (iter->Valid()) {
             auto batch = iter->GetBatch();
             if (bytes >= deltaMessageRequest.size())
                 break;
-            if (batch.sequence > deltaMessageRequest.seq()){
+            if (batch.sequence > deltaMessageRequest.seq()) {
                 bytes += batch.writeBatchPtr->Data().size();
                 auto batchMsg = deltaMessageResponse.mutable_seqs()->Add();
                 batchMsg->set_data(batch.writeBatchPtr->Data());

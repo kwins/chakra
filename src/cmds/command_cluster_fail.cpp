@@ -13,36 +13,34 @@ void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data
     proto::peer::FailMessage failMessage;
     auto err = chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL);
     if (err) return;
-
-    LOG(INFO) << "Receive fail message " << failMessage.DebugString();
-
+    LOG(INFO) << "Fail message received " << failMessage.DebugString();
     auto clsptr = cluster::Cluster::get();
     auto sender = cluster::Cluster::get()->getPeer(failMessage.sender().name());
-    if (sender && !sender->isHandShake()){
+    if (sender && !sender->isHandShake()) {
         // 更新纪元
-        if (sender->getEpoch() < failMessage.sender().config_epoch()){
+        if (sender->getEpoch() < failMessage.sender().config_epoch()) {
             sender->updateSelf(failMessage.sender());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
 
-        if (clsptr->getCurrentEpoch() < failMessage.sender().current_epoch()){
+        if (clsptr->getCurrentEpoch() < failMessage.sender().current_epoch()) {
             clsptr->setCurrentEpoch(failMessage.sender().current_epoch());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
 
-    if (sender){
-        LOG(INFO) << "FAIL mesage sender is" << sender->getName();
+    if (sender) {
         auto failing = clsptr->getPeer(failMessage.fail_peer_name());
         if (failing && !failing->isMyself() && !failing->isFail()){
-            LOG(WARNING) << "FAIL message received from " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
-           failing->delFlag(cluster::Peer::FLAG_PFAIL);
-           failing->setFlag(cluster::Peer::FLAG_FAIL);
-           failing->setFailTime(utils::Basic::getNowMillSec());
-           clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+            failing->delFlag(cluster::Peer::FLAG_PFAIL);
+            failing->setFlag(cluster::Peer::FLAG_FAIL);
+            failing->setFailTime(utils::Basic::getNowMillSec());
+            clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
+       } else {
+           LOG(INFO) << "Fail message ignored from " << failMessage.sender().name();
        }
     } else {
-        LOG(WARNING) << "Ignoring FAIL message from unknonw peer " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
+        LOG(WARNING) << "Fail message from unknonw peer " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
     }
 }
 

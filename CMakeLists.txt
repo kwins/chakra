@@ -17,10 +17,12 @@ file(GLOB_RECURSE UTILS_SRC ${CMAKE_SOURCE_DIR}/src/utils/*.cpp)
 file(GLOB_RECURSE SERVICE_SRC ${CMAKE_SOURCE_DIR}/src/service/*.cpp)
 file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 file(GLOB_RECURSE ERROR_SRC ${CMAKE_SOURCE_DIR}/src/error/*.cpp)
+file(GLOB_RECURSE CLI_SRC ${CMAKE_SOURCE_DIR}/src/cli/interface/*.cpp)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
+set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a liblz4.a)
 set(TEST_LIB  libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
@@ -50,9 +52,27 @@ target_link_directories(chakra PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
 target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
 
+# cli
+add_executable(chakra-cli src/cli/main.cpp
+        ${CLIENT_SRC}
+        ${CLI_SRC}
+        ${NET_SRC}
+        ${ERROR_SRC}
+        )
+target_include_directories(chakra-cli SYSTEM PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/cli/interface
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/include
+)
+add_dependencies(chakra-cli ev interface protobuf rocksdb glog gflags gtest zlib lz4)
+target_link_directories(chakra-cli PRIVATE
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
+target_link_libraries(chakra-cli ${CLI_LIBS} ${LINUX_LINKS})
+
 
 # ut
-add_executable(ut samples/unittest/ut_main.cpp
+add_executable(ut src/unittest/ut_main.cpp
         ${UTILS_SRC}
         ${CLIENT_SRC}
         ${NET_SRC}
@@ -61,7 +81,7 @@ add_executable(ut samples/unittest/ut_main.cpp
         )
 target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/samples/unittest
+        ${CMAKE_SOURCE_DIR}/src/unittest
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
 )
 add_dependencies(ut ev interface protobuf rocksdb glog gflags gtest zlib lz4)

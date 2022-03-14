@@ -10,70 +10,32 @@
 #include <glog/logging.h>
 
 const std::string &chakra::cluster::Peer::getName() const { return name; }
-
 const std::string &chakra::cluster::Peer::getIp() const { return ip; }
-
 int chakra::cluster::Peer::getPort() const { return port; }
-
 int chakra::cluster::Peer::getReplicatePort() { return port + 1; }
-
 uint64_t chakra::cluster::Peer::getFg() const { return fg; }
-
 uint64_t chakra::cluster::Peer::getEpoch() const { return epoch; }
-
 void chakra::cluster::Peer::setIp(const std::string &ip) { this->ip = ip; }
-
 void chakra::cluster::Peer::setPort(int port) { this->port = port; }
-
 void chakra::cluster::Peer::setName(const std::string &peerName) { this->name = peerName; }
-
 void chakra::cluster::Peer::setEpoch(uint64_t eh) { this->epoch = eh; }
-
 void chakra::cluster::Peer::setFlag(uint64_t flag) { this->fg |= flag; }
-
 void chakra::cluster::Peer::delFlag(uint64_t flag) { this->fg &= ~flag; }
-
 bool chakra::cluster::Peer::isMyself() const { return this->fg & FLAG_MYSELF; }
-
 bool chakra::cluster::Peer::isHandShake() const { return this->fg & FLAG_HANDSHAKE; }
-
 bool chakra::cluster::Peer::isMeet() const { return this->fg & FLAG_MEET; }
-
 bool chakra::cluster::Peer::isPfail() const { return this->fg & FLAG_PFAIL; }
-
 bool chakra::cluster::Peer::isFail() const { return this->fg & FLAG_FAIL; }
-
-bool chakra::cluster::Peer::isMyself(uint64_t flag) {
-    return flag & FLAG_MYSELF;
-}
-
-bool chakra::cluster::Peer::isHandShake(uint64_t flag) {
-    return flag & FLAG_HANDSHAKE;
-}
-
-bool chakra::cluster::Peer::isMeet(uint64_t flag) {
-    return flag & FLAG_MEET;
-}
-
-bool chakra::cluster::Peer::isPfail(uint64_t flag) {
-    return flag & FLAG_PFAIL;
-}
-
-bool chakra::cluster::Peer::isFail(uint64_t flag) {
-    return flag & FLAG_FAIL;
-}
-
+bool chakra::cluster::Peer::isMyself(uint64_t flag) { return flag & FLAG_MYSELF; }
+bool chakra::cluster::Peer::isHandShake(uint64_t flag) { return flag & FLAG_HANDSHAKE; }
+bool chakra::cluster::Peer::isMeet(uint64_t flag) { return flag & FLAG_MEET; }
+bool chakra::cluster::Peer::isPfail(uint64_t flag) { return flag & FLAG_PFAIL; }
+bool chakra::cluster::Peer::isFail(uint64_t flag) { return flag & FLAG_FAIL; }
 void chakra::cluster::Peer::updateMetaDB(const std::string &dbname, const proto::peer::MetaDB &st) { dbs[dbname] = st; }
-
 void chakra::cluster::Peer::removeMetaDB(const std::string &dbname) { dbs.erase(dbname); }
-
 long chakra::cluster::Peer::createTimeMs() const { return ctime; }
-
 void chakra::cluster::Peer::setCreatTimeMs(long millsec) { ctime = millsec; }
-
-bool chakra::cluster::Peer::connected() const {
-    return link != nullptr && link->connected();
-}
+bool chakra::cluster::Peer::connected() const { return link != nullptr && link->connected(); }
 
 bool chakra::cluster::Peer::connect() {
     try {
@@ -102,17 +64,15 @@ void chakra::cluster::Peer::dumpPeer(proto::peer::PeerState& peerState) {
     peerState.set_epoch(epoch);
     peerState.set_flag(fg);
     for (auto& it : dbs){
-        auto db = peerState.mutable_dbs()->Add();
-        db->CopyFrom(it.second);
+        auto db = peerState.mutable_dbs();
+        (*db)[it.first] = it.second;
+        // db->CopyFrom(it.second);
     }
 }
 
 long chakra::cluster::Peer::getLastPingSend() const { return last_ping_send; }
-
 void chakra::cluster::Peer::setLastPingSend(long lastPingSend) { last_ping_send = lastPingSend; }
-
 long chakra::cluster::Peer::getLastPongRecv() const { return last_pong_recv; }
-
 void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv = lastPongRecv; }
 
 chakra::error::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
@@ -225,7 +185,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
         return err;
     });
 
-    if (err){
+    if (err) {
         LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.what();
         close();
         if (!reletedPeer) delete this; // 这里直接 delete this，因为后面不会再使用到此对象
@@ -240,22 +200,22 @@ void chakra::cluster::Peer::Link::startEvRead() {
 
 void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) {
     setEpoch(sender.config_epoch());
-    for(auto& metadb : sender.meta_dbs()){
+    for(auto& metadb : sender.meta_dbs()) {
         updateMetaDB(metadb.name(), metadb);
     }
 }
 
-void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
-    peerState.set_flag(getFg());
-    peerState.set_ip(getIp());
-    peerState.set_port(getPort());
-    peerState.set_name(getName());
-    peerState.set_epoch(getEpoch());
-    for(auto& it : dbs){
-        auto db = peerState.mutable_dbs()->Add();
-        db->CopyFrom(it.second);
-    }
-}
+// void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
+//     peerState.set_flag(getFg());
+//     peerState.set_ip(getIp());
+//     peerState.set_port(getPort());
+//     peerState.set_name(getName());
+//     peerState.set_epoch(getEpoch());
+//     for(auto& it : dbs){
+//         auto db = peerState.mutable_dbs()->Add();
+//         db->CopyFrom(it.second);
+//     }
+// }
 
 chakra::cluster::Peer::Link::~Link() {
     DLOG(INFO) << "chakra::cluster::Peer::Link::~Link";

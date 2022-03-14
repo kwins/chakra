@@ -98,7 +98,7 @@ public:
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
     error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
-    void stateDesc(proto::peer::PeerState& peerState);
+    // void stateDesc(proto::peer::PeerState& peerState);
     ~Peer();
 private:
 

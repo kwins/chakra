@@ -2,17 +2,35 @@
 // Created by kwins on 2021/6/4.
 //
 
-#ifndef CHAKRA_CHAKRA_H
-#define CHAKRA_CHAKRA_H
+#ifndef CLIENT_CHAKRA_H
+#define CLIENT_CHAKRA_H
 #include "net/connect.h"
+
+#include <mutex>
+#include <deque>
+#include <chrono>
 #include "peer.pb.h"
 #include "types.pb.h"
 #include "error/err.h"
 
-namespace chakra::client{
+namespace chakra::client {
+
 class Chakra {
 public:
-    explicit Chakra(net::Connect::Options options);
+    struct Options {
+        std::string name; /* 节点名称 */
+        std::string ip;
+        int port = 7290;
+        int maxIdleConns = 3; /* 初始化连接数 */
+        int maxConns = 10; /* 最大连接数 */
+        std::chrono::milliseconds connectTimeOut { 100 };
+        std::chrono::milliseconds readTimeOut { 100 };
+        std::chrono::milliseconds writeTimeOut { 100 };
+    };
+public:
+    explicit Chakra(Options opts);
+    error::Error connect();
+    std::string peerName() const;
     error::Error meet(const std::string& ip, int port);
     error::Error set(const std::string& dbname, const std::string& key, const std::string& value);
     error::Error get(const std::string& dbname, const std::string& key, std::string& value);
@@ -20,9 +38,14 @@ public:
     error::Error state(proto::peer::ClusterState& clusterState);
     error::Error setEpoch(int64_t epoch, bool increasing);
     void close();
+
 private:
+    Options options;
+    std::shared_ptr<net::Connect> connnectGet();
+    void connectBack(std::shared_ptr<net::Connect> conn);
     error::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
-    std::shared_ptr<net::Connect> conn;
+    std::deque<std::shared_ptr<net::Connect>> conns;
+    std::mutex mutex;
 };
 
 }
@@ -30,4 +53,4 @@ private:
 
 
 
-#endif //CHAKRA_CHAKRA_H
+#endif // CLIENT_CHAKRA_H

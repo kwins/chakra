@@ -45,22 +45,22 @@ void chakra::cluster::Cluster::loadPeers() {
         currentEpoch = clusterState.current_epoch();
         state = clusterState.state();
         for(auto& info : clusterState.peers()){
-            auto it = peers.find(info.name());
+            auto it = peers.find(info.first);
             if (it != peers.end()){
-                LOG(WARNING) << "Cluster init duplicate peer " << info.name();
+                LOG(WARNING) << "Cluster init duplicate peer " << info.first;
                 continue;
             }
             auto peer = std::make_shared<Peer>();
-            peer->setName(info.name());
-            peer->setIp(info.ip());
-            peer->setPort(info.port());
-            peer->setEpoch(info.epoch());
-            peer->setFlag(info.flag());
+            peer->setName(info.second.name());
+            peer->setIp(info.second.ip());
+            peer->setPort(info.second.port());
+            peer->setEpoch(info.second.epoch());
+            peer->setFlag(info.second.flag());
             peer->setCreatTimeMs(utils::Basic::getNowMillSec());
-            for(auto& dbinfo : info.dbs()){
-                peer->updateMetaDB(dbinfo.name(), dbinfo);
+            for(auto& dbinfo : info.second.dbs()){
+                peer->updateMetaDB(dbinfo.first, dbinfo.second);
             }
-            peers.emplace(info.name(), peer);
+            peers.emplace(info.first, peer);
             if (peer->isMyself()) { myself = peer; }
         }
     } catch (const error::FileError& err) {
@@ -276,9 +276,11 @@ bool chakra::cluster::Cluster::dumpPeers() {
     proto::peer::ClusterState clusterState;
     clusterState.set_current_epoch(currentEpoch);
     clusterState.set_state(state);
-    for (auto& it : peers){
-        auto info = clusterState.mutable_peers()->Add();
-        it.second->dumpPeer(*info);
+    for (auto& it : peers) {
+        auto info = clusterState.mutable_peers();
+        proto::peer::PeerState peerState;
+        it.second->dumpPeer(peerState);
+        (*info)[it.first] = peerState;
     }
 
     auto err = utils::FileHelper::saveFile(clusterState, filename);
@@ -486,17 +488,17 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
 
     for (int i = 0; i < gsp.peers_size(); ++i) {
         auto peer = getPeer(gsp.peers(i).peer_name());
-        if (peer){ // 已存在
+        if (peer) { // 已存在
             // 报告节点处于 FAIL 或者 PFAIL 状态
             // 尝试将 node 标记为 FAIL
-            if (sender && peer != myself){
+            if (sender && peer != myself) {
                 if (Peer::isPfail(gsp.peers(i).flag()) || Peer::isFail(gsp.peers(i).flag())){
                     peer->addFailReport(sender); // sender report peer fail and add to fail report list.
                     tryMarkFailPeer(peer);
                     setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
                     LOG(WARNING) << "*** NOTE sender " << sender->getName() << " report peer " << peer->getName() << " as not reachable.";
-                } else{
-                    if (peer->delFailReport(sender)){
+                } else {
+                    if (peer->delFailReport(sender)) {
                         setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
                         LOG(INFO) << "*** NOTE sender " << sender->getName() << " reported peer " << peer->getName() << " is back online.";
                     }
@@ -507,14 +509,13 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
             // 并且该节点的 IP 或者端口号已经发生变化
             // 那么可能是节点换了新地址，尝试对它进行握手
             if ((Peer::isPfail(gsp.peers(i).flag()) || Peer::isFail(gsp.peers(i).flag()))
-                    && (peer->getIp() != gsp.peers(i).ip() || peer->getPort() != gsp.peers(i).port())){
+                    && (peer->getIp() != gsp.peers(i).ip() || peer->getPort() != gsp.peers(i).port())) {
                 // start handshake
                 addPeer(gsp.peers(i).ip(), gsp.peers(i).port());
                 setCronTODO(FLAG_SAVE_CONFIG | FLAG_UPDATE_STATE);
             }
 
-        } else{
-
+        } else {
             // 注意，当前节点必须保证 sender 是本集群的节点
             // 否则我们将有加入了另一个集群的风险。
             // start handshake
@@ -582,8 +583,10 @@ void chakra::cluster::Cluster::stateDesc(proto::peer::ClusterState& clusterState
     clusterState.set_state(getState());
 
     for(auto& it : peers){
-        auto peer = clusterState.mutable_peers()->Add();
-        it.second->stateDesc(*peer);
+        auto peer = clusterState.mutable_peers();
+        proto::peer::PeerState peerState;
+        it.second->dumpPeer(peerState);
+        (*peer)[it.first] = peerState;
     }
 }
 

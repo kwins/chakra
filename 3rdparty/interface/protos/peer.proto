@@ -35,12 +35,12 @@ message PeerState{
     string ip = 3;
     int32 port = 4;
     string name = 5;
-    repeated MetaDB dbs = 6;
+    map<string, MetaDB> dbs = 6; // key=dbname
 }
 
 message ClusterState{ // 节点视角看到的集群状态
     int32 current_epoch = 1;
-    repeated PeerState peers = 2;
+    map<string, PeerState> peers = 2; // key=peername
     int32 state = 3;
 }
 

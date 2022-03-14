@@ -4,6 +4,7 @@ cmake-build-debug
 test*
 .vscode
 chakra
+chakra-cli
 ut
 core.*
 data

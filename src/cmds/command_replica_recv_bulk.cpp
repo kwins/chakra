@@ -41,6 +41,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
                     return;
                 }
             }
+            
             if (bulkMessage.end()) {
                 replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
                 replicateDB->deltaSeq = bulkMessage.seq();

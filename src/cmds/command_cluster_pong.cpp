@@ -16,36 +16,36 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
 
     auto clsptr = cluster::Cluster::get();
     auto sender = clsptr->getPeer(gossip.sender().name());
-    if (sender && !sender->isHandShake()){
+    if (sender && !sender->isHandShake()) {
         // 更新纪元
-        if (sender->getEpoch() < gossip.sender().config_epoch()){
+        if (sender->getEpoch() < gossip.sender().config_epoch()) {
             sender->updateSelf(gossip.sender());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
 
-        if (clsptr->getCurrentEpoch() < gossip.sender().current_epoch()){
+        if (clsptr->getCurrentEpoch() < gossip.sender().current_epoch()) {
             clsptr->setCurrentEpoch(gossip.sender().current_epoch());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }
     }
 
-    if (!gossip.sender().data().empty()){
+    if (!gossip.sender().data().empty()) {
         auto peer = clsptr->renamePeer(gossip.sender().data(), gossip.sender().name());
-        if (peer){
+        if (peer) {
             peer->delFlag(cluster::Peer::FLAG_HANDSHAKE);
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
             LOG(INFO) << "Handshake with peer " << gossip.sender().name() << " completed.";
         }
     }
 
-    if (sender){
+    if (sender) {
         sender->setLastPongRecv(utils::Basic::getNowMillSec());
         sender->setLastPingSend(0);
-        if (sender->isPfail() || sender->isFail()){
-            if (sender->isPfail()){
+        if (sender->isPfail() || sender->isFail()) {
+            if (sender->isPfail()) {
                 sender->delFlag(cluster::Peer::FLAG_PFAIL);
                 LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
-            } else if (sender->isFail()){
+            } else if (sender->isFail()) {
                 sender->delFlag(cluster::Peer::FLAG_FAIL);
                 LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() << " remove FAIL flag.";
             }

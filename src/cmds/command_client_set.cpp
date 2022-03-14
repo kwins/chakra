@@ -17,7 +17,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
     auto err = chakra::net::Packet::deSerialize(req, len, setMessageRequest, proto::types::C_SET);
     if (err) {
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, err.what());
-    }if (!dbptr->servedDB(setMessageRequest.db_name())){
+    }if (!dbptr->servedDB(setMessageRequest.db_name())) {
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "DB " + setMessageRequest.db_name() + " not exist.");
     }else {
         auto element = std::make_shared<chakra::database::Element>();
@@ -26,7 +26,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
         element->setUpdated(element->getCreate());
         element->setLastVisit(-1);
 
-        if (setMessageRequest.type() == database::Object::Type::STRING){
+        if (setMessageRequest.type() == database::Object::Type::STRING) {
             auto obj = std::make_shared<chakra::database::String>();
             obj->deSeralize(setMessageRequest.value().data(), setMessageRequest.value().size());
             element->setObject(obj);
