@@ -9,9 +9,12 @@ chakra::client::ChakraCluster::ChakraCluster(Options opts) : index(0), exitTH(fa
     th = std::make_shared<std::thread>([this] () {
         while (!exitTH.load()) {
             std::unique_lock<std::mutex> lck(mutex);
-            cond.wait_for(lck, options.backupUpdateMs, [this]() {
+            auto ok = cond.wait_for(lck, options.backupUpdateMs, [this]() {
                 return exitTH.load();
             });
+            if (ok && exitTH.load()) {
+                break;
+            }
             if (clusterChanged()) {
                 auto err = connectCluster();
                 if (err) LOG(ERROR) << "Update cluster client error when cluster changed:" << err.what();
