@@ -1,20 +1,29 @@
 #include "chakra_cluster.h"
 
 #include <glog/logging.h>
-#include <thread>
+#include <chrono>
 
-chakra::client::ChakraCluster::ChakraCluster(Options opts) : index(0), options(std::move(opts)) {
+chakra::client::ChakraCluster::ChakraCluster(Options opts) : index(0), exitTH(false), options(std::move(opts)) {
     auto err = connectCluster();
     if (err) throw err;
-    std::thread([this](){
-        while (true) {
-            std::this_thread::sleep_for(options.backupUpdateMs);
+    th = std::make_shared<std::thread>([this] () {
+        while (!exitTH.load()) {
+            std::unique_lock<std::mutex> lck(mutex);
+            cond.wait_for(lck, options.backupUpdateMs, [this]() {
+                return exitTH.load();
+            });
             if (clusterChanged()) {
                 auto err = connectCluster();
-                if (err) LOG(ERROR) << "update cluster client when cluster changed error " << err.what();
+                if (err) LOG(ERROR) << "Update cluster client error when cluster changed:" << err.what();
             }
         }
-    }).detach();
+        LOG(INFO) << "backup update thread exit.";
+    });
+}
+
+chakra::client::ChakraCluster::~ChakraCluster() {
+    LOG(INFO) << "chakra::client::ChakraCluster::~ChakraCluster";
+    close();
 }
 
 chakra::error::Error chakra::client::ChakraCluster::connectCluster() {
@@ -58,40 +67,36 @@ chakra::error::Error chakra::client::ChakraCluster::connectCluster() {
                 return x->peerName() > y->peerName();
             });
         }
-
     }
 
     clusterConns[i] = clusterConn;
     dbConns[i] = dbConn;
     clusterStates[i] = clusterState;
+    auto lastClient = client;
     client = c;
+    if (lastClient) lastClient->close();
     index = i;
     return err;
 }
 
 bool chakra::client::ChakraCluster::clusterChanged() {
     proto::peer::ClusterState clusterState;
-
-    client::Chakra::Options chakraOptions;
-    chakraOptions.ip = options.ip;
-    chakraOptions.port = options.port;
-    chakraOptions.maxConns = options.maxConns;
-    chakraOptions.maxIdleConns = options.maxIdleConns;
-    chakraOptions.connectTimeOut = options.connectTimeOut;
-    chakraOptions.readTimeOut = options.readTimeOut;
-    chakraOptions.writeTimeOut = options.writeTimeOut;
     auto err = client->state(clusterState); 
     if (err) {
-        LOG(ERROR) << err.what();
-        return false;
+        LOG(ERROR) << "check state error:" << err.what();
+        return true;
     }
-
     auto& curState = clusterStates[index.load()];
     return curState.current_epoch() != clusterState.current_epoch();
 }
 
 int chakra::client::ChakraCluster::next() { return index.load() == 0 ? 1 : 0; }
 
+void chakra::client::ChakraCluster::close() {
+    exitTH.store(true);
+    cond.notify_one();
+    if (th) th->join();
+}
 
 chakra::error::Error chakra::client::ChakraCluster::meet(const std::string& ip, int port) {
     return client->meet(ip, port);

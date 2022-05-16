@@ -24,7 +24,7 @@ chakra::cli::Cli::Cli() {
         options.writeTimeOut = std::chrono::milliseconds(FLAGS_connect_write_timeout_ms);
         cluster = std::make_shared<chakra::client::ChakraCluster>(options);
     } catch (const std::exception& err) {
-        LOG(ERROR) << err.what();
+        LOG(ERROR) <<"Cli exception:" << err.what();
         exit(-1);
     }
 }
@@ -38,5 +38,5 @@ void chakra::cli::Cli::execute() {
     } else {
         err = error::Error("unsupport command:" + FLAGS_command);
     }
-    if (err) LOG(ERROR) << err.what();
+    if (err) LOG(ERROR) << "Execute error:" << err.what();
 }

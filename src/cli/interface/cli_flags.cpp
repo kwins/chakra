@@ -1,12 +1,39 @@
 #ifndef CHAKRA_CLI_FLAGS_CPP
 #define CHAKRA_CLI_FLAGS_CPP
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gflags/gflags.h>
 
 DEFINE_string(command, "", "command");
+static bool validCliCommand(const char* flagname, const std::string& value){
+    if (value.empty()) {
+        return false;
+    }
+    if (value != "meet" && value != "setdb") {
+        return false;
+    }
+    return true;
+}
+DEFINE_validator(command, validCliCommand);   
+
 DEFINE_string(ip, "", "ip");
+static bool validCliIP(const char* flagname, const std::string& value){
+    if (value.empty()) {
+        return false;
+    }
+    return true;
+}
+DEFINE_validator(ip, validCliIP); 
+
 DEFINE_int32(port, 7290, "port");
+static bool validCliPort(const char* flagname, int32_t value){
+    if (value == 0) {
+        return false;
+    }
+    return true;
+}
+DEFINE_validator(port, validCliPort); 
+
 DEFINE_int32(max_idle_conns, 3, "max idle connect num");
 DEFINE_int32(max_conns, 3, "max connect num");
 DEFINE_int32(connect_timeout_ms, 50, "connect timeout ms");

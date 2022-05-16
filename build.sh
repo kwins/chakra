@@ -11,15 +11,15 @@ init() {
 }
 build() {
     COMPILE_ENV=8
-	cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=YES -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .. ${CMAKE_EXTRA_OPTION} \
-	&& make -j${COMPILE_ENV} \
-	&& cp chakra .. \
-  && cp chakra-cli .. \
-  && cp ut ..
+    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=YES -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .. ${CMAKE_EXTRA_OPTION} \
+    && make -j${COMPILE_ENV} \
+    && cp chakra .. \
+    && cp chakra-cli .. \
+    && cp ut ..
 }
 build_test () {
-	cmake -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .. ${CMAKE_EXTRA_OPTION} \
-	&& make -j${COMPILE_ENV} ut \
+    cmake -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .. ${CMAKE_EXTRA_OPTION} \
+    && make -j${COMPILE_ENV} ut \
     && cp ut .. 
 }
 

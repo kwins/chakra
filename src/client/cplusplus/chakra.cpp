@@ -106,18 +106,20 @@ chakra::error::Error chakra::client::Chakra::executeCmd(google::protobuf::Messag
         try {
             auto conn = connnectGet();
             auto err = conn->send(req, reqlen);
-            if (!err) {
-                return conn->receivePack([this, &reply, type](char *resp, size_t resplen) -> error::Error {
-                    auto reqtype = chakra::net::Packet::getType(resp, resplen);
-                    if (reqtype == 0) {
-                        return error::Error("command not found");
-                    }
-                    return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
-                });
+            if (err) {
+                connectBack(conn);
+                return err;
             }
+            err = conn->receivePack([this, &reply, type](char *resp, size_t resplen) -> error::Error {
+                auto reqtype = chakra::net::Packet::getType(resp, resplen);
+                if (reqtype == 0) {
+                    return error::Error("command not found");
+                }
+                return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
+            });
             connectBack(conn);
             return err;
-        }catch (const error::Error& err) {
+        } catch (const error::Error& err) {
             return err;
         }
     });

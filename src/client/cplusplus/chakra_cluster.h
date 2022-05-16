@@ -5,6 +5,9 @@
 #include <array>
 #include <unordered_map>
 #include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "chakra.h"
 #include "peer.pb.h"
 
@@ -20,7 +23,7 @@ public:
         std::chrono::milliseconds connectTimeOut { 100 };
         std::chrono::milliseconds readTimeOut { 100 };
         std::chrono::milliseconds writeTimeOut { 100 };
-        std::chrono::microseconds backupUpdateMs {3000}; /* 集群状态更新间隔 */
+        std::chrono::milliseconds backupUpdateMs { 1000 }; /* 集群状态更新间隔 */
     };
 public:
     /* key 是 peer name value 是 peer connect pool */
@@ -28,8 +31,10 @@ public:
     using DBS = std::unordered_map<std::string, std::vector<std::shared_ptr<client::Chakra>>>;
 public:
     explicit ChakraCluster(Options opts);
+    ~ChakraCluster();
     error::Error connectCluster();
     error::Error meet(const std::string& ip, int port);
+    void close();
 
 private:
     int next();
@@ -40,6 +45,10 @@ private:
     std::array<DBS, 2> dbConns; /* 节点db对应的连接 */
     std::array<proto::peer::ClusterState, 2> clusterStates;
     std::shared_ptr<client::Chakra> client;
+    std::shared_ptr<std::thread> th;
+    std::atomic_bool exitTH;
+    std::mutex mutex = {};
+    std::condition_variable cond = {};
 };
 
 }
