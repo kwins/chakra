@@ -16,9 +16,7 @@ void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, voi
     clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG);
 
     std::shared_ptr<cluster::Peer> sender = cluster::Cluster::get()->getPeer(gossip.sender().name());
-    if (sender && !sender->isHandShake()) {
-        LOG(INFO) << "## Peer meet FIND exsit peer " << sender->getName();
-        // 更新纪元
+    if (sender && !sender->isHandShake()) { // 更新纪元
         if (sender->getEpoch() < gossip.sender().config_epoch()) {
             sender->updateSelf(gossip.sender());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);

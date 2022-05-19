@@ -36,7 +36,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         auto peers = clsptr->getPeers(dbSetMessage.db().name());
         int num = 0;
         for (auto& peer : peers) {
-            if (replicaptr->hasReplicateDB(peer->getName(), dbSetMessage.db().name()) ||
+            if (replicaptr->replicatedDB(peer->getName(), dbSetMessage.db().name()) ||
                     !peer->connected())
                 num++;
         }
@@ -46,7 +46,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         } else {
             if (!peers.empty()) { /* 因为是多主，所以需要复制所有节点 */
                 for(auto& peer: peers) {
-                    if (replicaptr->hasReplicateDB(peer->getName(), dbSetMessage.db().name()))
+                    if (replicaptr->replicatedDB(peer->getName(), dbSetMessage.db().name()))
                         continue;
                     if (!peer->connected()) continue;
                     auto err = replicaptr->setReplicateDB(peer->getName(), dbSetMessage.db().name(), 

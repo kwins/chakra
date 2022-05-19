@@ -6,22 +6,40 @@
 #define CHAKRA_DB_FAMILY_H
 
 #include <array>
+#include <element.pb.h>
+#include <error/err.h>
 #include <vector>
 #include <unordered_map>
-#include "db_bucket.h"
+#include "db_column.h"
 #include "utils/nocopy.h"
 
-namespace chakra::database{
+namespace chakra::database {
 
-class FamilyDB : public utils::UnCopyable{
+class FamilyDB : public utils::UnCopyable {
 public:
-    struct RestoreDB{
+    struct RestoreDB {
         rocksdb::SequenceNumber seq;
         std::string filepath;
     };
 public:
     FamilyDB();
     static std::shared_ptr<chakra::database::FamilyDB>& get();
+
+    // 会先从内存中获取，获取不到则尝试从全量rocksDB拿
+    std::shared_ptr<proto::element::Element> get(const std::string& name, const std::string& key);
+    void set(proto::element::Element&& element);
+    void set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
+    void set(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
+    void set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
+
+    void push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
+    void push(const std::string& name, const std::string& key, const std::vector<int64_t>& values, int64_t ttl = 0);
+    void push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
+
+    error::Error incr(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
+    error::Error incr(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
+
+    void erase(const std::string& name, const std::string& key);
 
     bool servedDB(const std::string& name);
     error::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);
@@ -36,24 +54,22 @@ public:
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
 
-    // 会先从内存中获取，获取不到则尝试从全量rocksDB拿
-    std::shared_ptr<Element> get(const std::string& name, const std::string& key);
-
     // 只用于实时写和删除，只会写或者删除内存数据
-    void put(const std::string& name, const std::string& key, std::shared_ptr<Element> val);
-    void del(const std::string& name, const std::string& key);
+    // void put(const std::string& name, const std::string& key, std::shared_ptr<Element> val);
+    // void del(const std::string& name, const std::string& key);
 
-    // 写全量rocksDB
-    error::Error putAll(const std::string& name, rocksdb::WriteBatch& batch);
-    error::Error putAll(const std::string& name, const std::string& key, const std::string& value);
-    error::Error putAll(const std::string& name, const rocksdb::Slice& key, const rocksdb::Slice& value);
+    // 同步时写入全量 RocksDB 中
+    error::Error rocksWriteBulk(const std::string& name, rocksdb::WriteBatch& batch);
+    // error::Error putAll(const std::string& name, const std::string& key, const std::string& value);
+    // error::Error putAll(const std::string& name, const rocksdb::Slice& key, const rocksdb::Slice& value);
     void stop();
+
 private:
     using ColumnName = std::string;
-    using ColumnBuckets = typename std::unordered_map<ColumnName, std::shared_ptr<BucketDB>>;
+    using ColumnDBs = typename std::unordered_map<ColumnName, std::shared_ptr<ColumnDB>>;
 
     std::atomic<int> index;
-    std::array<ColumnBuckets, 2> columnBuckets;
+    std::array<ColumnDBs, 2> columnDBs;
     RestoreDB lastRestore;
     static const std::string DB_FILE;
 };

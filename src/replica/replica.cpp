@@ -117,7 +117,7 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
     startReplicaCron();
 }
 
-bool chakra::replica::Replicate::hasReplicateDB(const std::string& peername, const std::string &dbname) {
+bool chakra::replica::Replicate::replicatedDB(const std::string& peername, const std::string &dbname) {
     auto it = positiveLinks.find(peername);
     if (it == positiveLinks.end()) return false;
     return it->second->getReplicateDB(dbname) != nullptr;
@@ -148,14 +148,12 @@ chakra::error::Error chakra::replica::Replicate::setReplicateDB(const std::strin
 
     auto it = positiveLinks.find(peername);
     if (it != positiveLinks.end()) {
-        LOG(INFO) << "link has exsit:" << peername;
         replicateDB->link = it->second;
         it->second->setReplicateDB(replicateDB);
         return error::Error();
     }
 
     try {
-        LOG(INFO) << "link has not exsit " << peername << " create it";
         chakra::replica::Replicate::Link::PositiveOptions options;
         options.ip = ip;
         options.port = port;
@@ -176,7 +174,7 @@ void chakra::replica::Replicate::onAccept(ev::io &watcher, int event) {
     socklen_t slen = sizeof(addr);
     int sockfd = ::accept(watcher.fd, (sockaddr*)&addr, &slen);
     if (sockfd < 0){
-        LOG(ERROR) << "REPL on accept error" << strerror(errno);
+        LOG(ERROR) << "Replicate on accept error " << strerror(errno);
         return;
     }
 
@@ -198,6 +196,10 @@ chakra::replica::Replicate::dbLinks(chakra::replica::Replicate::Link::State stat
         }
     }
     return dblinks;
+}
+
+std::unordered_map<std::string, std::vector<chakra::replica::Replicate::Link*>> chakra::replica::Replicate::dbTransferedLinks() {
+    return dbLinks(chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED);
 }
 
 void chakra::replica::Replicate::stop() {
@@ -292,10 +294,10 @@ void chakra::replica::Replicate::Link::reconnect() {
 
     auto err = conn->connect();
     if (err) {
-        LOG(ERROR) << "Replicate reconnect to (" << conn->remoteAddr() << ") error " << err.what();
+        LOG(ERROR) << "Replicate retry connect to (" << conn->remoteAddr() << ") error " << err.what();
     } else {
         setState(chakra::replica::Replicate::Link::State::CONNECTING);
-        LOG(INFO) << "Replicate reconnect to (" << conn->remoteAddr()<< ") success.";
+        LOG(INFO) << "Replicate retry connect to (" << conn->remoteAddr()<< ") success.";
     }
 }
 
@@ -340,7 +342,7 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     
     auto replicaDB = replicas.find(name);
     if (replicaDB == replicas.end()){
-        LOG(ERROR) << "Not found DB " << name << " when try a partial sync.";
+        LOG(ERROR) << "Replicate not found DB " << name << " when try a partial sync.";
         return;
     }
     
@@ -398,9 +400,9 @@ chakra::error::Error chakra::replica::Replicate::Link::snapshotDB(const std::str
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = dbptr->snapshot(dbname, &replicateDB->bulkiter, lastSeq);
     if (err) {
-        LOG(ERROR) << "DB " << dbname << " snapshot error " << err.what();
+        LOG(ERROR) << "Replicate db " << dbname << " snapshot error " << err.what();
     } else {
-        LOG(INFO) << "DB " << dbname << " snapshot success and start send bulk seq " << lastSeq;
+        LOG(INFO) << "Replicate db " << dbname << " snapshot success and start send bulk seq " << lastSeq;
         replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING; /* 全量同步 */
         replicateDB->deltaSeq = lastSeq;
         replicateDB->bulkiter->SeekToFirst();

@@ -27,7 +27,7 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
         for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
             auto& seq = deltaMessageResponse.seqs(i);
             rocksdb::WriteBatch batch(seq.data());
-            err = dbptr->putAll(deltaMessageResponse.db_name(), batch);
+            err = dbptr->rocksWriteBulk(deltaMessageResponse.db_name(), batch);
             if (!err) {
                 link->setRocksSeq(deltaMessageResponse.db_name(), seq.seq());
             } else {

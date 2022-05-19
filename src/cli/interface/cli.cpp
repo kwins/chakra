@@ -1,4 +1,16 @@
 #include "cli.h"
+#include <cctype>
+#include <command.h>
+#include <command_get.h>
+#include <command_meet.h>
+#include <command_set.h>
+#include <command_setdb.h>
+#include <cstdint>
+#include <cstdlib>
+#include <error/err.h>
+#include <gflags/gflags_declare.h>
+#include <memory>
+#include <utility>
 
 DECLARE_string(command);
 DECLARE_string(ip);
@@ -8,9 +20,6 @@ DECLARE_int32(max_conns);
 DECLARE_int32(connect_timeout_ms);
 DECLARE_int32(connect_read_timeout_ms);
 DECLARE_int32(connect_write_timeout_ms);
-
-DECLARE_string(meet_ip);
-DECLARE_int32(meet_port);
 
 chakra::cli::Cli::Cli() {
     try {
@@ -30,13 +39,17 @@ chakra::cli::Cli::Cli() {
 }
 
 void chakra::cli::Cli::execute() {
-    error::Error err;
-    if (FLAGS_command == "meet") {
-        err = cluster->meet(FLAGS_meet_ip, FLAGS_meet_port);
-    } else if (FLAGS_command == "setdb") {
-        err = error::Error("not implement");
-    } else {
-        err = error::Error("unsupport command:" + FLAGS_command);
+    auto it = cmds.find(FLAGS_command);
+    if (it == cmds.end()) {
+        LOG(ERROR) << "unsupport command:" + FLAGS_command;
+        return;
     }
-    if (err) LOG(ERROR) << "Execute error:" << err.what();
+    it->second->execute(cluster);
 }
+
+std::unordered_map<std::string, std::shared_ptr<chakra::cli::Command>> chakra::cli::Cli::cmds = {
+    {"meet" , std::make_shared<chakra::cli::CommandMeet>()},
+    {"setdb", std::make_shared<chakra::cli::CommandSetDB>()},
+    {"set",   std::make_shared<chakra::cli::CommandSet>()},
+    {"get",   std::make_shared<chakra::cli::CommandGet>()},
+};

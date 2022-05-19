@@ -2,29 +2,43 @@ syntax="proto3";
 package proto.client;
 
 import "types.proto";
+import "element.proto";
 
-message SetMessageRequest{
+message SetMessageRequest {
   string db_name = 1;
-  uint32 type = 2;
-  string key = 3;
-  string value = 4;
+  string key = 2;
+  element.ElementType type = 3;
+  int64 ttl = 4;
+  oneof Value {
+      string s = 5;
+      int64 i = 6;
+      float f = 7;
+      element.SS ss = 8;
+      element.II ii = 9;
+      element.FF ff = 10;
+  }
 }
 
-message SetMessageResponse{
+message SetMessageResponse {
   types.Error error = 1;
 }
 
-message GetMessageRequest{
+message GetMessageRequest {
   string db_name = 1;
   string key = 2;
 }
 
-message GetMessageResponse{
+message GetMessageResponse {
   types.Error error = 1;
-  uint32 type = 2;
-  oneof value{
-    string s = 3;
-    float f = 4;
-    int64 i = 5;
-  }
+  element.Element data = 2;
+}
+
+message MGetMessageRequest {
+  string db_name = 1;
+  repeated string keys = 2;
+}
+
+message MGetMessageResponse {
+  types.Error error = 1;
+  repeated element.Element datas = 2;
 }

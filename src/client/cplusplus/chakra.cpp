@@ -5,6 +5,7 @@
 #include "chakra.h"
 #include "net/packet.h"
 #include "client.pb.h"
+#include <algorithm>
 #include <glog/logging.h>
 #include "database/db_object.h"
 
@@ -44,12 +45,49 @@ chakra::error::Error chakra::client::Chakra::meet(const std::string &ip, int por
     return err;
 }
 
-chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string &key, const std::string &value) {
+chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string &key, const std::string &value, int64_t ttl) {
     proto::client::SetMessageRequest setMessageRequest;
     setMessageRequest.set_db_name(dbname);
     setMessageRequest.set_key(key);
-    setMessageRequest.set_value(value);
-    setMessageRequest.set_type(database::Object::Type::STRING);
+    setMessageRequest.set_type(::proto::element::ElementType::STRING);
+    setMessageRequest.set_ttl(ttl);
+    setMessageRequest.set_s(value);
+
+    proto::client::SetMessageResponse setMessageResponse;
+    auto err = executeCmd(setMessageRequest, proto::types::C_SET, setMessageResponse);
+    if (err) return err;
+
+    if (setMessageResponse.error().errcode() != 0) {
+        return error::Error(setMessageResponse.error().errmsg());
+    }
+    return err;
+}
+
+chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string& key,     int64_t value, int64_t ttl) {
+    proto::client::SetMessageRequest setMessageRequest;
+    setMessageRequest.set_db_name(dbname);
+    setMessageRequest.set_key(key);
+    setMessageRequest.set_type(::proto::element::ElementType::INTEGER);
+    setMessageRequest.set_ttl(ttl);
+    setMessageRequest.set_i(value);
+
+    proto::client::SetMessageResponse setMessageResponse;
+    auto err = executeCmd(setMessageRequest, proto::types::C_SET, setMessageResponse);
+    if (err) return err;
+
+    if (setMessageResponse.error().errcode() != 0) {
+        return error::Error(setMessageResponse.error().errmsg());
+    }
+    return err;
+}
+    
+chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string& key, float value, int64_t ttl) {
+    proto::client::SetMessageRequest setMessageRequest;
+    setMessageRequest.set_db_name(dbname);
+    setMessageRequest.set_key(key);
+    setMessageRequest.set_type(::proto::element::ElementType::FLOAT);
+    setMessageRequest.set_ttl(ttl);
+    setMessageRequest.set_f(value);
 
     proto::client::SetMessageResponse setMessageResponse;
     auto err = executeCmd(setMessageRequest, proto::types::C_SET, setMessageResponse);
@@ -62,7 +100,7 @@ chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, cons
 }
 
 chakra::error::Error
-chakra::client::Chakra::get(const std::string &dbname, const std::string &key, std::string &value) {
+chakra::client::Chakra::get(const std::string &dbname, const std::string &key, proto::element::Element& element) {
     proto::client::GetMessageRequest getMessageRequest;
     getMessageRequest.set_db_name(dbname);
     getMessageRequest.set_key(key);
@@ -74,16 +112,7 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, s
     if (getMessageResponse.error().errcode() != 0) {
         return error::Error(getMessageResponse.error().errmsg());
     }
-
-    if(getMessageResponse.value_case() == proto::client::GetMessageResponse::ValueCase::kS) {
-        value = getMessageResponse.s();
-    } else if (getMessageResponse.value_case() == proto::client::GetMessageResponse::ValueCase::kI) {
-        value = std::to_string(getMessageResponse.i());
-    } else if (getMessageResponse.value_case() == proto::client::GetMessageResponse::ValueCase::kF) {
-        value = std::to_string(getMessageResponse.f());
-    } else {
-        return error::Error("bad data type");
-    }
+    element = std::move(getMessageResponse.data());
     return err;
 }
 
@@ -94,7 +123,9 @@ chakra::error::Error chakra::client::Chakra::setdb(const std::string &dbname, in
     db->set_cached(cached);
     proto::peer::DBSetMessageResponse dbSetMessageResponse;
     auto err = executeCmd(dbSetMessageRequest, proto::types::P_SET_DB, dbSetMessageResponse);
-    if (err) return err;
+    if (err) {
+        return err;
+    }
     if (dbSetMessageResponse.error().errcode() != 0) {
         return error::Error(dbSetMessageResponse.error().errmsg());
     }
