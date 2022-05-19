@@ -21,7 +21,6 @@ DECLARE_double(server_cron_interval_sec);
 DECLARE_int64(replica_delta_batch_bytes);
 
 chakra::serv::Chakra::Chakra() {
-    LOG(INFO) << "Chakra 1";
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
@@ -60,7 +59,6 @@ chakra::serv::Chakra::Chakra() {
     chakra::replica::Replicate::get();
     // sig
     initLibev();
-    LOG(INFO) << "Chakra 2";
 }
 
 // Chakra

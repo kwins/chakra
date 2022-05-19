@@ -8,12 +8,14 @@
 #include <error/err.h>
 #include <memory>
 #include <rocksdb/cache.h>
+#include <string>
 #include <vector>
 #include <zlib.h>
 #include <rocksdb/db.h>
 #include <glog/logging.h>
 #include <rocksdb/utilities/backupable_db.h>
 #include <gflags/gflags.h>
+#include <iomanip>
 
 DECLARE_int64(db_wal_ttl_seconds);
 DECLARE_string(db_dir);
@@ -22,7 +24,7 @@ DECLARE_int64(db_default_cache_bytes);
 
 chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     metaDB = meta;
-    LOG(INFO) << "bucket db meta " << metaDB.DebugString();
+    LOG(INFO) << "Create column db meta " << metaDB.DebugString();
     rocksdb::Options rocksOpts;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
@@ -64,9 +66,9 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
         }
     }
 
-    LOG(INFO) << "db " << meta.name() << " preheat cache usage: " << cacheUsage();
+    LOG(INFO) << "Column db " << meta.name() << " preheat cache usage " << std::to_string(cacheUsage());
     delete iter;
-    LOG(INFO) << "bucket end";
+    LOG(INFO) << "Column end";
 }
 
 std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const std::string &key) {
