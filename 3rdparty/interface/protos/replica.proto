@@ -3,37 +3,37 @@ package proto.replica;
 
 import "types.proto";
 
-message ReplicaState{
+message ReplicaState {
   string db_name = 1;
   uint64 delta_seq = 2;
 }
 
-message LinkReplicaState{
+message LinkReplicaState {
   string peer_name = 1;
   string ip = 2;
   int32 port = 3;
   repeated ReplicaState replicas = 4;
 }
 
-message ReplicaStates{
+message ReplicaStates {
   repeated LinkReplicaState link_replicas = 1; // key = name
 }
 
-message ReplicaOfRequest{
+message ReplicaOfRequest {
   string db_name = 1;
   bool force = 2; // 如果之前正在复制，则断开之前的复制，强制新的
 }
 
-message ReplicaOfResponse{
+message ReplicaOfResponse {
   types.Error error = 1;
 }
 
-message SyncMessageRequest{
+message SyncMessageRequest {
   string db_name = 1;
   uint64 seq = 2;
 }
 
-message SyncMessageResponse{
+message SyncMessageResponse {
   types.Error error = 1;
   types.Type psync_type = 2;
   string db_name = 3;
@@ -41,19 +41,19 @@ message SyncMessageResponse{
   uint64 seq = 6;            // 增量同步开始位置
 }
 
-message PingMessage{
+message PingMessage {
   string sender_name = 1; // send node name
   string db_name = 2; // db name
 }
 
-message PongMessage{
+message PongMessage {
   types.Error error = 1;
   string sender_name = 2; // send node name
 }
 
 // 截止到某个时间点的全量数据
-message BulkMessage{
-  message Data{
+message BulkMessage {
+  message Data {
     string key = 1;
     bytes value = 2;
   }
@@ -63,15 +63,15 @@ message BulkMessage{
   string db_name = 4;
 }
 
-message DeltaMessageRequest{
+message DeltaMessageRequest {
   string db_name = 1;
   uint64 seq = 2;
   int64 size = 3; // 每次最大同步字节数
 }
 
 // 截止到某个时间点之后的增量数据
-message DeltaMessageResponse{
-  message Sequence{
+message DeltaMessageResponse {
+  message Sequence {
     uint64 seq = 1; // 新的序列号
     bytes data = 2; // 序列化后的数据，已经包含了 key value信息
   }
@@ -80,7 +80,7 @@ message DeltaMessageResponse{
   repeated Sequence seqs = 3;
 }
 
-message HeartBeatMessage{
+message HeartBeatMessage {
   int64 heartbeat_ms = 1;
   uint64 seq = 2;
 }

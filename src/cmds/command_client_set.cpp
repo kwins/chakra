@@ -8,6 +8,7 @@
 #include "database/db_family.h"
 #include "utils/basic.h"
 #include "database/type_string.h"
+#include <element.pb.h>
 
 void
 chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
@@ -19,20 +20,20 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, err.what());
     }if (!dbptr->servedDB(setMessageRequest.db_name())) {
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "DB " + setMessageRequest.db_name() + " not exist.");
-    }else {
-        auto element = std::make_shared<chakra::database::Element>();
-        element->setUpdated(true);
-        element->setCreate(utils::Basic::getNowMillSec());
-        element->setUpdated(element->getCreate());
-        element->setLastVisit(-1);
-
-        if (setMessageRequest.type() == database::Object::Type::STRING) {
-            auto obj = std::make_shared<chakra::database::String>();
-            obj->deSeralize(setMessageRequest.value().data(), setMessageRequest.value().size());
-            element->setObject(obj);
-            dbptr->put(setMessageRequest.db_name(), setMessageRequest.key(), element);
-        } else {
-            chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "Data type Not support");
+    } else if (setMessageRequest.key().empty()) {
+        chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "bad arguments");
+    } else {
+        switch (setMessageRequest.type()) {
+        case proto::element::ElementType::STRING:
+            dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.s(), setMessageRequest.ttl());
+            break;
+        case proto::element::ElementType::INTEGER:
+            dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.i(), setMessageRequest.ttl());
+            break;
+        case proto::element::ElementType::FLOAT:
+            dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.f(), setMessageRequest.ttl());
+        default:
+            break;
         }
     }
     chakra::net::Packet::serialize(setMessageResponse, chakra::net::Packet::getType(req,len), cbf);

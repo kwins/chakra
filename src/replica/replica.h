@@ -136,13 +136,17 @@ public:
     Replicate();
     void onAccept(ev::io& watcher, int event);
     static std::shared_ptr<Replicate> get();
-    // self is  true ,ignore ip and port
-    bool hasReplicateDB(const std::string& peername, const std::string &dbname); // peer
+    // 检查当前节点是否已经复制了节点为 peername DB为 dbname的数据
+    bool replicatedDB(const std::string& peername, const std::string &dbname);
     error::Error setReplicateDB(const std::string& peername, const std::string &dbname, const std::string& ip, int port);
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicateStates();
+    
+    // 获取state状态下，所有db以及db对应的所有连接
+    // 用于检查新副本复制是否已经完成　
     std::unordered_map<std::string, std::vector<Link*>> dbLinks(chakra::replica::Replicate::Link::State state);
+    std::unordered_map<std::string, std::vector<Link*>> dbTransferedLinks();
     void stop();
 
 private:

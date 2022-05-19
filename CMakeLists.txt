@@ -8,6 +8,8 @@ add_compile_options(-DNDEBUG)
 
 set_property(DIRECTORY PROPERTY EP_BASE ${CMAKE_CURRENT_BINARY_DIR}/depends)
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
+
 file(GLOB_RECURSE CLIENT_SRC ${CMAKE_SOURCE_DIR}/src/client/*.cpp)
 file(GLOB_RECURSE CLUSTER_SRC ${CMAKE_SOURCE_DIR}/src/cluster/*.cpp)
 file(GLOB_RECURSE CMDS_SRC ${CMAKE_SOURCE_DIR}/src/cmds/*.cpp)
@@ -18,8 +20,6 @@ file(GLOB_RECURSE SERVICE_SRC ${CMAKE_SOURCE_DIR}/src/service/*.cpp)
 file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 file(GLOB_RECURSE ERROR_SRC ${CMAKE_SOURCE_DIR}/src/error/*.cpp)
 file(GLOB_RECURSE CLI_SRC ${CMAKE_SOURCE_DIR}/src/cli/interface/*.cpp)
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
 set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a liblz4.a)

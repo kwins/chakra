@@ -6,12 +6,14 @@
 #define CLIENT_CHAKRA_H
 #include "net/connect.h"
 
+#include <cstdint>
 #include <mutex>
 #include <deque>
 #include <chrono>
 #include "peer.pb.h"
 #include "types.pb.h"
 #include "error/err.h"
+#include "element.pb.h"
 
 namespace chakra::client {
 
@@ -32,8 +34,13 @@ public:
     error::Error connect();
     std::string peerName() const;
     error::Error meet(const std::string& ip, int port);
-    error::Error set(const std::string& dbname, const std::string& key, const std::string& value);
-    error::Error get(const std::string& dbname, const std::string& key, std::string& value);
+    
+    error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& dbname, const std::string& key, int64_t value, int64_t ttl = 0);
+    error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
+
+    error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
+    
     error::Error setdb(const std::string& dbname, int cached);
     error::Error state(proto::peer::ClusterState& clusterState);
     error::Error setEpoch(int64_t epoch, bool increasing);

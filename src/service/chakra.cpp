@@ -135,18 +135,17 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
     因为要获取多个节点的写数据，所以当有新副本加入集群，
     需要检查是否已经完成历史数据Merge，并且开始增量复制。
     当所有的副本节点历史数据都已Merge完成，历史数据保持一致后，
-    则通知集群新的副本上线。*/
-    auto replicatings = replicaptr->dbLinks(replica::Replicate::Link::State::REPLICA_TRANSFORED);
+    更新集群信息，通知集群新的副本上线。
+    */
+    auto replicatings = replicaptr->dbTransferedLinks();
     for(auto& it : replicatings) {
         auto peers = clusptr->getPeers(it.first);
         int num = peers.size();
         auto dbs = clusptr->getMyself()->getPeerDBs();
         auto db = dbs.find(it.first);
-        if (db == dbs.end()) {
-            LOG(ERROR) << "Not found db " << it.first << " in this node. ";
-        } else if(it.second.size() == num
-                  && db->second.state() != proto::peer::MetaDB_State_ONLINE) {
-            /* 复制成功的个数 等于 集群中副本个数(除自己外的) 且 当前db状态为非ONLINE */
+        if (db != dbs.end() && it.second.size() == num 
+            && db->second.state() != proto::peer::MetaDB_State_ONLINE){
+            /* 复制成功的个数 等于 集群中副本个数 且当前db状态为非ONLINE, 则更新db状态，通知集群 */
             proto::peer::MetaDB info;
             info.CopyFrom(db->second);
             info.set_state(proto::peer::MetaDB_State_ONLINE);
@@ -158,18 +157,22 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
     /* 检查是否有新的副本上线，触发复制流程
     新的副本上线，通知到集群后，其他副本节点同样也需要向新的副本节点发起复制请求
     以获取新副本节点的写数据，保证数据的一致性 */
-    for(auto& it : clusptr->getPeers()) {
-        for (auto pdb : it.second->getPeerDBs()) {
-            if (!clusptr->getMyself()->servedDB(pdb.second.name())) continue;
-            if (pdb.second.state() != proto::peer::MetaDB_State_ONLINE) continue;
-            if (replicaptr->hasReplicateDB(clusptr->getMyself()->getName(), pdb.second.name())) continue;
-            auto err = replicaptr->setReplicateDB(it.second->getName(), pdb.second.name(), it.second->getIp(), it.second->getReplicatePort());
+    for(auto& it : clusptr->getPeers()) { /*  遍历所有节点 */
+        for (auto pdb : it.second->getPeerDBs()) { /* 遍历所有节点下的所有DB */
+            if (!clusptr->getMyself()->servedDB(pdb.second.name())) continue; /* 过滤自己没有的DB */
+
+            if (pdb.second.state() != proto::peer::MetaDB_State_ONLINE) continue; /* 过滤非 online 状态的DB */
+
+            if (replicaptr->replicatedDB(it.second->getName(), pdb.second.name())) continue; /* 过滤已经复制过的DB */
+            
+            auto err = replicaptr->setReplicateDB(it.second->getName(), pdb.second.name(), 
+                                it.second->getIp(), it.second->getReplicatePort()); /* 复制新的副本 */
             if (!err) {
-                LOG(INFO) << "Replicate new db " << pdb.second.name() 
+                LOG(INFO) << "New duplicate online, replicate new db " << pdb.second.name() 
                     << "(" << it.second->getIp() << ":" << it.second->getReplicatePort() << ") to this node";
                 replicaptr->dumpReplicateStates();
             } else {
-                LOG(ERROR) << "Replicate new db error " << err.what();
+                LOG(ERROR) << "New duplicate online, replicate new db error " << err.what();
             }
         }
     }

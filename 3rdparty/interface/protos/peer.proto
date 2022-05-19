@@ -3,21 +3,21 @@ package proto.peer;
 
 import "types.proto";
 
-message MeetMessageRequest{
+message MeetMessageRequest {
     string ip = 1;
     int32 port = 2;
     bool client = 3; // ture is client meet ,false is peer meet
 }
 
-message MeetMessageResponse{
+message MeetMessageResponse {
     types.Error error = 1;
 }
 
-message MetaDB{
+message MetaDB {
     string name = 1;
     bool memory = 2;
     int32 cached = 3;
-    enum State{
+    enum State {
         INIT = 0;
         ONLINE = 1;
         OFFLINE = 2;
@@ -25,11 +25,11 @@ message MetaDB{
     State state = 4;
 }
 
-message MetaDBs{
+message MetaDBs {
     repeated MetaDB dbs = 1;
 }
 
-message PeerState{
+message PeerState {
     int32 epoch = 1;
     int32 flag = 2;
     string ip = 3;
@@ -38,13 +38,13 @@ message PeerState{
     map<string, MetaDB> dbs = 6; // key=dbname
 }
 
-message ClusterState{ // 节点视角看到的集群状态
+message ClusterState { // 节点视角看到的集群状态
     int32 current_epoch = 1;
     map<string, PeerState> peers = 2; // key=peername
     int32 state = 3;
 }
 
-message GossipSender{
+message GossipSender {
     int32 current_epoch = 1;
     int32 config_epoch = 2;
     // sender name
@@ -56,7 +56,7 @@ message GossipSender{
     int32 state = 8;
 }
 
-message GossipPeer{
+message GossipPeer {
     string peer_name = 1;
     int32 config_epoch = 2;
     int64 last_ping_send = 3;
@@ -67,12 +67,12 @@ message GossipPeer{
     repeated MetaDB meta_dbs = 8;
 }
 
-message GossipMessage{
+message GossipMessage {
     GossipSender sender = 1;
     repeated GossipPeer peers = 2;
 }
 
-message FailMessage{
+message FailMessage {
     GossipSender sender = 1;
     string fail_peer_name = 2;
 }
@@ -82,35 +82,35 @@ enum DBAction {
     DEL = 1;
 }
 
-message DBMessage{
+message DBMessage {
     GossipSender sender = 1;
     string name = 2; // peer name
     DBAction action = 3; // add, del
     MetaDB info = 4; // add 的时候使用
 }
 
-message EpochSetMessageRequest{
+message EpochSetMessageRequest {
     int64 epoch = 1;
     bool increasing = 2; // 如果此项为true则epoch不生效
 }
 
-message EpochSetMessageResponse{
+message EpochSetMessageResponse {
     types.Error error = 1;
 }
 
-message DBSetMessageRequest{
+message DBSetMessageRequest {
     MetaDB db = 1;
 }
 
-message DBSetMessageResponse{
+message DBSetMessageResponse {
     types.Error error = 1;
 }
 
-message StateMessageRequest{
+message StateMessageRequest {
     string from = 1; // name
 }
 
-message StateMessageResponse{
+message StateMessageResponse {
     types.Error error = 1;
     ClusterState state = 2;
 }

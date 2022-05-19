@@ -9,3 +9,4 @@ ut
 core.*
 data
 log
+.cache

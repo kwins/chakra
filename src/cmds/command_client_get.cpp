@@ -20,14 +20,7 @@ chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::
         if (!value) {
             chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, "data not found");
         } else {
-            if (value->getObject()->type() == database::Object::Type::STRING) {
-                value->getObject()->serialize([&getMessageResponse](char* data, size_t len) {
-                    getMessageResponse.set_type(database::Object::Type::STRING);
-                    getMessageResponse.set_s(data, len);
-                });
-            } else {
-                chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, "data type not support");
-            }
+            getMessageResponse.mutable_data()->CopyFrom(*value);
         }
     }
     chakra::net::Packet::serialize(getMessageResponse, proto::types::C_GET, cbf);

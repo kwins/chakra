@@ -69,6 +69,7 @@ public:
     void updateMetaDB(const std::string& dbname, const proto::peer::MetaDB& st);
     void removeMetaDB(const std::string& dbname);
     bool servedDB(const std::string& dbname);
+    // 此刻当前节点视角下，集群DB拓扑结构
     const std::unordered_map<std::string, proto::peer::MetaDB>& getPeerDBs() const;
 
     long getLastPingSend() const;
