@@ -8,6 +8,8 @@
 #include <array>
 #include <element.pb.h>
 #include <error/err.h>
+#include <memory>
+#include <string>
 #include <vector>
 #include <unordered_map>
 #include "db_column.h"
@@ -27,13 +29,14 @@ public:
 
     // 会先从内存中获取，获取不到则尝试从全量rocksDB拿
     std::shared_ptr<proto::element::Element> get(const std::string& name, const std::string& key);
+    std::unordered_map<std::string, std::vector<std::shared_ptr<proto::element::Element>>> 
+    mget(std::unordered_map<std::string, std::vector<std::string>> dbkeys);
+    
     void set(proto::element::Element&& element);
     void set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
-    void set(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
     void set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
 
     void push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
-    void push(const std::string& name, const std::string& key, const std::vector<int64_t>& values, int64_t ttl = 0);
     void push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
     error::Error incr(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
@@ -54,14 +57,8 @@ public:
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
 
-    // 只用于实时写和删除，只会写或者删除内存数据
-    // void put(const std::string& name, const std::string& key, std::shared_ptr<Element> val);
-    // void del(const std::string& name, const std::string& key);
-
     // 同步时写入全量 RocksDB 中
     error::Error rocksWriteBulk(const std::string& name, rocksdb::WriteBatch& batch);
-    // error::Error putAll(const std::string& name, const std::string& key, const std::string& value);
-    // error::Error putAll(const std::string& name, const rocksdb::Slice& key, const rocksdb::Slice& value);
     void stop();
 
 private:

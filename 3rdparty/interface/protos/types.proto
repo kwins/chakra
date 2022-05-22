@@ -1,7 +1,7 @@
 syntax="proto3";
 package proto.types;
 
-enum Type{
+enum Type {
   NF                  = 0;
   // cluster
   P_MEET              = 1;
@@ -16,9 +16,13 @@ enum Type{
 
   // client
   C_GET               = 1000;
-  C_SET               = 1001;
-  C_MGET              = 1002;
+  C_MGET              = 1001;
+  C_SET               = 1002;
   C_MSET              = 1003;
+  C_PUSH              = 1004;
+  C_MPUSH             = 1005;
+  C_INCR              = 1006;
+  C_MINCR             = 1007;
 
   // replica
   R_PING              = 3001;
@@ -35,7 +39,7 @@ enum Type{
   R_DELTA_RESPONSE    = 3012;         // 拉取增量数据应答
 }
 
-message Error{
+message Error {
   int32 errcode = 1;
   string errmsg = 2;
 }

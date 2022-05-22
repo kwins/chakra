@@ -7,8 +7,8 @@
 
 #include "command.h"
 
-namespace chakra::cmds{
-class CommandReplicaPing : public Command{
+namespace chakra::cmds {
+class CommandReplicaPing : public Command {
 public:
     void execute(char *req, size_t len, void *data,std::function<error::Error(char *, size_t)> cbf) override;
     ~CommandReplicaPing() override = default;

@@ -19,10 +19,10 @@ TEST(ColumnDBLRUCache, set) {
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);
 
-    cache->push(key1, std::vector<int64_t>{10L,11L,12L});
+    cache->push(key1, std::vector<float>{10.0,11.0,12.0});
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);
-    ASSERT_EQ(element->type(), proto::element::ElementType::INTEGER_ARRAY);
+    ASSERT_EQ(element->type(), proto::element::ElementType::FLOAT_ARRAY);
 
     auto err = cache->incr(key1, (int64_t)2.0L);
     ASSERT_EQ((err == true), true);

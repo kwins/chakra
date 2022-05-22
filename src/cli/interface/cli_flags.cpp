@@ -57,4 +57,12 @@ DEFINE_int64(setdb_cached, 0, "setdb command db cache size"); // db cached
 DEFINE_string(get_db, "", "get command db name"); // db name
 DEFINE_string(get_key, "", "get command key name"); // key name
 
+// mget command
+DEFINE_string(mget_keys, "", "mget command keys");
+DEFINE_int64(mget_split_n, 10, "mget command split num");
+
+// push command
+DEFINE_string(push_key, "", "push command key");
+DEFINE_string(push_values, "", "push command values");
+DEFINE_int64(push_ttl, 0, "push command ttl"); // ms
 #endif // CHAKRA_CLI_FLAGS_CPP

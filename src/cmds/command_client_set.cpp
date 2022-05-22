@@ -23,12 +23,10 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
     } else if (setMessageRequest.key().empty()) {
         chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "bad arguments");
     } else {
+
         switch (setMessageRequest.type()) {
         case proto::element::ElementType::STRING:
             dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.s(), setMessageRequest.ttl());
-            break;
-        case proto::element::ElementType::INTEGER:
-            dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.i(), setMessageRequest.ttl());
             break;
         case proto::element::ElementType::FLOAT:
             dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.f(), setMessageRequest.ttl());
@@ -36,5 +34,5 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
             break;
         }
     }
-    chakra::net::Packet::serialize(setMessageResponse, chakra::net::Packet::getType(req,len), cbf);
+    chakra::net::Packet::serialize(setMessageResponse, proto::types::C_SET, cbf);
 }

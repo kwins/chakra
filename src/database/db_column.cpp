@@ -87,16 +87,16 @@ std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const s
     return element;
 }
 
-void chakra::database::ColumnDB::set(const std::string& key, const std::string& value, int64_t ttl) {
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->set(key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
-        auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
-        if (!s.ok()) return error::Error(s.ToString());
-        return error::Error();
-    });
+std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDB::mget(const std::vector<std::string>& keys) {
+    std::vector<std::shared_ptr<proto::element::Element>> result;
+    result.resize(keys.size());
+    for (int i = 0; i < keys.size(); i++) {
+        result[i] = get(keys.at(i));
+    }
+    return result;
 }
 
-void chakra::database::ColumnDB::set(const std::string& key, int64_t value, int64_t ttl) {
+void chakra::database::ColumnDB::set(const std::string& key, const std::string& value, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     cache[hashed % FLAGS_db_cache_shard_size]->set(key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
@@ -115,15 +115,6 @@ void chakra::database::ColumnDB::set(const std::string& key, float value, int64_
 }
 
 void chakra::database::ColumnDB::push(const std::string& key, const std::vector<std::string>& values, int64_t ttl) {
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->push(key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
-        auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
-        if (!s.ok()) return error::Error(s.ToString());
-        return error::Error();
-    });
-}
-
-void chakra::database::ColumnDB::push(const std::string& key, const std::vector<int64_t>& values, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     cache[hashed % FLAGS_db_cache_shard_size]->push(key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());

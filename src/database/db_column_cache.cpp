@@ -13,10 +13,25 @@ std::shared_ptr<proto::element::Element> chakra::database::ColumnDBLRUCache::get
     if (it == table.end()) {
         return nullptr;
     } else {
-        // 头插入
-        list.splice(list.begin(), list, it->second);
+        list.splice(list.begin(), list, it->second); // 头插入
         return (*it->second);
     }
+}
+
+std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDBLRUCache::mget(const std::vector<std::string>& keys) {
+    std::vector<std::shared_ptr<proto::element::Element>> result;
+    result.resize(keys.size());
+    std::shared_lock<std::shared_mutex> lck(mutex);
+    for(int i = 0; i < keys.size(); i++) {
+        auto it = table.find(keys.at(i));
+        if (it == table.end()) {
+            result[i] = nullptr;
+        } else {
+            result[i] = (*it->second);
+            list.splice(list.begin(), list, it->second); // 头插入
+        }
+    }
+    return result;
 }
 
 void chakra::database::ColumnDBLRUCache::set(const std::string& key, const std::string& value, int64_t ttl, Callback cb) {
@@ -30,20 +45,7 @@ void chakra::database::ColumnDBLRUCache::set(const std::string& key, const std::
     set(key, element);
 
     cb(element);
-} 
-
-void chakra::database::ColumnDBLRUCache::set(const std::string& key, int64_t value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-
-    element->set_type(::proto::element::ElementType::INTEGER);
-    element->set_i(value);
-    
-    set(key, element);
-
-    cb(element);
-} 
+}
 
 void chakra::database::ColumnDBLRUCache::set(const std::string& key, float value, int64_t ttl, Callback cb) {
     std::unique_lock<std::shared_mutex> lck(mutex);
@@ -65,22 +67,7 @@ void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std:
 
     element->set_type(::proto::element::ElementType::STRING_ARRAY);
     for (auto& v : values) {
-        element->mutable_ss()->add_ss(v);
-    }
-    
-    set(key, element);
-
-    cb(element);
-}
-
-void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std::vector<int64_t>& values, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-
-    element->set_type(::proto::element::ElementType::INTEGER_ARRAY);
-    for (auto& v : values) {
-        element->mutable_ii()->add_ii(v);
+        element->mutable_ss()->add_value(v);
     }
     
     set(key, element);
@@ -94,28 +81,12 @@ void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std:
     std::shared_ptr<proto::element::Element> element = step1(key, ttl);
     element->set_type(::proto::element::ElementType::FLOAT_ARRAY);
     for (auto& v : values) {
-        element->mutable_ff()->add_ff(v);
+        element->mutable_ff()->add_value(v);
     }
     
     set(key, element);
 
     cb(element);
-}
-
-chakra::error::Error chakra::database::ColumnDBLRUCache::incr(const std::string& key, int64_t value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-    if (element->type() != ::proto::element::ElementType::INTEGER) {
-        return error::Error("Incr value type must be int64");
-    }
-    element->set_type(::proto::element::ElementType::INTEGER);
-    element->set_i(element->i() + value);
-    
-    set(key, element);
-
-    cb(element);
-    return error::Error();
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::incr(const std::string& key, float value, int64_t ttl, Callback cb) {
@@ -126,7 +97,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(const std::string&
         return error::Error("Incr value type must be float");
     }
     element->set_type(::proto::element::ElementType::FLOAT);
-    element->set_f(element->i() + value);
+    element->set_f(element->f() + value);
     
     set(key, element);
 

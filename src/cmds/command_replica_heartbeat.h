@@ -9,8 +9,8 @@
 
 #include "command.h"
 
-namespace chakra::cmds{
-class CommandReplicaHeartbeat : public Command{
+namespace chakra::cmds {
+class CommandReplicaHeartbeat : public Command {
 public:
     void execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) override;
     ~CommandReplicaHeartbeat() override = default;

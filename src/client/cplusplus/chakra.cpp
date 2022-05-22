@@ -6,7 +6,11 @@
 #include "net/packet.h"
 #include "client.pb.h"
 #include <algorithm>
+#include <element.pb.h>
 #include <glog/logging.h>
+#include <google/protobuf/map.h>
+#include <memory>
+#include <types.pb.h>
 #include "database/db_object.h"
 
 chakra::client::Chakra::Chakra(Options opts) : options(opts) {
@@ -62,24 +66,6 @@ chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, cons
     }
     return err;
 }
-
-chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string& key,     int64_t value, int64_t ttl) {
-    proto::client::SetMessageRequest setMessageRequest;
-    setMessageRequest.set_db_name(dbname);
-    setMessageRequest.set_key(key);
-    setMessageRequest.set_type(::proto::element::ElementType::INTEGER);
-    setMessageRequest.set_ttl(ttl);
-    setMessageRequest.set_i(value);
-
-    proto::client::SetMessageResponse setMessageResponse;
-    auto err = executeCmd(setMessageRequest, proto::types::C_SET, setMessageResponse);
-    if (err) return err;
-
-    if (setMessageResponse.error().errcode() != 0) {
-        return error::Error(setMessageResponse.error().errmsg());
-    }
-    return err;
-}
     
 chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, const std::string& key, float value, int64_t ttl) {
     proto::client::SetMessageRequest setMessageRequest;
@@ -99,6 +85,19 @@ chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, cons
     return err;
 }
 
+chakra::error::Error chakra::client::Chakra::push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response) {
+    auto err = executeCmd(request, proto::types::C_PUSH, response);
+    if (err) return err;
+    if (response.error().errcode() != 0) {
+        return error::Error(response.error().errmsg());
+    }
+    return err;
+}
+
+chakra::error::Error chakra::client::Chakra::mpush(const proto::client::MPushMessageRequest& request, proto::client::MPushMessageResponse& response) {
+    return executeCmd(request, proto::types::C_MPUSH, response);
+}
+
 chakra::error::Error
 chakra::client::Chakra::get(const std::string &dbname, const std::string &key, proto::element::Element& element) {
     proto::client::GetMessageRequest getMessageRequest;
@@ -113,6 +112,17 @@ chakra::client::Chakra::get(const std::string &dbname, const std::string &key, p
         return error::Error(getMessageResponse.error().errmsg());
     }
     element = std::move(getMessageResponse.data());
+    return err;
+}
+
+chakra::error::Error chakra::client::Chakra::mget(const proto::client::MGetMessageRequest& request, proto::client::MGetMessageResponse& response) {
+    auto err = executeCmd(request, proto::types::C_MGET, response);
+    if (err) {
+        return err;
+    }
+    if (response.error().errcode() != 0) {
+        return error::Error(response.error().errmsg());
+    }
     return err;
 }
 
@@ -132,7 +142,7 @@ chakra::error::Error chakra::client::Chakra::setdb(const std::string &dbname, in
     return err;
 }
 
-chakra::error::Error chakra::client::Chakra::executeCmd(google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
+chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
     return chakra::net::Packet::serialize(msg, type,[this, &reply, type](char* req, size_t reqlen) {
         try {
             auto conn = connnectGet();

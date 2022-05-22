@@ -6,12 +6,8 @@ DECLARE_string(set_value);
 DECLARE_int64(set_ttl); // ms
 
 void chakra::cli::CommandSet::execute(std::shared_ptr<chakra::client::ChakraCluster> cluster) {
-    std::string value = FLAGS_set_value;
-    value.erase(0, value.find_first_not_of(" "));
-    value.erase(value.find_last_not_of(" ") + 1);
-
-    int count = 0;
-    int dot = 0;
+    std::string& value = trim(FLAGS_set_value);
+    int count = 0, dot = 0;
     for (int i = 0; i < value.size(); i++) {
         if (::isdigit(value.at(i))) {
             count++;

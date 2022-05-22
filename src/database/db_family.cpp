@@ -102,6 +102,19 @@ std::shared_ptr<proto::element::Element> chakra::database::FamilyDB::get(const s
     return it->second->get(key);
 }
 
+std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> chakra::database::FamilyDB::mget(std::unordered_map<std::string,std::vector<std::string>> dbkeys) {
+    std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> result;
+    int pos = index.load();
+    for(auto& keys : dbkeys) {
+        auto it = columnDBs[pos].find(keys.first);
+        if (it == columnDBs[pos].end()) {
+            continue;
+        }
+        result[keys.first] = it->second->mget(keys.second);
+    }
+    return result;
+}
+
 void chakra::database::FamilyDB::set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
@@ -109,15 +122,6 @@ void chakra::database::FamilyDB::set(const std::string& name, const std::string&
         return;
     }
     it->second->set(key, value, ttl);
-}
-
-void chakra::database::FamilyDB::set(const std::string& name, const std::string& key, int64_t value, int64_t ttl) {
-    int pos = index.load();
-    auto it = columnDBs[pos].find(name);
-    if (it == columnDBs[pos].end()) {
-        return;
-    }
-    it->second->set(key, value, ttl);    
 }
 
 void chakra::database::FamilyDB::set(const std::string& name, const std::string& key, float value, int64_t ttl) {
@@ -130,15 +134,6 @@ void chakra::database::FamilyDB::set(const std::string& name, const std::string&
 }
 
 void chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl) {
-    int pos = index.load();
-    auto it = columnDBs[pos].find(name);
-    if (it == columnDBs[pos].end()) {
-        return;
-    }
-    it->second->push(key, values, ttl);    
-}
-
-void chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<int64_t>& values, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
@@ -183,16 +178,6 @@ void chakra::database::FamilyDB::erase(const std::string& name, const std::strin
     it->second->erase(key);
 }
 
-// void
-// chakra::database::FamilyDB::put(const std::string& name, const std::string &key, std::shared_ptr<Element> val) {
-//     int pos = index.load();
-//     auto it = columnDBs[pos].find(name);
-//     if (it == columnDBs[pos].end()){
-//         return;
-//     }
-//     it->second->put(key, val);
-// }
-
 chakra::error::Error chakra::database::FamilyDB::rocksWriteBulk(const std::string& name, rocksdb::WriteBatch &batch) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
@@ -201,35 +186,6 @@ chakra::error::Error chakra::database::FamilyDB::rocksWriteBulk(const std::strin
     }
     return it->second->rocksWriteBulk(batch);
 }
-
-// chakra::error::Error
-// chakra::database::FamilyDB::putAll(const std::string &name, const std::string &key, const std::string &value) {
-//     int pos = index.load();
-//     auto it = columnDBs[pos].find(name);
-//     if (it == columnDBs[pos].end()){
-//         return error::Error("db " + name + " not found");
-//     }
-//     return it->second->putAll(key, value);
-// }
-
-// chakra::error::Error
-// chakra::database::FamilyDB::putAll(const std::string &name, const rocksdb::Slice &key, const rocksdb::Slice &value) {
-//     int pos = index.load();
-//     auto it = columnDBs[pos].find(name);
-//     if (it == columnDBs[pos].end()){
-//         return error::Error("db " + name + " not found");
-//     }
-//     return it->second->putAll(key, value);
-// }
-
-// void chakra::database::FamilyDB::del(const std::string &name, const std::string &key) {
-//     int pos = index.load();
-//     auto it = columnDBs[pos].find(name);
-//     if (it == columnDBs[pos].end()){
-//         return;
-//     }
-//     it->second->del(key);
-// }
 
 size_t chakra::database::FamilyDB::dbSize(const std::string &name) {
     int pos = index;

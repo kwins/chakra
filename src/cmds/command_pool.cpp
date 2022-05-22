@@ -15,6 +15,7 @@
 
 #include "command_client_set.h"
 #include "command_client_get.h"
+#include "command_client_mget.h"
 #include "command_replica_heartbeat.h"
 #include "command_replica_delta_pull.h"
 #include "command_replica_delta_recv.h"
@@ -23,6 +24,8 @@
 #include "command_replica_sync_request.h"
 #include "command_replica_sync_response.h"
 #include "command_replica_recv_bulk.h"
+#include <memory>
+#include <types.pb.h>
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
@@ -39,7 +42,7 @@ chakra::cmds::CommandPool::CommandPool() {
     // client
     regCmd(proto::types::C_SET, std::make_shared<CommandClientSet>());
     regCmd(proto::types::C_GET, std::make_shared<CommandClientGet>());
-
+    regCmd(proto::types::C_MGET, std::make_shared<CommandClientMGet>());
     // replica
     regCmd(proto::types::R_PING, std::make_shared<CommandReplicaPing>());
     regCmd(proto::types::R_PONG, std::make_shared<CommandReplicaPong>());

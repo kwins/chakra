@@ -2,6 +2,7 @@
 #include <cctype>
 #include <command.h>
 #include <command_get.h>
+#include <command_mget.h>
 #include <command_meet.h>
 #include <command_set.h>
 #include <command_setdb.h>
@@ -52,4 +53,5 @@ std::unordered_map<std::string, std::shared_ptr<chakra::cli::Command>> chakra::c
     {"setdb", std::make_shared<chakra::cli::CommandSetDB>()},
     {"set",   std::make_shared<chakra::cli::CommandSet>()},
     {"get",   std::make_shared<chakra::cli::CommandGet>()},
+    {"mget",  std::make_shared<chakra::cli::CommandMGet>()},
 };
