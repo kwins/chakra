@@ -4,6 +4,9 @@
 
 #include "command_pool.h"
 
+#include <memory>
+#include <types.pb.h>
+
 #include "command_cluster_ping.h"
 #include "command_cluster_meet.h"
 #include "command_cluster_pong.h"
@@ -12,9 +15,6 @@
 #include "command_cluster_set_db.h"
 #include "command_cluster_set_epoch.h"
 #include "command_cluster_state.h"
-
-#include "command_client_set.h"
-#include "command_client_get.h"
 #include "command_replica_heartbeat.h"
 #include "command_replica_delta_pull.h"
 #include "command_replica_delta_recv.h"
@@ -23,6 +23,12 @@
 #include "command_replica_sync_request.h"
 #include "command_replica_sync_response.h"
 #include "command_replica_recv_bulk.h"
+
+#include "command_client_set.h"
+#include "command_client_get.h"
+#include "command_client_mget.h"
+#include "command_client_push.h"
+#include "command_client_mpush.h"
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
@@ -39,7 +45,9 @@ chakra::cmds::CommandPool::CommandPool() {
     // client
     regCmd(proto::types::C_SET, std::make_shared<CommandClientSet>());
     regCmd(proto::types::C_GET, std::make_shared<CommandClientGet>());
-
+    regCmd(proto::types::C_MGET, std::make_shared<CommandClientMGet>());
+    regCmd(proto::types::C_PUSH, std::make_shared<CommandClientPush>());
+    regCmd(proto::types::C_MPUSH, std::make_shared<CommandClientMPush>());
     // replica
     regCmd(proto::types::R_PING, std::make_shared<CommandReplicaPing>());
     regCmd(proto::types::R_PONG, std::make_shared<CommandReplicaPong>());

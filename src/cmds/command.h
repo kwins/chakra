@@ -10,7 +10,7 @@
 #include <glog/logging.h>
 #include "error/err.h"
 
-namespace chakra::cmds{
+namespace chakra::cmds {
 
 class Command {
 public:

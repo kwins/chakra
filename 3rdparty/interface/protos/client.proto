@@ -11,10 +11,8 @@ message SetMessageRequest {
   int64 ttl = 4;
   oneof Value {
       string s = 5;
-      int64 i = 6;
       float f = 7;
       element.SS ss = 8;
-      element.II ii = 9;
       element.FF ff = 10;
   }
 }
@@ -33,12 +31,49 @@ message GetMessageResponse {
   element.Element data = 2;
 }
 
+message Keys {
+  repeated string value = 1;
+}
+
 message MGetMessageRequest {
-  string db_name = 1;
-  repeated string keys = 2;
+  map<string, Keys> keys= 1;
+}
+
+message Elements {
+  repeated element.Element value = 1;
 }
 
 message MGetMessageResponse {
   types.Error error = 1;
-  repeated element.Element datas = 2;
+  map<string, Elements> datas = 2;
+}
+
+message PushMessageRequest {
+  string db_name = 1;
+  string key = 2;
+  element.ElementType type = 3;
+  int64 ttl = 4;
+  oneof Value {
+      string s = 5;
+      float f = 7;
+      element.SS ss = 8;
+      element.FF ff = 10;
+  }
+}
+
+message PushMessageResponse {
+  types.Error error = 1;
+}
+
+message MPushMessageRequest {
+  repeated PushMessageRequest datas = 1;
+}
+
+message PushState {
+  bool value = 1;
+}
+
+message MPushMessageResponse {
+  types.Error error = 1;
+  repeated PushState states = 2;
 }

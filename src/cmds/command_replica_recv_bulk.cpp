@@ -21,7 +21,6 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
     } else if (link->getState() != chakra::replica::Replicate::Link::State::CONNECTED) {
         LOG(WARNING) << "Replicate link state not connected when recv bulk(" << (int)link->getState() << ")";
     } else {
-        LOG(INFO) << "Replicate receive bulk message" << bulkMessage.DebugString();
         auto replicateDB = link->getReplicateDB(bulkMessage.db_name());
         if (!replicateDB) {
             LOG(ERROR) << "Replicate receive bulk message db " << bulkMessage.db_name() << " not found in server.";
@@ -47,8 +46,8 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
                 replicateDB->deltaSeq = bulkMessage.seq();
                 replica::Replicate::get()->dumpReplicateStates();
                 replicateDB->startPullDelta(); // 触发 pull delta
-                LOG(INFO) << "Full replicate db " << bulkMessage.db_name() 
-                            << " from " << link->getPeerName() << " finished and start pull delta.";
+                LOG(INFO) << "Replicate full  db " << bulkMessage.db_name() 
+                          << " from " << link->getPeerName() << " finished and start pull delta.";
             }
         }
     }

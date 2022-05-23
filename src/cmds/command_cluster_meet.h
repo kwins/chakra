@@ -6,9 +6,9 @@
 #define CHAKRA_COMMAND_CLUSTER_MEET_H
 #include "command.h"
 
-namespace chakra::cmds{
+namespace chakra::cmds {
 
-class CommandClusterMeet : public Command{
+class CommandClusterMeet : public Command {
 public:
     void execute(char *req, size_t len,void* data, std::function<error::Error(char *, size_t)> reply) override;
     ~CommandClusterMeet() override = default;

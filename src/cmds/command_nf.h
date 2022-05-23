@@ -5,7 +5,7 @@
 #ifndef CHAKRA_COMMAND_NF_H
 #define CHAKRA_COMMAND_NF_H
 #include "command.h"
-namespace chakra::cmds{
+namespace chakra::cmds {
 
 class CommandNF : public Command {
 public:

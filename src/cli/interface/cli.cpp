@@ -2,7 +2,9 @@
 #include <cctype>
 #include <command.h>
 #include <command_get.h>
+#include <command_mget.h>
 #include <command_meet.h>
+#include <command_push.h>
 #include <command_set.h>
 #include <command_setdb.h>
 #include <cstdint>
@@ -41,7 +43,7 @@ chakra::cli::Cli::Cli() {
 void chakra::cli::Cli::execute() {
     auto it = cmds.find(FLAGS_command);
     if (it == cmds.end()) {
-        LOG(ERROR) << "unsupport command:" + FLAGS_command;
+        LOG(ERROR) << "Command not support: " + FLAGS_command;
         return;
     }
     it->second->execute(cluster);
@@ -52,4 +54,6 @@ std::unordered_map<std::string, std::shared_ptr<chakra::cli::Command>> chakra::c
     {"setdb", std::make_shared<chakra::cli::CommandSetDB>()},
     {"set",   std::make_shared<chakra::cli::CommandSet>()},
     {"get",   std::make_shared<chakra::cli::CommandGet>()},
+    {"mget",  std::make_shared<chakra::cli::CommandMGet>()},
+    {"push",  std::make_shared<chakra::cli::CommandPush>()},
 };

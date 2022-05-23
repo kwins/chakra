@@ -7,13 +7,18 @@
 #include "net/connect.h"
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <deque>
 #include <chrono>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "peer.pb.h"
 #include "types.pb.h"
 #include "error/err.h"
 #include "element.pb.h"
+#include "client.pb.h"
 
 namespace chakra::client {
 
@@ -34,23 +39,26 @@ public:
     error::Error connect();
     std::string peerName() const;
     error::Error meet(const std::string& ip, int port);
-    
-    error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
-    error::Error set(const std::string& dbname, const std::string& key, int64_t value, int64_t ttl = 0);
-    error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
-
-    error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
-    
     error::Error setdb(const std::string& dbname, int cached);
     error::Error state(proto::peer::ClusterState& clusterState);
     error::Error setEpoch(int64_t epoch, bool increasing);
+
+    error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
+
+    error::Error push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response);
+    error::Error mpush(const proto::client::MPushMessageRequest& request, proto::client::MPushMessageResponse& response);
+
+    error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
+    error::Error mget(const proto::client::MGetMessageRequest& request, proto::client::MGetMessageResponse& response);
+    
     void close();
 
 private:
     Options options;
     std::shared_ptr<net::Connect> connnectGet();
     void connectBack(std::shared_ptr<net::Connect> conn);
-    error::Error executeCmd(::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
+    error::Error executeCmd(const ::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
     std::deque<std::shared_ptr<net::Connect>> conns;
     std::mutex mutex;
 };

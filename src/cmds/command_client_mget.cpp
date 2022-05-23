@@ -1,0 +1,44 @@
+#include "command_client_mget.h"
+
+#include <cstddef>
+#include <element.pb.h>
+#include <google/protobuf/map.h>
+#include <types.pb.h>
+#include <utility>
+
+#include "client.pb.h"
+#include "net/packet.h"
+#include "database/db_family.h"
+
+void chakra::cmds::CommandClientMGet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
+    proto::client::MGetMessageRequest mGetMessageRequest;
+    proto::client::MGetMessageResponse mGetMessageResponse;
+    auto err = chakra::net::Packet::deSerialize(req, len, mGetMessageRequest, proto::types::C_MGET);
+    if (err) {
+        chakra::net::Packet::fillError(mGetMessageResponse.mutable_error(), 1, err.what());
+    } else {
+        auto dbptr = chakra::database::FamilyDB::get();
+        std::unordered_map<std::string, std::vector<std::string>> dbkeys;
+        for(auto& db : mGetMessageRequest.keys()) {
+            for (auto& key : db.second.value()) {
+                dbkeys[db.first].push_back(key);
+            }
+        }
+
+        auto result = dbptr->mget(dbkeys);
+        for(auto& db : result) {
+            auto& datas = (*mGetMessageResponse.mutable_datas());
+            auto& elements = datas[db.first];
+            for (int i = 0; i < db.second.size(); i++) {
+                auto added = elements.mutable_value()->Add();
+                if (db.second[i]) { // 只能 copy，不能 move
+                    added->CopyFrom(*db.second[i]);
+                } else { // 结果为空，只设置key
+                    added->set_key(dbkeys.at(db.first).at(i));
+                    added->set_type(::proto::element::ElementType::NF);
+                }
+            }
+        }
+    }
+    chakra::net::Packet::serialize(mGetMessageResponse, proto::types::C_MGET, cbf);
+}

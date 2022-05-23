@@ -7,7 +7,7 @@
 
 
 #include "command.h"
-namespace chakra::cmds{
+namespace chakra::cmds {
 class CommandClientGet : public Command {
 public:
     void execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> reply) override;

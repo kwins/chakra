@@ -5,8 +5,8 @@
 #ifndef CHAKRA_COMMAND_CLUSTER_SET_EPOCH_H
 #define CHAKRA_COMMAND_CLUSTER_SET_EPOCH_H
 #include "command.h"
-namespace chakra::cmds{
-class CommandClusterSetEpoch : public Command{
+namespace chakra::cmds {
+class CommandClusterSetEpoch : public Command {
 public:
     void execute(char *req, size_t reqLen, void *data, std::function<error::Error(char *, size_t)> cbf) override;
 

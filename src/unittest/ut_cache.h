@@ -11,23 +11,22 @@
 TEST(ColumnDBLRUCache, set) {
     auto cache = std::make_shared<chakra::database::ColumnDBLRUCache>(200);
     std::string key1 = "key_1";
-    cache->set(key1, "value_1");
     auto element = cache->get(key1);
-    ASSERT_NE(element, nullptr);
-
-    cache->set(key1, 10L);
+    
+    cache->set(element, key1, "value_1");
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);
 
-    cache->push(key1, std::vector<int64_t>{10L,11L,12L});
+    cache->set(element, key1, 10L);
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);
-    ASSERT_EQ(element->type(), proto::element::ElementType::INTEGER_ARRAY);
 
-    auto err = cache->incr(key1, (int64_t)2.0L);
-    ASSERT_EQ((err == true), true);
+    cache->push(element, key1, std::vector<float>{10.0,11.0,12.0});
+    element = cache->get(key1);
+    ASSERT_NE(element, nullptr);
+    ASSERT_EQ(element->type(), proto::element::ElementType::FLOAT_ARRAY);
 
-    err = cache->incr(key1, (float)2.0);
+    auto err = cache->incr(element, key1, 2.0);
     ASSERT_EQ((err == true), true);
 }
 

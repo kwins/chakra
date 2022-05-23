@@ -8,8 +8,8 @@
 
 #include "command.h"
 
-namespace chakra::cmds{
-class CommandReplicaPong : public Command{
+namespace chakra::cmds {
+class CommandReplicaPong : public Command {
 public:
     void execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) override;
     ~CommandReplicaPong() override = default;

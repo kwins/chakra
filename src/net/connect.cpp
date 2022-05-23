@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <arpa/inet.h>
+#include <error/err.h>
 #include <sys/socket.h>
 #include <poll.h>
 #include <unistd.h>
@@ -61,17 +62,17 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
     return error::Error();
 }
 
-chakra::error::Error chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
+void chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0) {
-        return error::Error("connect closed");
+        throw error::ConnectClosedError("connect closed");
     } else if (readn < 0) {
         if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
             /* Try again later */
         } else if (errno == ETIMEDOUT && opts.block) {
-            return error::Error(strerror(errno));
+            throw error::ConnectReadError(strerror(errno));
         } else {
-            return error::Error(strerror(errno));
+            throw error::ConnectReadError(strerror(errno));
         }
     } else {
         bufLen += readn;
@@ -81,7 +82,7 @@ chakra::error::Error chakra::net::Connect::receivePack(const std::function< erro
     auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
     if ((packSize == 0) || (packSize > 0 && bufLen < packSize)) {
         LOG(WARNING) << "connect recv pack not enough, pack size is " << packSize << " recved is " << bufLen;
-        return error::Error(); // 这里不返回错误，只是打印日志，下次继续读取
+        return; // 这里不返回错误，只是打印日志，下次继续读取
     }
 
     // 处理整个包
@@ -90,7 +91,7 @@ chakra::error::Error chakra::net::Connect::receivePack(const std::function< erro
     // 如果包解析失败，则丢弃
     auto err = process(buf, packSize);
     moveBuf(packSize, -1);
-    return err;
+    if (err) throw err;
 }
 
 std::string chakra::net::Connect::remoteAddr()  {
@@ -240,7 +241,7 @@ chakra::error::Error chakra::net::Connect::checkSockErr() {
 }
 
 chakra::error::Error chakra::net::Connect::checkConnectOK(int &completed) {
-    int rc = ::connect(fd(), const_cast<const struct sockaddr*>(sar), sizeof(sar));
+    int rc = ::connect(fd(), const_cast<const struct sockaddr*>(sar), sizeof(*sar));
     if (rc == 0){
         completed = 1;
         return error::Error();

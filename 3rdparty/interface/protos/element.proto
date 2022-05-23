@@ -4,23 +4,17 @@ package proto.element;
 enum ElementType {
     NF = 0;
     STRING = 1;
-    INTEGER = 2;
     FLOAT = 3;
     STRING_ARRAY = 4;
-    INTEGER_ARRAY = 5;
     FLOAT_ARRAY = 6;
 }
 
 message SS {
-    repeated string ss = 1;
-}
-
-message II {
-    repeated int64 ii = 1;
+    repeated string value = 1;
 }
 
 message FF {
-    repeated float ff = 1;
+    repeated float value = 1;
 }
 
 message Element {
@@ -31,10 +25,8 @@ message Element {
     int64 last_visit_time = 5;
     oneof Value {
         string s = 6;
-        int64 i = 7;
         float f = 8;
         SS ss = 9;
-        II ii = 10;
         FF ff = 11;
     }
 }

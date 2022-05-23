@@ -25,6 +25,7 @@ public:
         explicit Link(int sockfd);
         explicit Link(const std::string& ip, int port, const std::shared_ptr<Peer>& peer);
         void onPeerRead(ev::io& watcher, int event);
+        void onReadError();
         void startEvRead();
         ~Link();
         std::shared_ptr<Peer> reletedPeer;
@@ -99,8 +100,8 @@ public:
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
     error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
-    // void stateDesc(proto::peer::PeerState& peerState);
     ~Peer();
+
 private:
 
     // 节点的名字，由 40 个十六进制字符组成

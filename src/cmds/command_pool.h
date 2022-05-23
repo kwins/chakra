@@ -9,7 +9,7 @@
 #include "command.h"
 #include "command_nf.h"
 
-namespace chakra::cmds{
+namespace chakra::cmds {
 
 class CommandPool : public utils::UnCopyable {
 public:

@@ -3,13 +3,17 @@
 
 
 #include <array>
+#include <client.pb.h>
 #include <error/err.h>
+#include <memory>
 #include <unordered_map>
 #include <atomic>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <vector>
 #include "chakra.h"
+#include "chakra_db.h"
 #include "peer.pb.h"
 
 namespace chakra::client {
@@ -26,11 +30,16 @@ public:
         std::chrono::milliseconds writeTimeOut { 100 };
         std::chrono::milliseconds backupUpdateMs { 1000 }; /* 集群状态更新间隔 */
     };
-public:
+
     /* key 是 peer name value 是 peer connect pool */
     using Clients = std::unordered_map<std::string, std::shared_ptr<client::Chakra>>;
-    using DBS = std::unordered_map<std::string, std::vector<std::shared_ptr<client::Chakra>>>;
+    /* db:key pair list */
+    using DBKeyPairList = std::vector<std::pair<std::string, std::string>>;
+    /* 指向同一个 DB 所有分片的节点 */
+    using DBS = std::unordered_map<std::string, std::shared_ptr<ChakraDB>>;
+
 public:
+    // 线程安全
     explicit ChakraCluster(Options opts);
     ~ChakraCluster();
     error::Error connectCluster();
@@ -38,15 +47,26 @@ public:
     error::Error setdb(const std::string& nodename, const std::string& dbname, int cached);
 
     error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
-    error::Error set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
-    error::Error set(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
-    error::Error set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
-    
+    error::Error mget(const proto::client::MGetMessageRequest& request, int splitN, proto::client::MGetMessageResponse& response);
+
+    error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
+
+    error::Error push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response);
+    error::Error mpush(const proto::client::MPushMessageRequest& request, int splitN, proto::client::MPushMessageResponse& response);
     void close();
 
 private:
     int next();
     bool clusterChanged();
+    error::Error dbnf(const std::string& dbname);
+
+    using MGetSplitedRequest = std::vector<std::pair<std::shared_ptr<client::ChakraDB>, proto::client::MGetMessageRequest>>;
+    chakra::client::ChakraCluster::MGetSplitedRequest splitMGetRequest(const proto::client::MGetMessageRequest& request, int splitN);
+    
+    using MPushSplitedRequest = std::unordered_map<std::shared_ptr<client::ChakraDB>, proto::client::MPushMessageRequest>;
+    chakra::client::ChakraCluster::MPushSplitedRequest splitMPushRequest(const proto::client::MPushMessageRequest& request, int splitN);
+
     Options options;
     std::atomic<int> index;
     std::array<Clients, 2> clusterConns; /* 维护所有节点的连接 */
@@ -57,7 +77,6 @@ private:
     std::atomic_bool exitTH;
     std::mutex mutex = {};
     std::condition_variable cond = {};
-    std::atomic_int64_t getcount;
 };
 
 }

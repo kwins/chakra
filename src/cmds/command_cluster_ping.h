@@ -6,9 +6,9 @@
 #define CHAKRA_COMMAND_CLUSTER_PING_H
 #include "command.h"
 
-namespace chakra::cmds{
+namespace chakra::cmds {
 
-class CommandClusterPing : public Command{
+class CommandClusterPing : public Command {
 public:
     void execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) override;
     ~CommandClusterPing() override = default;

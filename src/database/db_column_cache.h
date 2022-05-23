@@ -28,17 +28,15 @@ public:
     explicit ColumnDBLRUCache(size_t capacity);
     
     std::shared_ptr<proto::element::Element> get(const std::string& key);
+    std::vector<std::shared_ptr<proto::element::Element>> mget(const std::vector<std::string>& keys);
 
-    void set(const std::string& key, const std::string& value, int64_t ttl = 0, Callback f = defaultCB);
-    void set(const std::string& key, int64_t value, int64_t ttl = 0, Callback f = defaultCB);
-    void set(const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
+    void set(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::string& value, int64_t ttl = 0, Callback f = defaultCB);
+    void set(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
 
-    void push(const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0, Callback f = defaultCB);
-    void push(const std::string& key, const std::vector<int64_t>& values, int64_t ttl = 0, Callback f = defaultCB);
-    void push(const std::string& key, const std::vector<float>& values, int64_t ttl = 0, Callback f = defaultCB);
+    void push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0, Callback f = defaultCB);
+    void push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<float>& values, int64_t ttl = 0, Callback f = defaultCB);
 
-    error::Error incr(const std::string& key, int64_t value, int64_t ttl = 0, Callback f = defaultCB);
-    error::Error incr(const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
+    error::Error incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
     
     void set(const std::string& key, std::shared_ptr<proto::element::Element> element);
 
@@ -48,9 +46,7 @@ public:
     float useage();
     int64_t size() const;
 
-private:
-    std::shared_ptr<proto::element::Element> step1(const std::string& key, int64_t ttl = 0);
-    
+private:    
     size_t membytes(const std::string& key, const std::shared_ptr<proto::element::Element>& element);
     mutable std::shared_mutex mutex;
     std::list<KEY_VALUE_PAIR> list;
