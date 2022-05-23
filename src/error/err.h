@@ -25,7 +25,7 @@ private:
 class name##Error : public Error {                                                                      \
 public:                                                                                                 \
     explicit name##Error(const std::string& message) : Error((std::string(#name) + ":" + message)) {}   \
-    bool operator == (const bool value) { return error == value; }                                      \
+    bool operator == (const bool value) override { return error == value; }                                      \
     operator bool() override { return error; }                                                          \
     ~name##Error() noexcept override = default;                                                         \
 };
@@ -35,6 +35,8 @@ public:                                                                         
  * 一般情况下就使用Error类即可
  */
 DEFINE_ERROR(File, true)
+DEFINE_ERROR(ConnectClosed, true)
+DEFINE_ERROR(ConnectRead, true)
 
 }
 

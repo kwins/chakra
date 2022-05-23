@@ -3,6 +3,7 @@
 //
 
 #include "chakra.h"
+#include <error/err.h>
 #include <glog/logging.h>
 #include "net/packet.h"
 #include "cmds/command_pool.h"
@@ -114,7 +115,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
     auto link = new chakra::serv::Chakra::Link(sockfd);
     workers[index]->links.push_back(link);
     workers[index]->async.send();
-    LOG(INFO) << "Chakra accept OK, dispatch connect to work " << index << " addr:" << link->conn->remoteAddr();
+    LOG(INFO) << "Chakra accept ok, dispatch connect to work " << index << ", remote addr " << link->conn->remoteAddr();
 }
 
 void chakra::serv::Chakra::startServCron() {
@@ -216,32 +217,32 @@ chakra::serv::Chakra::Link::Link(int sockfd) : chakra::net::Link(sockfd) {}
 
 void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
     auto link = static_cast<chakra::serv::Chakra::Link*>(watcher.data);
+    try {
+        link->conn->receivePack([&link](char *req, size_t reqlen) {
 
-    auto err = link->conn->receivePack([&link](char *req, size_t reqlen) {
+            proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
+            DLOG(INFO) << "-- CLIENT received message type "
+                    << proto::types::Type_Name(msgType) << ":" << msgType;
 
-        proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
-        DLOG(INFO) << "-- CLIENT received message type "
-                  << proto::types::Type_Name(msgType) << ":" << msgType;
-
-        auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-        error::Error err;
-        cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
-            proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
-            DLOG(INFO) << "   CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-            err = link->conn->send(reply, replylen);
+            auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
+            error::Error err;
+            cmdsptr->execute(req, reqlen, link, [&link, &err](char *reply, size_t replylen) {
+                proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
+                DLOG(INFO) << "   CLIENT reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
+                err = link->conn->send(reply, replylen);
+                return err;
+            });
             return err;
         });
-        return err;
-    });
-
-    if (err) {
-        LOG(ERROR) << "I/O error remote addr " << link->conn->remoteAddr() << err.what();
+    } catch (const error::ConnectClosedError& e1) {
+        delete link;
+    } catch (const error::Error& e) {
+        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << link->conn->remoteAddr();
         delete link;
     }
 }
 
 void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worker) {
-    LOG(INFO) << "Chakra Link start read in worker " << workID;
     rio.set<&chakra::serv::Chakra::Link::onPeerRead>(this);
     rio.set(worker->loop);
     rio.start(conn->fd(), ev::READ);

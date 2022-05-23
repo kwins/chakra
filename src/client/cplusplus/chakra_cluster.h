@@ -39,6 +39,7 @@ public:
     using DBS = std::unordered_map<std::string, std::shared_ptr<ChakraDB>>;
 
 public:
+    // 线程安全
     explicit ChakraCluster(Options opts);
     ~ChakraCluster();
     error::Error connectCluster();
@@ -63,7 +64,7 @@ private:
     using MGetSplitedRequest = std::vector<std::pair<std::shared_ptr<client::ChakraDB>, proto::client::MGetMessageRequest>>;
     chakra::client::ChakraCluster::MGetSplitedRequest splitMGetRequest(const proto::client::MGetMessageRequest& request, int splitN);
     
-    using MPushSplitedRequest = std::vector<std::pair<std::shared_ptr<client::ChakraDB>, proto::client::MPushMessageRequest>>;
+    using MPushSplitedRequest = std::unordered_map<std::shared_ptr<client::ChakraDB>, proto::client::MPushMessageRequest>;
     chakra::client::ChakraCluster::MPushSplitedRequest splitMPushRequest(const proto::client::MPushMessageRequest& request, int splitN);
 
     Options options;

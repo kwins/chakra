@@ -187,13 +187,16 @@ chakra::error::Error chakra::client::ChakraCluster::push(const proto::client::Pu
 chakra::error::Error chakra::client::ChakraCluster::mpush(const proto::client::MPushMessageRequest& request, int splitN, proto::client::MPushMessageResponse& response) {
     auto splited = splitMPushRequest(request, splitN);
     std::vector<std::future<proto::client::MPushMessageResponse>> futures;
-    for(int i = 0; i < splited.size(); i++) {
-        futures.emplace_back(std::async(std::launch::async,[&splited, i](){
+    for(auto& split : splited) {
+        futures.emplace_back(std::async(std::launch::async,[&split](){
             proto::client::MPushMessageResponse futureResponse;
-            auto err = splited[i].first->mpush(splited[i].second, futureResponse);
+            auto err = split.first->mpush(split.second, futureResponse);
             if (err) LOG(ERROR) << err.what();
             return futureResponse;
         }));
+    }
+    for(int i = 0; i < splited.size(); i++) {
+
     }
 
     for(auto& future : futures) {
@@ -252,7 +255,7 @@ chakra::client::ChakraCluster::MGetSplitedRequest chakra::client::ChakraCluster:
 
 chakra::client::ChakraCluster::MPushSplitedRequest chakra::client::ChakraCluster::splitMPushRequest(const proto::client::MPushMessageRequest& request, int splitN) {
     auto& dbs = dbConns[index.load()];
-    std::unordered_map<std::shared_ptr<client::ChakraDB>, proto::client::MPushMessageRequest> splited;
+    chakra::client::ChakraCluster::MPushSplitedRequest splited;
     for(auto& sub : request.datas()) {
         auto it = dbs.find(sub.db_name());
         if (it == dbs.end()) {
@@ -260,23 +263,7 @@ chakra::client::ChakraCluster::MPushSplitedRequest chakra::client::ChakraCluster
         }
         auto& split = splited[it->second];
         auto pushMessage = split.mutable_datas()->Add();
-        pushMessage->CopyFrom(sub);
+        (*pushMessage) = std::move(sub);
     }
-    
-    MPushSplitedRequest splitedN;
-    for(auto& split : splited) {
-        int count = split.second.datas().size();
-        auto sn = count / splitN;
-        if (count % splitN > 0)
-            sn++;
-        for(int i = 0; i < sn; i++) {
-            proto::client::MPushMessageRequest subPushMessageRequest;
-            for(int j = i * splitN; j < (i + 1) * splitN && j < count; j++) {
-                auto pushMessage = subPushMessageRequest.mutable_datas()->Add();
-                (*pushMessage) = std::move(split.second.datas()[j]);
-            }
-            splitedN.emplace_back(std::make_pair(split.first, subPushMessageRequest));
-        }
-    }
-    return splitedN;
+    return splited;
 }

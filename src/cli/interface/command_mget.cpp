@@ -18,7 +18,9 @@ void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraClu
     auto dbkeys = stringSplit(FLAGS_mget_keys, ',');
     for(auto& dbk : dbkeys) {
         auto v = stringSplit(dbk, ':');
-        assert(v.size() == 2);
+        if (v.size() != 2) {
+            LOG(ERROR) << "mget key format error:" << FLAGS_mget_keys;
+        }
         auto& dbname = v[0];
         auto& key = v[1];
         (*request.mutable_keys())[dbname].add_value(key);

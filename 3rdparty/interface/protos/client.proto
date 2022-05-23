@@ -69,6 +69,11 @@ message MPushMessageRequest {
   repeated PushMessageRequest datas = 1;
 }
 
+message PushState {
+  bool value = 1;
+}
+
 message MPushMessageResponse {
-  repeated types.Error error = 1;
+  types.Error error = 1;
+  repeated PushState states = 2;
 }

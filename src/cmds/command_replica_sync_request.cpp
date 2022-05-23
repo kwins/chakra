@@ -23,6 +23,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
     } else if (syncMessageRequest.db_name().empty()) {
         chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, "db name empty");
     } else {
+        LOG(INFO) << "Replicate request: " << syncMessageRequest.DebugString();
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
         syncMessageResponse.set_seq(syncMessageRequest.seq());
         

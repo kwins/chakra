@@ -34,18 +34,13 @@ public:
     void push(const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
     void push(const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
-    error::Error incr(const std::string& key, int64_t value, int64_t ttl = 0);
     error::Error incr(const std::string& key, float value, int64_t ttl = 0);
 
     void erase(const std::string& key);
     float cacheUsage();
 
-    // void put(const std::string& key, std::shared_ptr<Element> val, bool dbput = true);
     // 增量同步过来的数据，需要写入到全量的rocksdb中，并清除缓存
     error::Error rocksWriteBulk(rocksdb::WriteBatch &batch);
-    // error::Error putAll(const std::string& key, const std::string& value);
-    // error::Error putAll(const rocksdb::Slice& key, const rocksdb::Slice& value);
-    // void del(const std::string& key, bool dbdel = true);
 
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
     error::Error restoreDB();
@@ -66,7 +61,6 @@ private:
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
     std::shared_ptr<rocksdb::DB> full = nullptr;                     // 全量
-    // std::vector<std::shared_ptr<Cache>> caches;
     std::vector<std::shared_ptr<ColumnDBLRUCache>>  cache;
 };
 

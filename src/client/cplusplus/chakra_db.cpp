@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <zlib.h>
 #include "net/packet.h"
@@ -51,7 +52,7 @@ chakra::error::Error chakra::client::ChakraDB::mpush(const proto::client::MPushM
         unsigned long hashed = ::crc32(0L, (unsigned char*)sub.key().data(), sub.key().size());
         auto& split = splited[hashed % partitions.size()];
         auto pushMessage = split.mutable_datas()->Add();
-        pushMessage->CopyFrom(sub);
+        (*pushMessage) = std::move(sub);
     }
 
     std::vector<std::future<proto::client::MPushMessageResponse>> futures;

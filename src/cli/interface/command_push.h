@@ -1,5 +1,5 @@
-#ifndef CHAKRA_CLI_COMMAND_SET_H
-#define CHAKRA_CLI_COMMAND_SET_H
+#ifndef CHAKRA_CLI_COMMAND_PUSH_H
+#define CHAKRA_CLI_COMMAND_PUSH_H
 
 #include "command.h"
 
@@ -12,4 +12,4 @@ public:
 };
 
 }
-#endif // CHAKRA_CLI_COMMAND_SET_H
+#endif // CHAKRA_CLI_COMMAND_PUSH_H

@@ -34,11 +34,21 @@ std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDB
     return result;
 }
 
-void chakra::database::ColumnDBLRUCache::set(const std::string& key, const std::string& value, int64_t ttl, Callback cb) {
+void chakra::database::ColumnDBLRUCache::set(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::string& value, int64_t ttl, Callback cb) {
     std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-
+    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (!element) {
+        element = std::make_shared<proto::element::Element>();
+        element->set_key(key);
+        element->set_type(::proto::element::ElementType::NF);
+        element->set_create_time(nowms);
+        element->set_last_visit_time(0);
+    }
+    if (ttl > 0) {
+        element->set_expire_time(element->create_time() + ttl);
+    } else {
+        element->set_expire_time(0);
+    }
     element->set_type(::proto::element::ElementType::STRING);
     element->set_s(value);
     
@@ -47,11 +57,21 @@ void chakra::database::ColumnDBLRUCache::set(const std::string& key, const std::
     cb(element);
 }
 
-void chakra::database::ColumnDBLRUCache::set(const std::string& key, float value, int64_t ttl, Callback cb) {
+void chakra::database::ColumnDBLRUCache::set(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl, Callback cb) {
     std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-
+    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (!element) {
+        element = std::make_shared<proto::element::Element>();
+        element->set_key(key);
+        element->set_type(::proto::element::ElementType::NF);
+        element->set_create_time(nowms);
+        element->set_last_visit_time(0);
+    }
+    if (ttl > 0) {
+        element->set_expire_time(element->create_time() + ttl);
+    } else {
+        element->set_expire_time(0);
+    }
     element->set_type(::proto::element::ElementType::FLOAT);
     element->set_f(value);
     
@@ -60,11 +80,21 @@ void chakra::database::ColumnDBLRUCache::set(const std::string& key, float value
     cb(element);
 }
 
-void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std::vector<std::string>& values, int64_t ttl, Callback cb) {
+void chakra::database::ColumnDBLRUCache::push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<std::string>& values, int64_t ttl, Callback cb) {
     std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-
+    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (!element) {
+        element = std::make_shared<proto::element::Element>();
+        element->set_key(key);
+        element->set_type(::proto::element::ElementType::NF);
+        element->set_create_time(nowms);
+        element->set_last_visit_time(0);
+    }
+    if (ttl > 0) {
+        element->set_expire_time(element->create_time() + ttl);
+    } else {
+        element->set_expire_time(0);
+    }
     element->set_type(::proto::element::ElementType::STRING_ARRAY);
     for (auto& v : values) {
         element->mutable_ss()->add_value(v);
@@ -75,10 +105,21 @@ void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std:
     cb(element);
 }
 
-void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std::vector<float>& values, int64_t ttl, Callback cb) {
+void chakra::database::ColumnDBLRUCache::push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<float>& values, int64_t ttl, Callback cb) {
     std::unique_lock<std::shared_mutex> lck(mutex);
-
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
+    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (!element) {
+        element = std::make_shared<proto::element::Element>();
+        element->set_key(key);
+        element->set_type(::proto::element::ElementType::NF);
+        element->set_create_time(nowms);
+        element->set_last_visit_time(0);
+    }
+    if (ttl > 0) {
+        element->set_expire_time(element->create_time() + ttl);
+    } else {
+        element->set_expire_time(0);
+    }
     element->set_type(::proto::element::ElementType::FLOAT_ARRAY);
     for (auto& v : values) {
         element->mutable_ff()->add_value(v);
@@ -89,12 +130,24 @@ void chakra::database::ColumnDBLRUCache::push(const std::string& key, const std:
     cb(element);
 }
 
-chakra::error::Error chakra::database::ColumnDBLRUCache::incr(const std::string& key, float value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl, Callback cb) {
+    if (element && element->type() != ::proto::element::ElementType::FLOAT) {
+        return error::Error("incr value type must be float");
+    }
 
-    std::shared_ptr<proto::element::Element> element = step1(key, ttl);
-    if (element->type() != ::proto::element::ElementType::FLOAT) {
-        return error::Error("Incr value type must be float");
+    std::unique_lock<std::shared_mutex> lck(mutex);
+    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (!element) {
+        element = std::make_shared<proto::element::Element>();
+        element->set_key(key);
+        element->set_type(::proto::element::ElementType::NF);
+        element->set_create_time(nowms);
+        element->set_last_visit_time(0);
+    }
+    if (ttl > 0) {
+        element->set_expire_time(element->create_time() + ttl);
+    } else {
+        element->set_expire_time(0);
     }
     element->set_type(::proto::element::ElementType::FLOAT);
     element->set_f(element->f() + value);
@@ -105,33 +158,9 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(const std::string&
     return error::Error();
 }
 
-std::shared_ptr<proto::element::Element> chakra::database::ColumnDBLRUCache::step1(const std::string& key, int64_t ttl) {
-    auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    std::shared_ptr<proto::element::Element> element;
-    auto it = table.find(key);
-    if (it != table.end()) {
-        element = (*it->second);
-        list.erase(it->second);
-        table.erase(it);
-        used_bytes -= membytes(key, element);
-    } else {
-        element = std::make_shared<proto::element::Element>();
-        element->set_key(key);
-        element->set_type(::proto::element::ElementType::NF);
-        element->set_create_time(nowms);
-        element->set_last_visit_time(0);
-    }
-    if (ttl > 0) {
-        element->set_expire_time(nowms + ttl);
-    } else {
-        element->set_expire_time(0);
-    }
-    return element;
-}
-
 void chakra::database::ColumnDBLRUCache::set(const std::string& key, std::shared_ptr<proto::element::Element> element) {
     // 头插入
-    list.push_front(KEY_VALUE_PAIR(element));
+    list.push_front(element);
     // 记录新的位置
     table[key] = list.begin();
     used_bytes += membytes(key, element);

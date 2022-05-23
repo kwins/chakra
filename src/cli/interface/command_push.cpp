@@ -25,7 +25,10 @@ void chakra::cli::CommandPush::execute(std::shared_ptr<chakra::client::ChakraClu
     }
 
     std::vector<std::string> dbk = stringSplit(FLAGS_push_key, ':');
-    assert(dbk.size() == 2);
+    if (dbk.size() != 2) {
+        LOG(ERROR) << "push key format error:" << FLAGS_push_key;
+        return;
+    } 
     proto::client::PushMessageRequest request;
     request.set_db_name(dbk[0]);
     request.set_key(dbk[1]);
@@ -60,6 +63,7 @@ void chakra::cli::CommandPush::execute(std::shared_ptr<chakra::client::ChakraClu
         return;
     }
 
+    LOG(INFO) << "request: " << request.DebugString();
     proto::client::PushMessageResponse response;
     auto err = cluster->push(request, response);
     if (err) LOG(ERROR) << err.what();

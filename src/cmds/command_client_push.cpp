@@ -21,7 +21,7 @@ chakra::cmds::CommandClientPush::execute(char *req, size_t len, void *data, std:
     auto err = chakra::net::Packet::deSerialize(req, len, pushMessageRequest, proto::types::C_PUSH);
     if (err) {
         chakra::net::Packet::fillError(pushMessageResponse.mutable_error(), 1, err.what());
-    } if (!dbptr->servedDB(pushMessageRequest.db_name())) {
+    } else if (!dbptr->servedDB(pushMessageRequest.db_name())) {
         chakra::net::Packet::fillError(pushMessageResponse.mutable_error(), 1, "DB " + pushMessageRequest.db_name() + " not exist.");
     } else if (pushMessageRequest.key().empty()) {
         chakra::net::Packet::fillError(pushMessageResponse.mutable_error(), 1, "bad arguments");

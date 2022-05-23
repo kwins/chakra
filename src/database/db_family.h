@@ -39,7 +39,6 @@ public:
     void push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
     void push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
-    error::Error incr(const std::string& name, const std::string& key, int64_t value, int64_t ttl = 0);
     error::Error incr(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
 
     void erase(const std::string& name, const std::string& key);

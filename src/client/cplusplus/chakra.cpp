@@ -151,10 +151,12 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
                 connectBack(conn);
                 return err;
             }
-            err = conn->receivePack([this, &reply, type](char *resp, size_t resplen) -> error::Error {
+            conn->receivePack([this, &reply, type](char *resp, size_t resplen) -> error::Error {
                 auto reqtype = chakra::net::Packet::getType(resp, resplen);
-                if (reqtype == 0) {
-                    return error::Error("command not found");
+                if (reqtype == 0) { // server command not define
+                    proto::types::Error nferr;
+                    chakra::net::Packet::deSerialize(resp, resplen, nferr, type);
+                    return error::Error(nferr.errmsg());
                 }
                 return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
             });

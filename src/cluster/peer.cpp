@@ -7,6 +7,7 @@
 #include "utils/basic.h"
 #include "net/packet.h"
 #include "cmds/command_pool.h"
+#include <error/err.h>
 #include <glog/logging.h>
 
 const std::string &chakra::cluster::Peer::getName() const { return name; }
@@ -167,29 +168,36 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 }
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
-    auto err = conn->receivePack([this](char *req, size_t reqlen) {
+    try {
+        conn->receivePack([this](char *req, size_t reqlen) {
 
-        proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
-        DLOG(INFO) << "-- PEER received message type "
-                   << proto::types::Type_Name(msgType) << ":" << msgType
-                   << " FROM " << (reletedPeer != nullptr ? reletedPeer->getName() : conn->remoteAddr());
+            proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
+            DLOG(INFO) << "-- PEER received message type "
+                    << proto::types::Type_Name(msgType) << ":" << msgType
+                    << " FROM " << (reletedPeer != nullptr ? reletedPeer->getName() : conn->remoteAddr());
 
-        auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-        error::Error err;
-        cmdsptr->execute(req, reqlen, nullptr, [this, &err](char *reply, size_t replylen) {
-            proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
-            DLOG(INFO) << "   PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-            err = conn->send(reply, replylen);
+            auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
+            error::Error err;
+            cmdsptr->execute(req, reqlen, nullptr, [this, &err](char *reply, size_t replylen) {
+                proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
+                DLOG(INFO) << "   PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
+                err = conn->send(reply, replylen);
+                return err;
+            });
             return err;
         });
-        return err;
-    });
-
-    if (err) {
-        LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << err.what();
-        close();
-        if (!reletedPeer) delete this; // 这里直接 delete this，因为后面不会再使用到此对象
+    } catch (const error::ConnectClosedError& e1) {
+        onReadError();
+    } catch (const error::Error& e) {
+        onReadError();
+        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << conn->remoteAddr();
     }
+}
+
+void chakra::cluster::Peer::Link::onReadError() {
+    close();
+    // 这里直接 delete this，因为后面不会再使用到此对象
+    if (!reletedPeer) delete this; 
 }
 
 void chakra::cluster::Peer::Link::startEvRead() {

@@ -151,15 +151,6 @@ void chakra::database::FamilyDB::push(const std::string& name, const std::string
     it->second->push(key, values, ttl);    
 }
 
-chakra::error::Error chakra::database::FamilyDB::incr(const std::string& name, const std::string& key, int64_t value, int64_t ttl) {
-    int pos = index.load();
-    auto it = columnDBs[pos].find(name);
-    if (it == columnDBs[pos].end()) {
-        return error::Error("db " + name + " not found");
-    }
-    return it->second->incr(key, value, ttl);
-}
-
 chakra::error::Error chakra::database::FamilyDB::incr(const std::string& name, const std::string& key, float value, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);

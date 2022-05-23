@@ -262,26 +262,28 @@ void chakra::replica::Replicate::Link::startReplicateRecvMsg() {
 }
 
 void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int event) {
-    auto err = conn->receivePack([this](char *req, size_t reqLen) {
+    try {
+        conn->receivePack([this](char *req, size_t reqLen) {
 
-        proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
-        DLOG(INFO) << "-- Replicate received message type "
-                   << proto::types::Type_Name(msgType) << ":" << msgType
-                   << " FROM " << (getPeerName().empty() ? conn->remoteAddr() : getPeerName());
-        auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
+            proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
+            DLOG(INFO) << "-- Replicate received message type "
+                    << proto::types::Type_Name(msgType) << ":" << msgType
+                    << " FROM " << (getPeerName().empty() ? conn->remoteAddr() : getPeerName());
+            auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
 
-        error::Error err;
-        cmdsptr->execute(req, reqLen, this, [this, &err](char *resp, size_t respLen) {
-            proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
-            DLOG(INFO) << "   Replicate reply message type " << proto::types::Type_Name(respType) << ":" << respType;
-            err = conn->send(resp, respLen);
+            error::Error err;
+            cmdsptr->execute(req, reqLen, this, [this, &err](char *resp, size_t respLen) {
+                proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
+                DLOG(INFO) << "   Replicate reply message type " << proto::types::Type_Name(respType) << ":" << respType;
+                err = conn->send(resp, respLen);
+                return err;
+            });
             return err;
         });
-        return err;
-    });
-
-    if (err) {
-        LOG(ERROR) << "I/O error remote addr " << conn->remoteAddr() << " " << err.what();
+    } catch (const error::ConnectClosedError& e1) {
+        close();
+    } catch (const error::Error& e) {
+        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << conn->remoteAddr();
         close();
     }
 }
@@ -297,6 +299,7 @@ void chakra::replica::Replicate::Link::reconnect() {
         LOG(ERROR) << "Replicate retry connect to (" << conn->remoteAddr() << ") error " << err.what();
     } else {
         setState(chakra::replica::Replicate::Link::State::CONNECTING);
+        setLastInteractionMs(utils::Basic::getNowMillSec());
         LOG(INFO) << "Replicate retry connect to (" << conn->remoteAddr()<< ") success.";
     }
 }
@@ -407,16 +410,19 @@ chakra::error::Error chakra::replica::Replicate::Link::snapshotDB(const std::str
         replicateDB->deltaSeq = lastSeq;
         replicateDB->bulkiter->SeekToFirst();
         replicateDB->link = this;
+        
         setReplicateDB(replicateDB);
+
         // TODO: 这里立即开始发送 bulk 可能会有问题，此时client端可能还没准备好接受数据
-        startSendBulk(dbname); /* 开始周期性的拉取全量数据，直到拉取完成 */
+        /* 开始周期性的发送全量数据，直到发送完成 */
+        startSendBulk(dbname); 
     }
     return err;
 }
 
-void chakra::replica::Replicate::Link::replicateLinkEvent(){
+void chakra::replica::Replicate::Link::replicateLinkEvent() {
     auto nowMillSec = utils::Basic::getNowMillSec();
-    switch (state){
+    switch (state) {
     case chakra::replica::Replicate::Link::State::CONNECTING:
     {
         if (nowMillSec - getLastInteractionMs() > FLAGS_replica_timeout_ms) {
@@ -441,7 +447,6 @@ void chakra::replica::Replicate::Link::replicateLinkEvent(){
     }
     case chakra::replica::Replicate::Link::State::CONNECT:
     {
-        close();
         reconnect();
         break;
     }
@@ -593,9 +598,9 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
     if (size > 0 || bulkMessage.end()) { /* 可能出现某个DB为空，此时size=0 */
         auto err = link->sendMsg(bulkMessage, proto::types::R_BULK);
         if (err) {
-            LOG(ERROR) << "Send bulk message to " << name << " error " << err.what();
+            LOG(ERROR) << "Replicate send bulk message to " << name << " error " << err.what();
         } else {
-            DLOG(INFO) << "Send bulk message to " << name << ", size " << size << ", is end " << bulkMessage.end() << " num " << num;
+            DLOG(INFO) << "Replicate send bulk message to " << name << ", size " << size << ", is end " << bulkMessage.end() << " num " << num;
         }
     }
 }

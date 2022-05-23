@@ -31,6 +31,7 @@ chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data, std::
         case proto::element::ElementType::FLOAT:
             dbptr->set(setMessageRequest.db_name(), setMessageRequest.key(), setMessageRequest.f(), setMessageRequest.ttl());
         default:
+            chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "set command only supprt string and float type");
             break;
         }
     }

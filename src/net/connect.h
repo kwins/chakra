@@ -43,7 +43,8 @@ public:
     chakra::error::Error send(const char* data, size_t len);
     // 服务端尽可能一次读完，如果读不完，等下次再度，可以有效减少IO次数.
     // 处理数据的 回调函数 一次只会处理一个 pack
-    chakra::error::Error receivePack(const std::function<error::Error(char* ptr, size_t len)>& process);
+    // throw exception
+    void receivePack(const std::function<error::Error(char* ptr, size_t len)>& process);
     // 返回远端地址和端口
     std::string remoteAddr();
     State connState() const;
