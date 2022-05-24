@@ -28,11 +28,11 @@ public:
     std::shared_ptr<proto::element::Element> get(const std::string& key);
     std::vector<std::shared_ptr<proto::element::Element>> mget(const std::vector<std::string>& keys);
 
-    void set(const std::string& key, const std::string& value, int64_t ttl = 0);
-    void set(const std::string& key, float value, int64_t ttl = 0);
+    error::Error set(const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& key, float value, int64_t ttl = 0);
 
-    void push(const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
-    void push(const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
+    error::Error push(const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
+    error::Error push(const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
     error::Error incr(const std::string& key, float value, int64_t ttl = 0);
 

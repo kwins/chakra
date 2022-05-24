@@ -9,10 +9,11 @@
 #include "database/db_column_cache.h"
 
 TEST(ColumnDBLRUCache, set) {
-    auto cache = std::make_shared<chakra::database::ColumnDBLRUCache>(200);
+    auto cache = std::make_shared<chakra::database::ColumnDBLRUCache>(20000);
     std::string key1 = "key_1";
     auto element = cache->get(key1);
-    
+    ASSERT_EQ(element, nullptr);
+
     cache->set(element, key1, "value_1");
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);

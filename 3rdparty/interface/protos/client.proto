@@ -4,6 +4,10 @@ package proto.client;
 import "types.proto";
 import "element.proto";
 
+message MultiState {
+  bool value = 1;
+}
+
 message SetMessageRequest {
   string db_name = 1;
   string key = 2;
@@ -19,6 +23,15 @@ message SetMessageRequest {
 
 message SetMessageResponse {
   types.Error error = 1;
+}
+
+message MSetMessageRequest {
+  repeated SetMessageRequest datas = 1;
+}
+
+message MSetMessageResponse {
+  types.Error error = 1;
+  repeated MultiState states = 2;
 }
 
 message GetMessageRequest {
@@ -69,11 +82,33 @@ message MPushMessageRequest {
   repeated PushMessageRequest datas = 1;
 }
 
-message PushState {
-  bool value = 1;
-}
-
 message MPushMessageResponse {
   types.Error error = 1;
-  repeated PushState states = 2;
+  repeated MultiState states = 2;
+}
+
+message IncrMessageRequest {
+  string db_name = 1;
+  string key = 2;
+  element.ElementType type = 3;
+  int64 ttl = 4;
+  oneof Value {
+      string s = 5;
+      float f = 7;
+      element.SS ss = 8;
+      element.FF ff = 10;
+  }
+}
+
+message IncrMessageResponse {
+  types.Error error = 1;
+}
+
+message MIncrMessageRequest {
+  repeated IncrMessageRequest datas = 1;
+}
+
+message MIncrMessageResponse {
+  types.Error error = 1;
+  repeated MultiState states = 2;
 }

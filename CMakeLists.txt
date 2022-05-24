@@ -20,6 +20,7 @@ file(GLOB_RECURSE SERVICE_SRC ${CMAKE_SOURCE_DIR}/src/service/*.cpp)
 file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 file(GLOB_RECURSE ERROR_SRC ${CMAKE_SOURCE_DIR}/src/error/*.cpp)
 file(GLOB_RECURSE CLI_SRC ${CMAKE_SOURCE_DIR}/src/cli/interface/*.cpp)
+file(GLOB_RECURSE TEST_SRC ${CMAKE_SOURCE_DIR}/src/unittest/*.cpp)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
 set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a liblz4.a)
@@ -78,6 +79,7 @@ add_executable(ut src/unittest/ut_main.cpp
         ${NET_SRC}
         ${DATABASE_SRC}
         ${ERROR_SRC}
+        ${TEST_SRC}
         )
 target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src

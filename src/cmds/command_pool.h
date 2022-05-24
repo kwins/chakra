@@ -15,7 +15,6 @@ class CommandPool : public utils::UnCopyable {
 public:
     CommandPool();
     static std::shared_ptr<CommandPool> get();
-    void regCmd(proto::types::Type type, std::shared_ptr<Command> cmd);
     std::shared_ptr<Command> fetch(proto::types::Type type);
 
 private:

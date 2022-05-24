@@ -108,6 +108,7 @@ bool chakra::client::ChakraCluster::clusterChanged() {
 int chakra::client::ChakraCluster::next() { return index.load() == 0 ? 1 : 0; }
 
 void chakra::client::ChakraCluster::close() {
+    if (exitTH.load()) return;
     exitTH.store(true);
     cond.notify_one();
     if (th) th->join();
@@ -195,14 +196,10 @@ chakra::error::Error chakra::client::ChakraCluster::mpush(const proto::client::M
             return futureResponse;
         }));
     }
-    for(int i = 0; i < splited.size(); i++) {
-
-    }
 
     for(auto& future : futures) {
         future.wait();
-        proto::client::MPushMessageResponse subRes = future.get();
-        response.MergeFrom(subRes);
+        response.MergeFrom(future.get());
     }
     return error::Error();
 }

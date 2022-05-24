@@ -52,6 +52,7 @@ public:
     error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
     error::Error mget(const proto::client::MGetMessageRequest& request, proto::client::MGetMessageResponse& response);
     
+    
     void close();
 
 private:
@@ -60,6 +61,7 @@ private:
     void connectBack(std::shared_ptr<net::Connect> conn);
     error::Error executeCmd(const ::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
     std::deque<std::shared_ptr<net::Connect>> conns;
+    int connUsingNumber = 0;
     std::mutex mutex;
 };
 

@@ -30,11 +30,11 @@ public:
     std::shared_ptr<proto::element::Element> get(const std::string& key);
     std::vector<std::shared_ptr<proto::element::Element>> mget(const std::vector<std::string>& keys);
 
-    void set(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::string& value, int64_t ttl = 0, Callback f = defaultCB);
-    void set(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
+    error::Error set(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::string& value, int64_t ttl = 0, Callback f = defaultCB);
+    error::Error set(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
 
-    void push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0, Callback f = defaultCB);
-    void push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<float>& values, int64_t ttl = 0, Callback f = defaultCB);
+    error::Error push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0, Callback f = defaultCB);
+    error::Error push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<float>& values, int64_t ttl = 0, Callback f = defaultCB);
 
     error::Error incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
     

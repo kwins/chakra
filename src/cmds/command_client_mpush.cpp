@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <element.pb.h>
+#include <error/err.h>
 #include <types.pb.h>
 #include <vector>
 
@@ -32,31 +33,38 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
         }
 
         for(auto& sub : mpushMessageRequest.datas()) {
+            auto state = mpushMessageResponse.mutable_states()->Add();
+            state->set_value(true);
             switch (sub.type()) {
             case proto::element::ElementType::STRING:
             {
-                dbptr->push(sub.db_name(), sub.key(), std::vector<std::string>{ sub.s() }, sub.ttl());
+                err = dbptr->push(sub.db_name(), sub.key(), std::vector<std::string>{ sub.s() }, sub.ttl());
                 break;
             }
             case proto::element::ElementType::FLOAT:
             {
-                dbptr->push(sub.db_name(), sub.key(), std::vector<float>{ sub.f() }, sub.ttl());
+                err = dbptr->push(sub.db_name(), sub.key(), std::vector<float>{ sub.f() }, sub.ttl());
                 break;
             }
             case proto::element::ElementType::STRING_ARRAY:
             {
                 std::vector<std::string> values(sub.ss().value().begin(), sub.ss().value().end());
-                dbptr->push(sub.db_name(), sub.key(), values , sub.ttl());
+                err = dbptr->push(sub.db_name(), sub.key(), values , sub.ttl());
                 break;
             }
             case proto::element::ElementType::FLOAT_ARRAY:
             {
                 std::vector<float> values(sub.ff().value().begin(), sub.ff().value().end());
-                dbptr->push(sub.db_name(), sub.key(), values , sub.ttl());
+                err = dbptr->push(sub.db_name(), sub.key(), values , sub.ttl());
                 break;   
             }
             default:
+                err = error::Error("element type error");
                 break;
+            }
+            
+            if (err) {
+                state->set_value(false);
             }
         }
         chakra::net::Packet::serialize(mpushMessageResponse, proto::types::C_MPUSH, cbf);

@@ -32,15 +32,14 @@ public:
     std::unordered_map<std::string, std::vector<std::shared_ptr<proto::element::Element>>> 
     mget(std::unordered_map<std::string, std::vector<std::string>> dbkeys);
     
-    void set(proto::element::Element&& element);
-    void set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
-    void set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
+    error::Error set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
 
-    void push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
-    void push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
+    error::Error push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
+    error::Error push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
     error::Error incr(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
-
+    
     void erase(const std::string& name, const std::string& key);
 
     bool servedDB(const std::string& name);
@@ -63,7 +62,7 @@ public:
 private:
     using ColumnName = std::string;
     using ColumnDBs = typename std::unordered_map<ColumnName, std::shared_ptr<ColumnDB>>;
-
+    error::Error dbnf(const std::string& str);
     std::atomic<int> index;
     std::array<ColumnDBs, 2> columnDBs;
     RestoreDB lastRestore;

@@ -13,7 +13,7 @@
 #include <types.pb.h>
 #include "database/db_object.h"
 
-chakra::client::Chakra::Chakra(Options opts) : options(opts) {
+chakra::client::Chakra::Chakra(Options opts) : options(opts), connUsingNumber(0) {
     chakra::net::Connect::Options connOptions;
     connOptions.host = options.ip;
     connOptions.port = options.port;
@@ -196,17 +196,31 @@ chakra::error::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increa
 
 std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
     std::lock_guard lock(mutex);
-    if (conns.size() == 0) {
+    if (conns.size() == 0 && connUsingNumber >= options.maxConns) {
         throw error::Error("too many client");
     }
+    
+    if (conns.size() == 0) { //  新建一个链接
+        chakra::net::Connect::Options connOptions;
+        connOptions.host = options.ip;
+        connOptions.port = options.port;
+        connOptions.connectTimeOut = options.connectTimeOut;
+        connOptions.readTimeOut = options.readTimeOut;
+        connOptions.writeTimeOut = options.writeTimeOut;
+        auto newc = std::make_shared<net::Connect>(connOptions);
+        conns.push_back(newc);
+    }
+
     auto conn = conns.front();
     conns.pop_front();
+    connUsingNumber++;
     return conn;
 }
 
 void chakra::client::Chakra::connectBack(std::shared_ptr<net::Connect> conn) {
     std::lock_guard lock(mutex);
     conns.push_back(conn);
+    connUsingNumber--;
 }
 
 std::string chakra::client::Chakra::peerName() const { return options.name; }

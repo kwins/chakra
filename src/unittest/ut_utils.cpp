@@ -51,6 +51,10 @@ TEST(Utils, protobuf) {
 
     response.MergeFrom(subRes1);
     response.MergeFrom(subRes2);
-    LOG(INFO) << response.DebugString();
+    ASSERT_EQ(response.datas().size(), 4);
+    ASSERT_EQ(response.datas().at("sub1").value(0).key(), "e1");
+    ASSERT_EQ(response.datas().at("sub2").value(0).key(), "e2");
+    ASSERT_EQ(response.datas().at("sub3").value(0).key(), "e3");
+    ASSERT_EQ(response.datas().at("sub4").value(0).key(), "e4");
 }
 #endif //CHAKRA_UT_UTILS_H

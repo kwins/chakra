@@ -131,9 +131,11 @@ chakra::error::Error chakra::net::Connect::connect() {
         if (errno == EHOSTUNREACH) {
             close();
             return error::Error(strerror(errno));
-        } else if (errno == EINPROGRESS){
-            if (!opts.block){
-                waitConnectReady(toMsec(opts.connectTimeOut));
+        } else if (errno == EINPROGRESS) {
+            if (!opts.block) { // wait for connect timeout
+                auto err = waitConnectReady(toMsec(opts.connectTimeOut));
+                if (err) return err;
+                goto next;
             }
         } else if (errno == EADDRNOTAVAIL) {
             if (++retryTimes >= opts.connectRetrys) {
@@ -145,6 +147,8 @@ chakra::error::Error chakra::net::Connect::connect() {
         }
         return error::Error(strerror(errno));
     }
+    
+    next:
     auto err = setBlock(false);
     if (err)
         return err;
@@ -208,6 +212,8 @@ chakra::error::Error chakra::net::Connect::waitConnectReady(long msec) {
         return error::Error(strerror(errno));;
     }
 
+    //  Returns the number of file descriptors with events, zero if timed out,
+    //  or -1 for errors.
     int res;
     if ((res = poll(wfd, 1, msec)) == -1){
         close();
