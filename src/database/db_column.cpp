@@ -84,7 +84,7 @@ std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const s
             element = std::make_shared<proto::element::Element>();
             element->ParseFromArray(oriVal.data(), oriVal.size());
             cache[i]->set(element->key(), element);
-        } else {
+        } else if (!s.IsNotFound()) {
             LOG(ERROR) << s.ToString();
         }
     }

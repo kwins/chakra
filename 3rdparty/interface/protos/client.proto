@@ -4,8 +4,13 @@ package proto.client;
 import "types.proto";
 import "element.proto";
 
+message StateInfo {
+  bool succ = 1;
+  string errmsg = 2;
+}
+
 message MultiState {
-  bool value = 1;
+  map<string, StateInfo> value = 1;
 }
 
 message SetMessageRequest {
@@ -31,7 +36,8 @@ message MSetMessageRequest {
 
 message MSetMessageResponse {
   types.Error error = 1;
-  repeated MultiState states = 2;
+  // dbname -> keys action state
+  map<string, MultiState> states = 2;
 }
 
 message GetMessageRequest {
@@ -53,11 +59,13 @@ message MGetMessageRequest {
 }
 
 message Elements {
-  repeated element.Element value = 1;
+  // key -> value
+  map<string, element.Element> value = 1;
 }
 
 message MGetMessageResponse {
   types.Error error = 1;
+  // dbname -> elements
   map<string, Elements> datas = 2;
 }
 
@@ -84,7 +92,7 @@ message MPushMessageRequest {
 
 message MPushMessageResponse {
   types.Error error = 1;
-  repeated MultiState states = 2;
+  map<string, MultiState> states = 2;
 }
 
 message IncrMessageRequest {
@@ -110,5 +118,5 @@ message MIncrMessageRequest {
 
 message MIncrMessageResponse {
   types.Error error = 1;
-  repeated MultiState states = 2;
+  map<string, MultiState> states = 2;
 }

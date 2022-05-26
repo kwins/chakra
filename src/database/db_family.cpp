@@ -97,12 +97,13 @@ std::shared_ptr<proto::element::Element> chakra::database::FamilyDB::get(const s
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
+        LOG(INFO) << "db:" << name << " not found";
         return nullptr;
     }
     return it->second->get(key);
 }
 
-std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> chakra::database::FamilyDB::mget(std::unordered_map<std::string,std::vector<std::string>> dbkeys) {
+std::unordered_map<std::string, std::vector<std::shared_ptr<proto::element::Element>>> chakra::database::FamilyDB::mget(std::unordered_map<std::string,std::vector<std::string>> dbkeys) {
     std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> result;
     int pos = index.load();
     for(auto& keys : dbkeys) {

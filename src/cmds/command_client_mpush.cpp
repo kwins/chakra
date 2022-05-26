@@ -33,8 +33,10 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
         }
 
         for(auto& sub : mpushMessageRequest.datas()) {
-            auto state = mpushMessageResponse.mutable_states()->Add();
-            state->set_value(true);
+            auto& state = (*mpushMessageResponse.mutable_states())[sub.db_name()];
+            auto& info = (*state.mutable_value())[sub.key()];
+            info.set_succ(true);
+
             switch (sub.type()) {
             case proto::element::ElementType::STRING:
             {
@@ -64,7 +66,8 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
             }
             
             if (err) {
-                state->set_value(false);
+                info.set_succ(false);
+                info.set_errmsg(err.what());
             }
         }
         chakra::net::Packet::serialize(mpushMessageResponse, proto::types::C_MPUSH, cbf);

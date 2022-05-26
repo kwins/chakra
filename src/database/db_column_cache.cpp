@@ -70,7 +70,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<pro
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::FLOAT) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
+        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT));
     }
 
     if (ttl > 0) {
@@ -92,11 +92,11 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
     if (!element) {
         element = std::make_shared<proto::element::Element>();
         element->set_key(key);
-        element->set_type(::proto::element::ElementType::NF);
+        element->set_type(::proto::element::ElementType::STRING_ARRAY);
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::STRING_ARRAY) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
+        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::STRING_ARRAY));
     }
     
     if (ttl > 0) {
@@ -104,7 +104,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
     } else {
         element->set_expire_time(0);
     }
-    element->set_type(::proto::element::ElementType::STRING_ARRAY);
+    
     for (auto& v : values) {
         element->mutable_ss()->add_value(v);
     }
@@ -120,11 +120,11 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
     if (!element) {
         element = std::make_shared<proto::element::Element>();
         element->set_key(key);
-        element->set_type(::proto::element::ElementType::NF);
+        element->set_type(::proto::element::ElementType::FLOAT_ARRAY);
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::FLOAT_ARRAY) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
+        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT_ARRAY));
     }
 
     if (ttl > 0) {
@@ -132,7 +132,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
     } else {
         element->set_expire_time(0);
     }
-    element->set_type(::proto::element::ElementType::FLOAT_ARRAY);
+    
     for (auto& v : values) {
         element->mutable_ff()->add_value(v);
     }
@@ -152,16 +152,19 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<pr
     if (!element) {
         element = std::make_shared<proto::element::Element>();
         element->set_key(key);
-        element->set_type(::proto::element::ElementType::NF);
+        element->set_type(::proto::element::ElementType::FLOAT);
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
+    } else if (element->type() != proto::element::ElementType::FLOAT) {
+        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT));
     }
+
     if (ttl > 0) {
         element->set_expire_time(element->create_time() + ttl);
     } else {
         element->set_expire_time(0);
     }
-    element->set_type(::proto::element::ElementType::FLOAT);
+    
     element->set_f(element->f() + value);
     
     set(key, element);

@@ -22,8 +22,10 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data,
         chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "empty arguments");
     } else {
         for(auto& sub : msetMessageRequest.datas()) {
-            auto state = msetMessageResponse.mutable_states()->Add();
-            state->set_value(true);
+            auto& state = (*msetMessageResponse.mutable_states())[sub.db_name()];
+            auto& info = (*state.mutable_value())[sub.key()];
+            info.set_succ(true);
+
             switch (sub.type()) {
             case proto::element::ElementType::STRING:
                 err = dbptr->set(sub.db_name(), sub.key(), sub.s(), sub.ttl());
@@ -35,7 +37,8 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data,
                 break;
             }
             if (err) {
-                state->set_value(false);
+                info.set_succ(false);
+                info.set_errmsg(err.what());
             }
         }
     }

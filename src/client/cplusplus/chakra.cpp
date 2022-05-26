@@ -22,17 +22,11 @@ chakra::client::Chakra::Chakra(Options opts) : options(opts), connUsingNumber(0)
     connOptions.writeTimeOut = options.writeTimeOut;
     for (int i = 0; i < options.maxIdleConns; i++) {
         auto conn = std::make_shared<net::Connect>(connOptions);
+        auto err = conn->connect();
+        if (err)
+            throw err;
         conns.push_back(conn);
     }
-}
-
-chakra::error::Error chakra::client::Chakra::connect() {
-    error::Error err;
-    for (auto& conn : conns) {
-        err = conn->connect();
-        if (err) return err;
-    }
-    return err;
 }
 
 chakra::error::Error chakra::client::Chakra::meet(const std::string &ip, int port) {
@@ -85,6 +79,15 @@ chakra::error::Error chakra::client::Chakra::set(const std::string& dbname, cons
     return err;
 }
 
+chakra::error::Error chakra::client::Chakra::mset(const proto::client::MSetMessageRequest& request, proto::client::MSetMessageResponse& response){
+    auto err = executeCmd(request, proto::types::C_MSET, response);
+    if (err) return err;
+    if (response.error().errcode() != 0) {
+        return error::Error(response.error().errmsg());
+    }
+    return err;
+}
+
 chakra::error::Error chakra::client::Chakra::push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response) {
     auto err = executeCmd(request, proto::types::C_PUSH, response);
     if (err) return err;
@@ -95,7 +98,12 @@ chakra::error::Error chakra::client::Chakra::push(const proto::client::PushMessa
 }
 
 chakra::error::Error chakra::client::Chakra::mpush(const proto::client::MPushMessageRequest& request, proto::client::MPushMessageResponse& response) {
-    return executeCmd(request, proto::types::C_MPUSH, response);
+    auto err = executeCmd(request, proto::types::C_MPUSH, response);
+    if (err) return err;
+    if (response.error().errcode() != 0) {
+        return error::Error(response.error().errmsg());
+    }
+    return err;
 }
 
 chakra::error::Error
@@ -208,6 +216,8 @@ std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
         connOptions.readTimeOut = options.readTimeOut;
         connOptions.writeTimeOut = options.writeTimeOut;
         auto newc = std::make_shared<net::Connect>(connOptions);
+        auto err = newc->connect();
+        if (err) throw err;
         conns.push_back(newc);
     }
 

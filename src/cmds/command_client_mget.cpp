@@ -27,15 +27,14 @@ void chakra::cmds::CommandClientMGet::execute(char *req, size_t len, void *data,
 
         auto result = dbptr->mget(dbkeys);
         for(auto& db : result) {
-            auto& datas = (*mGetMessageResponse.mutable_datas());
-            auto& elements = datas[db.first];
+            auto& elements = (*mGetMessageResponse.mutable_datas())[db.first];
             for (int i = 0; i < db.second.size(); i++) {
-                auto added = elements.mutable_value()->Add();
+                auto& element = (*elements.mutable_value())[db.second[i]->key()];
                 if (db.second[i]) { // 只能 copy，不能 move
-                    added->CopyFrom(*db.second[i]);
+                    element.CopyFrom(*db.second[i]);
                 } else { // 结果为空，只设置key
-                    added->set_key(dbkeys.at(db.first).at(i));
-                    added->set_type(::proto::element::ElementType::NF);
+                    element.set_key(dbkeys.at(db.first).at(i));
+                    element.set_type(::proto::element::ElementType::NF);
                 }
             }
         }

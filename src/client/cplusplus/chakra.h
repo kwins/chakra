@@ -36,7 +36,6 @@ public:
     };
 public:
     explicit Chakra(Options opts);
-    error::Error connect();
     std::string peerName() const;
     error::Error meet(const std::string& ip, int port);
     error::Error setdb(const std::string& dbname, int cached);
@@ -45,7 +44,8 @@ public:
 
     error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
     error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
-
+    error::Error mset(const proto::client::MSetMessageRequest& request, proto::client::MSetMessageResponse& response);
+    
     error::Error push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response);
     error::Error mpush(const proto::client::MPushMessageRequest& request, proto::client::MPushMessageResponse& response);
 
