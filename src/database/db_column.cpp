@@ -8,6 +8,8 @@
 #include <error/err.h>
 #include <memory>
 #include <rocksdb/cache.h>
+#include <rocksdb/iterator.h>
+#include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
 #include <zlib.h>
@@ -24,7 +26,7 @@ DECLARE_int64(db_default_cache_bytes);
 
 chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     metaDB = meta;
-    LOG(INFO) << "Create column db meta " << metaDB.DebugString();
+    LOG(INFO) << "[columndb] create meta is " << metaDB.DebugString();
     rocksdb::Options rocksOpts;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
@@ -66,11 +68,11 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
         }
     }
 
-    LOG(INFO) << "Column db " << meta.name() 
+    LOG(INFO) << "[columndb] " << meta.name() 
               << " preheat cache usage " << std::to_string(cacheUsage())
               << " cache size " << size();
     delete iter;
-    LOG(INFO) << "Column db end";
+    LOG(INFO) << "[columndb] end";
 }
 
 std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const std::string &key) {
@@ -183,11 +185,11 @@ chakra::error::Error chakra::database::ColumnDB::restoreDB() {
     rocksdb::BackupEngine* backupEngine;
     std::string backupdir = FLAGS_db_dir + "/" + metaDB.name();
     auto s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), rocksdb::BackupableDBOptions(backupdir), &backupEngine);
-    if (!s.ok()){
+    if (!s.ok()) {
         return error::Error(s.ToString());
     }
     s = backupEngine->CreateNewBackup(self.get());
-    if (!s.ok()){
+    if (!s.ok()) {
         return error::Error(s.ToString());
     }
     delete backupEngine;
@@ -196,11 +198,11 @@ chakra::error::Error chakra::database::ColumnDB::restoreDB() {
     rocksdb::BackupEngineReadOnly* restore;
     std::string restoredir = FLAGS_db_dir + "/" + metaDB.name() + ".backup";
     s = rocksdb::BackupEngineReadOnly::Open(rocksdb::Env::Default(),rocksdb::BackupableDBOptions(restoredir), &restore);
-    if (!s.ok()){
+    if (!s.ok()) {
         return error::Error(s.ToString());
     }
     s = restore->RestoreDBFromLatestBackup(restoredir, restoredir);
-    if (!s.ok()){
+    if (!s.ok()) {
         return error::Error(s.ToString());
     }
     delete restore;
@@ -226,14 +228,10 @@ chakra::error::Error chakra::database::ColumnDB::getUpdateSince(rocksdb::Sequenc
     return error::Error();
 }
 
-chakra::error::Error
-chakra::database::ColumnDB::snapshot(rocksdb::Iterator **iter, rocksdb::SequenceNumber &seq) {
-    auto snapshot = self->GetSnapshot();
-    rocksdb::ReadOptions readOptions;
-    readOptions.snapshot = snapshot;
-    seq = snapshot->GetSequenceNumber();
-    (*iter) = self->NewIterator(readOptions);
-    return error::Error();
+const rocksdb::Snapshot* chakra::database::ColumnDB::snapshot() { return self->GetSnapshot(); }
+void chakra::database::ColumnDB::releaseSnapshot(const rocksdb::Snapshot *snapshot) { self->ReleaseSnapshot(snapshot); }
+rocksdb::Iterator* chakra::database::ColumnDB::iterator(const rocksdb::ReadOptions& readOptions) {
+    return self->NewIterator(readOptions);
 }
 
 rocksdb::SequenceNumber chakra::database::ColumnDB::getLastSeqNumber() {
@@ -251,7 +249,7 @@ chakra::database::ColumnDB::~ColumnDB() {
 
 void chakra::database::ColumnDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
     auto s = full->Put(rocksdb::WriteOptions(), key, value);
-    if (!s.ok()) LOG(ERROR) << "db delta put error " << s.ToString();
+    if (!s.ok()) LOG(ERROR) << "[columndb] delta put error " << s.ToString();
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());
@@ -259,7 +257,7 @@ void chakra::database::ColumnDB::Put(const rocksdb::Slice &key, const rocksdb::S
 
 void chakra::database::ColumnDB::Delete(const rocksdb::Slice &key) {
     auto s = full->Delete(rocksdb::WriteOptions(), key);
-    if (!s.ok()) LOG(ERROR) << "db delta del error " << s.ToString();    
+    if (!s.ok()) LOG(ERROR) << "[columndb] delta del error " << s.ToString();    
     // 淘汰缓存，下次read重新加载
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());

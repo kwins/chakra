@@ -6,27 +6,37 @@
 #define CHAKRA_CHAKRA_H
 #include "database/db_family.h"
 #include "cluster/cluster.h"
+#include <chrono>
+#include <client.pb.h>
+#include <cstddef>
 #include <ev++.h>
 #include "utils/nocopy.h"
 #include <list>
 #include <mutex>
 #include "replica/replica.h"
 #include <condition_variable>
+#include <rocksdb/iterator.h>
+#include <rocksdb/snapshot.h>
+#include <unordered_map>
 #include "net/link.h"
 
-namespace chakra::serv{
+namespace chakra::serv {
 class Chakra : public utils::UnCopyable {
 public:
     struct Worker;
-    struct Link : public chakra::net::Link{ // 在不同的线程中
+    struct Link : public chakra::net::Link {
         explicit Link(int sockfd);
         static void onPeerRead(ev::io& watcher, int event);
         void startEvRead(chakra::serv::Chakra::Worker* worker);
         ~Link();
+        
         int workID = 0;
+        rocksdb::Iterator* iterator = nullptr;
+        size_t lastIteratorTimeSec = 0;
+        proto::client::ScanMessageRequest scanRequest;
     };
 
-    struct Worker{
+    struct Worker {
         void startUp(int id);
         void stop();
         ~Worker();
@@ -56,6 +66,7 @@ private:
     void initLibev();
     std::vector<Worker*> workers = {};
     long connNums = 0;
+    std::unordered_map<std::string, rocksdb::Iterator*> scanLists;
 
     ev::sig sigint;
     ev::sig sigterm;

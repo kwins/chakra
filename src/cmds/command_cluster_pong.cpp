@@ -34,7 +34,7 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
         if (peer) {
             peer->delFlag(cluster::Peer::FLAG_HANDSHAKE);
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
-            LOG(INFO) << "Handshake with peer " << gossip.sender().name() << " completed.";
+            LOG(INFO) << "[cluster] handshake with peer " << gossip.sender().name() << " completed.";
         }
     }
 
@@ -44,10 +44,10 @@ void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data
         if (sender->isPfail() || sender->isFail()) {
             if (sender->isPfail()) {
                 sender->delFlag(cluster::Peer::FLAG_PFAIL);
-                LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
+                LOG(INFO) << "[cluster] NOTE receive PONG from " << sender->getName() <<  " remove PFAIL flag.";
             } else if (sender->isFail()) {
                 sender->delFlag(cluster::Peer::FLAG_FAIL);
-                LOG(INFO) << "*** NOTE receive PONG from " << sender->getName() << " remove FAIL flag.";
+                LOG(INFO) << "[cluster] NOTE receive PONG from " << sender->getName() << " remove FAIL flag.";
             }
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
         }

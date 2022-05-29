@@ -14,8 +14,7 @@
 #include <types.pb.h>
 #include <vector>
 
-void
-chakra::cmds::CommandClientPush::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClientPush::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
     proto::client::PushMessageRequest pushMessageRequest;
     proto::client::PushMessageResponse pushMessageResponse;
     auto dbptr = chakra::database::FamilyDB::get();

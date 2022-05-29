@@ -23,10 +23,9 @@ void chakra::client::ChakraDB::sortPartitions() {
     });
 }
 
-chakra::error::Error
-chakra::client::ChakraDB::get(const std::string &dbname, const std::string &key, proto::element::Element& element, bool hash) {
-    size_t hashed = hash ? ::crc32(0L, (unsigned char*)key.data(), key.size()) : (++count);
-    return partitions.at(hashed % partitions.size())->get(dbname, key, element);
+chakra::error::Error chakra::client::ChakraDB::get(const proto::client::GetMessageRequest& request, proto::client::GetMessageResponse& response, bool hash) {
+    size_t hashed = hash ? ::crc32(0L, (unsigned char*)request.key().data(), request.key().size()) : (++count);
+    return partitions.at(hashed % partitions.size())->get(request, response);
 }
 
 chakra::error::Error chakra::client::ChakraDB::mget(const proto::client::MGetMessageRequest& request, proto::client::MGetMessageResponse& response, int splitN, bool hash) {
@@ -120,14 +119,9 @@ chakra::error::Error chakra::client::ChakraDB::mrrget(const proto::client::MGetM
     return error::Error();
 }
 
-chakra::error::Error chakra::client::ChakraDB::set(const std::string& dbname, const std::string &key, const std::string &value, int64_t ttl) {
-    size_t hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return partitions.at(hashed % partitions.size())->set(dbname, key, value, ttl);
-}
-
-chakra::error::Error chakra::client::ChakraDB::set(const std::string& dbname, const std::string& key, float value, int64_t ttl) {
-    size_t hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return partitions.at(hashed % partitions.size())->set(dbname, key, value, ttl);
+chakra::error::Error chakra::client::ChakraDB::set(const proto::client::SetMessageRequest& request, proto::client::SetMessageResponse& response) {
+    size_t hashed = ::crc32(0L, (unsigned char*)request.key().data(), request.key().size());
+    return partitions.at(hashed % partitions.size())->set(request, response);
 }
 
 chakra::error::Error chakra::client::ChakraDB::mset(const proto::client::MSetMessageRequest& request, proto::client::MSetMessageResponse& response) {
@@ -153,14 +147,24 @@ chakra::error::Error chakra::client::ChakraDB::mset(const proto::client::MSetMes
         }));
     }
 
+    int succ = 0;
     for(auto& future : futures) {
         auto sub = future.get();
         for (auto& state : sub.states()) {
             auto& dbState = (*response.mutable_states())[state.first];
             dbState.MergeFrom(state.second);
+            for (auto& info : state.second.value()) {
+                if (info.second.succ()) succ++;
+            }
         }
     }
-    return error::Error();
+
+    if (succ > 0) return error::Error();
+    
+    auto err = response.mutable_error();
+    err->set_errcode(1);
+    err->set_errmsg("all fail");
+    return error::Error(err->errmsg());
 }
 
 chakra::error::Error chakra::client::ChakraDB::push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response) {
@@ -191,13 +195,74 @@ chakra::error::Error chakra::client::ChakraDB::mpush(const proto::client::MPushM
         }));
     }
 
+    int succ = 0;
     for(auto& future : futures) {
         auto sub = future.get();
         for (auto& state : sub.states()) {
             auto& dbState = (*response.mutable_states())[state.first];
             dbState.MergeFrom(state.second);
+            for (auto& info : state.second.value()) {
+                if (info.second.succ()) succ++;
+            }
         }
     }
-    return error::Error();
+
+    if (succ > 0) return error::Error();
+
+    auto err = response.mutable_error();
+    err->set_errcode(1);
+    err->set_errmsg("all fail");
+    return error::Error(err->errmsg());
 }
 
+chakra::error::Error chakra::client::ChakraDB::scan(const proto::client::ScanMessageRequest& request, proto::client::ScanMessageResponse& response) {
+    return partitions.at((++count) % partitions.size())->scan(request, response);
+}
+
+chakra::error::Error chakra::client::ChakraDB::incr(const proto::client::IncrMessageRequest& request, proto::client::IncrMessageResponse& response) {
+    size_t hashed = ::crc32(0L, (unsigned char*)request.key().data(), request.key().size());
+    return partitions.at(hashed % partitions.size())->incr(request, response);
+}
+
+chakra::error::Error chakra::client::ChakraDB::mincr(const proto::client::MIncrMessageRequest& request, proto::client::MIncrMessageResponse& response) {
+    std::unordered_map<int, proto::client::MIncrMessageRequest> splited;
+    for(auto& sub : request.datas()) {
+        size_t hashed = ::crc32(0L, (unsigned char*)sub.key().data(), sub.key().size());
+        auto& split = splited[hashed % partitions.size()];
+        auto data = split.mutable_datas()->Add();
+        (*data) = std::move(sub);
+    }
+    
+    if (splited.size() == 1) { /* 单个请求，不用另开一个异步 */
+        return partitions.at(splited.begin()->first)->mincr(splited.begin()->second, response);
+    }
+
+    std::vector<std::future<proto::client::MIncrMessageResponse>> futures;
+    for (auto& split : splited) {
+        futures.emplace_back(std::async(std::launch::async,[this, &split](){
+            proto::client::MIncrMessageResponse futureResponse;
+            auto err = partitions.at(split.first)->mincr(split.second, futureResponse);
+            if (err) LOG(ERROR) << err.what();
+            return futureResponse;
+        }));
+    }
+
+    int succ = 0;
+    for(auto& future : futures) {
+        auto sub = future.get();
+        for (auto& state : sub.states()) {
+            auto& dbState = (*response.mutable_states())[state.first];
+            dbState.MergeFrom(state.second);
+            for (auto& info : state.second.value()) {
+                if (info.second.succ()) succ++;
+            }
+        }
+    }
+
+    if (succ > 0) return error::Error();
+    
+    auto err = response.mutable_error();
+    err->set_errcode(1);
+    err->set_errmsg("all fail");
+    return error::Error(err->errmsg());
+}

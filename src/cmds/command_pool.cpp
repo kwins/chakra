@@ -3,7 +3,6 @@
 //
 
 #include "command_pool.h"
-
 #include <memory>
 #include <types.pb.h>
 
@@ -30,7 +29,9 @@
 #include "command_client_mget.h"
 #include "command_client_push.h"
 #include "command_client_mpush.h"
-
+#include "command_client_scan.h"
+#include "command_client_incr.h"
+#include "command_client_mincr.h"
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
@@ -46,12 +47,15 @@ chakra::cmds::CommandPool::CommandPool() {
         { proto::types::P_STATE,      std::make_shared<CommandClusterState>() },
 
         // client
-        { proto::types::C_SET,        std::make_shared<CommandClientSet>() },
-        { proto::types::C_MSET,       std::make_shared<CommandClientMSet>() },
-        { proto::types::C_GET,        std::make_shared<CommandClientGet>() },
-        { proto::types::C_MGET,       std::make_shared<CommandClientMGet>() },
-        { proto::types::C_PUSH,       std::make_shared<CommandClientPush>() },
-        { proto::types::C_MPUSH,      std::make_shared<CommandClientMPush>() },
+        { proto::types::C_SET,          std::make_shared<CommandClientSet>() },
+        { proto::types::C_MSET,         std::make_shared<CommandClientMSet>() },
+        { proto::types::C_GET,          std::make_shared<CommandClientGet>() },
+        { proto::types::C_MGET,         std::make_shared<CommandClientMGet>() },
+        { proto::types::C_PUSH,         std::make_shared<CommandClientPush>() },
+        { proto::types::C_MPUSH,        std::make_shared<CommandClientMPush>() },
+        { proto::types::C_SCAN,         std::make_shared<CommandClientScan>() },
+        { proto::types::C_INCR,         std::make_shared<CommandClientIncr>() },
+        { proto::types::C_MINCR,         std::make_shared<CommandClientMIncr>() },
         
         // replica
         { proto::types::R_PING,           std::make_shared<CommandReplicaPing>() },

@@ -1,5 +1,7 @@
 #ifndef CHAKRA_UT_UTILS_H
 #define CHAKRA_UT_UTILS_H
+#include <cstdlib>
+#include <cstring>
 #include <gtest/gtest.h>
 #include "utils/basic.h"
 #include <glog/logging.h>
@@ -7,8 +9,11 @@
 #include "peer.pb.h"
 #include "error/err.h"
 #include "client.pb.h"
+#include <malloc.h>
 
-TEST(Utils, error) {
+namespace chakra::unitest {
+
+TEST(Utils, case0) {
     chakra::error::Error noerr("");
     chakra::error::FileError ferr("not exist");
     chakra::error::Error& rferr = ferr;
@@ -23,4 +28,5 @@ TEST(Utils, error) {
     ASSERT_EQ((rferr == false), false);
 }
 
+}
 #endif //CHAKRA_UT_UTILS_H

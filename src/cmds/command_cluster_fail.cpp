@@ -13,7 +13,7 @@ void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data
     proto::peer::FailMessage failMessage;
     auto err = chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL);
     if (err) return;
-    LOG(INFO) << "Fail message received " << failMessage.DebugString();
+    LOG(INFO) << "[cluster] fail message received " << failMessage.DebugString();
     auto clsptr = cluster::Cluster::get();
     auto sender = cluster::Cluster::get()->getPeer(failMessage.sender().name());
     if (sender && !sender->isHandShake()) {
@@ -37,10 +37,10 @@ void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data
             failing->setFailTime(utils::Basic::getNowMillSec());
             clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG | cluster::Cluster::FLAG_UPDATE_STATE);
        } else {
-           LOG(INFO) << "Fail message ignored from " << failMessage.sender().name();
+           LOG(INFO) << "[cluster] fail message ignored from " << failMessage.sender().name();
        }
     } else {
-        LOG(WARNING) << "Fail message from unknonw peer " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
+        LOG(WARNING) << "[cluster] message from unknonw peer " << failMessage.sender().name() << " about " << failMessage.fail_peer_name();
     }
 }
 

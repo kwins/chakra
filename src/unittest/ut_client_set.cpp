@@ -1,6 +1,3 @@
-#ifndef CHAKRA_UT_CLIENT_SET_H
-#define CHAKRA_UT_CLIENT_SET_H
-
 #include <client.pb.h>
 #include <element.pb.h>
 #include <gtest/gtest.h>
@@ -9,7 +6,9 @@
 #include <glog/logging.h>
 #include <string>
 
-class ChakraClusterSetTest : public ::testing::Test {
+namespace chakra::unitest {
+
+class ClientSetTest : public ::testing::Test {
 protected:
     void SetUp() override {
         chakra::client::ChakraCluster::Options opts;
@@ -17,27 +16,40 @@ protected:
         cluster = std::make_shared<chakra::client::ChakraCluster>(opts);
     }
     void TearDown() override {}
-    std::string prefixKey(std::string key) { return "mset9_" + key; }
-    void clusterTestSet() {
+    std::string prefixKey(std::string key) { return "set13_" + key; }
+
+    void testClientSetCase0() {
+        proto::client::SetMessageRequest setMessageRequest;
+        proto::client::SetMessageResponse setMessageResponse;
+
+        proto::client::GetMessageRequest getMessageRequest;
+        proto::client::GetMessageResponse getMessageResponse;
         for (int i = 0; i < 10; i++) {
             std::string set_db = "db1";
-            std::string set_key = "key_" + std::to_string(i);
-            std::string set_value = "value_" + std::to_string(i);
-
-            auto err = cluster->set(set_db, prefixKey(set_key), set_value, 200);
+            std::string set_key = prefixKey("set_get_1");
+            std::string set_value = prefixKey("set_get_value_1");
+            
+            setMessageRequest.set_db_name(set_db);
+            setMessageRequest.set_key(set_key);
+            setMessageRequest.set_type(::proto::element::ElementType::STRING);
+            setMessageRequest.set_s( set_value);
+            setMessageRequest.set_ttl(200);
+            auto err = cluster->set(setMessageRequest, setMessageResponse);
             ASSERT_EQ((err == false), true);
-            proto::element::Element element;
-            err = cluster->get(set_db, prefixKey(set_key), element, true);
+
+            getMessageRequest.set_db_name(set_db);
+            getMessageRequest.set_key(set_key);
+            err = cluster->get(getMessageRequest, getMessageResponse, true);
             if (err) LOG(ERROR) << err.what();
 
             ASSERT_EQ((err == false), true);
-            ASSERT_EQ(element.key(), prefixKey(set_key));
-            ASSERT_EQ(element.s(), set_value);
-            ASSERT_EQ(element.type(), proto::element::ElementType::STRING);
+            ASSERT_EQ(getMessageResponse.data().key(), set_key);
+            ASSERT_EQ(getMessageResponse.data().s(), set_value);
+            ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING);
         }
     }
 
-    void clusterTestMSetCase1() {
+    void testClientSetCase1() {
         proto::client::MSetMessageRequest msetMessageRequest;
         auto subSetReq1 = msetMessageRequest.mutable_datas()->Add();
         subSetReq1->set_db_name("db1");
@@ -74,16 +86,16 @@ protected:
         auto it = response.datas().find("db1");
         ASSERT_NE(it, response.datas().end());
         auto k1 = it->second.value().find(prefixKey("key_1"));
-        ASSERT_EQ(k1, it->second.value().end());
+        ASSERT_NE(k1, it->second.value().end());
 
         auto k2 = it->second.value().find(prefixKey("key_2"));
-        ASSERT_EQ(k2, it->second.value().end());
+        ASSERT_NE(k2, it->second.value().end());
 
         auto k3 = it->second.value().find(prefixKey("key_3"));
-        ASSERT_EQ(k3, it->second.value().end());
+        ASSERT_NE(k3, it->second.value().end());
     }
 
-    void clusterTestMSetCase2() {
+    void testClientSetCase3() {
         proto::client::MSetMessageRequest msetMessageRequest;
         int num = 30;
         for (int i = 0; i < num; i++) {
@@ -124,16 +136,16 @@ private:
 };
 
 
-TEST_F(ChakraClusterSetTest, case0) {
-    clusterTestSet();
+TEST_F(ClientSetTest, case0) {
+    testClientSetCase0();
 }
 
-TEST_F(ChakraClusterSetTest, case1) {
-    clusterTestMSetCase1();
+TEST_F(ClientSetTest, case1) {
+    testClientSetCase1();
 }
 
-TEST_F(ChakraClusterSetTest, case2) {
-    clusterTestMSetCase2();
+TEST_F(ClientSetTest, case2) {
+    testClientSetCase3();
 }
 
-#endif // CHAKRA_UT_CLIENT_SET_H
+}

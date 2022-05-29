@@ -73,7 +73,7 @@ void chakra::serv::Chakra::initLibev() {
     sfd = -1;
     auto err = net::Network::tpcListen(FLAGS_server_port ,FLAGS_server_tcp_backlog, sfd);
     if (err) {
-        LOG(ERROR) << "Chakra listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.what();
+        LOG(ERROR) << "[chakra] listen on " << FLAGS_server_ip << ":" << FLAGS_server_port << " " << err.what();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -95,7 +95,7 @@ void chakra::serv::Chakra::initLibev() {
 }
 
 void chakra::serv::Chakra::onSignal(ev::sig & sig, int event) {
-    LOG(INFO) << "Chakra on signal";
+    LOG(INFO) << "[chakra] on signal";
     sig.stop();
     auto serv = static_cast<chakra::serv::Chakra*>(sig.data);
     if (serv)
@@ -107,7 +107,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
     socklen_t slen = sizeof(addr);
     int sockfd = ::accept(watcher.fd, (sockaddr*)&addr, &slen);
     if (sockfd < 0){
-        LOG(ERROR) << "Chakra on accept error" << strerror(errno);
+        LOG(ERROR) << "[chakra] on accept error" << strerror(errno);
         return;
     }
 
@@ -115,7 +115,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
     auto link = new chakra::serv::Chakra::Link(sockfd);
     workers[index]->links.push_back(link);
     workers[index]->async.send();
-    LOG(INFO) << "Chakra accept ok, dispatch connect to work " << index << ", remote addr " << link->conn->remoteAddr();
+    LOG(INFO) << "[chakra] accept ok, dispatch connect to work " << index << ", remote addr " << link->conn->remoteAddr();
 }
 
 void chakra::serv::Chakra::startServCron() {
@@ -149,7 +149,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             info.CopyFrom(db->second);
             info.set_state(proto::peer::MetaDB_State_ONLINE);
             clusptr->updateMyselfDB(info);
-            LOG(INFO) << "Replicate set db " << it.first << " state online to cluster.";
+            LOG(INFO) << "[replication] set db " << it.first << " state online to cluster.";
         }
     }
 
@@ -164,29 +164,26 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
 
             if (replicaptr->replicatedDB(it.second->getName(), pdb.second.name())) continue; /* 过滤已经复制过的DB */
             
-            auto err = replicaptr->setReplicateDB(it.second->getName(), pdb.second.name(), 
-                                it.second->getIp(), it.second->getReplicatePort()); /* 复制新的副本 */
-            if (!err) {
-                LOG(INFO) << "New duplicate online, replicate new db " << pdb.second.name() 
-                    << "(" << it.second->getIp() << ":" << it.second->getReplicatePort() << ") to this node";
-                replicaptr->dumpReplicateStates();
-            } else {
-                LOG(ERROR) << "New duplicate online, replicate new db error " << err.what();
-            }
+            replicaptr->setReplicateDB(it.second->getName(), 
+                pdb.second.name(), it.second->getIp(), it.second->getReplicatePort()); /* 复制新的副本 */
+            
+            replicaptr->dumpReplicateStates(); /* 更新状态 */
+            LOG(INFO) << "[replication] new duplicate online in this node (" 
+                      << pdb.second.name() << "#" << it.second->getIp() << ":" << it.second->getReplicatePort();
         }
     }
     startServCron();
 }
 
 void chakra::serv::Chakra::startUp() const {
-    LOG(INFO) << "Chakra start works " << workNum;
-    LOG(INFO) << "Chakra start and listen on "
+    LOG(INFO) << "[chakra] start works " << workNum;
+    LOG(INFO) << "[chakra] start and listen on "
               << FLAGS_server_ip << ":" << FLAGS_server_port << " success.";
     ev::get_default_loop().loop();
 }
 
 void chakra::serv::Chakra::stop() {
-    LOG(INFO) << "Chakra stop";
+    LOG(INFO) << "[chakra] stop";
     if (sfd != -1) ::close(sfd);
     acceptIO.stop();
     cronIO.stop();
@@ -237,7 +234,7 @@ void chakra::serv::Chakra::Link::onPeerRead(ev::io &watcher, int event) {
     } catch (const error::ConnectClosedError& e1) {
         delete link;
     } catch (const error::Error& e) {
-        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << link->conn->remoteAddr();
+        LOG(ERROR) << "[chakra] i/o error " << e.what();
         delete link;
     }
 }
@@ -248,11 +245,13 @@ void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worke
     rio.start(conn->fd(), ev::READ);
 }
 
-
 chakra::serv::Chakra::Link::~Link() {
     close();
+    if (iterator != nullptr) { 
+        delete iterator;
+        iterator = nullptr;
+    }
 }
-
 
 void chakra::serv::Chakra::Worker::startUp(int id) {
     workID = id;

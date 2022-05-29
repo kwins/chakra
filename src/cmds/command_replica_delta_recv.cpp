@@ -18,11 +18,11 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
     if (err) {
-        LOG(ERROR) << "Replicate delta receive deserialize error " << err.what();
+        LOG(ERROR) << "[replication] delta message deserialize error " << err.what();
     } else if (deltaMessageResponse.error().errcode() != 0){
-        LOG(ERROR) << "Replicate delta receive response error " << deltaMessageResponse.error().errmsg();
+        LOG(ERROR) << "[replication] delta message response error " << deltaMessageResponse.error().errmsg();
     } else {
-        DLOG(INFO) << "Replicate delta receive response " << deltaMessageResponse.DebugString();
+        DLOG(INFO) << "[replication] receive delta response " << deltaMessageResponse.DebugString();
         auto dbptr = database::FamilyDB::get();
         for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
             auto& seq = deltaMessageResponse.seqs(i);
@@ -31,7 +31,7 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
             if (!err) {
                 link->setRocksSeq(deltaMessageResponse.db_name(), seq.seq());
             } else {
-                LOG(ERROR) << "replica delta recv error " << err.what();
+                LOG(ERROR) << "[replication] receive delta error " << err.what();
             }
         }
     }

@@ -61,6 +61,7 @@ message BulkMessage {
   int64 seq = 2; // snapshot 对应的 last seq
   repeated Data kvs = 3;
   string db_name = 4;
+  int64 count = 5; // 到目前位置已经同步了多少个消息，一个 Bulk 包含多个消息
 }
 
 message DeltaMessageRequest {

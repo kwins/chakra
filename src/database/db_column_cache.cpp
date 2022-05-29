@@ -143,10 +143,6 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl, Callback cb) {
-    if (element && element->type() != ::proto::element::ElementType::FLOAT) {
-        return error::Error("incr value type must be float");
-    }
-
     std::unique_lock<std::shared_mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
@@ -166,7 +162,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<pr
     }
     
     element->set_f(element->f() + value);
-    
+
     set(key, element);
 
     cb(element);

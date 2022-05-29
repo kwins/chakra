@@ -13,7 +13,7 @@
 #include <ctime>
 #include <random>
 
-namespace chakra::cluster{
+namespace chakra::cluster {
 using namespace std::chrono;
 
 class Cluster {
@@ -34,9 +34,13 @@ public:
     void stop();
 
     void addPeer(const std::string& ip, int port);
+    // 根据ip port 获取节点信息 
     std::shared_ptr<Peer> getPeer(const std::string& ip, int port);
+    // 根据节点名称获取节点信息
     std::shared_ptr<Peer> getPeer(const std::string& name);
+    // 获取集群中服务dbName的节点
     std::vector<std::shared_ptr<Peer>> getPeers(const std::string& dbName);
+    // 获取所有节点
     std::unordered_map<std::string, std::shared_ptr<Peer>>& getPeers();
 
     size_t size();

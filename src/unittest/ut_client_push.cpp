@@ -1,13 +1,16 @@
 #ifndef CHAKRA_UT_CLIENT_PUSH_H
 #define CHAKRA_UT_CLIENT_PUSH_H
 
+#include <client.pb.h>
 #include <element.pb.h>
 #include <gtest/gtest.h>
 #include <client/cplusplus/chakra_cluster.h>
 #include <memory>
 #include <glog/logging.h>
 
-class ChakraClusterPushTest : public ::testing::Test {
+namespace chakra::unitest {
+
+class ClientPushTest : public ::testing::Test {
 protected:
     void SetUp() override {
         chakra::client::ChakraCluster::Options opts;
@@ -17,9 +20,9 @@ protected:
     void TearDown() override {}
 
     //  方便换key
-    std::string prefixKey(std::string key) { return "4_" + key; }
+    std::string prefixKey(std::string key) { return "7_" + key; }
     
-    void clusterTestMPush() {
+    void clusterPushCase0() {
         proto::client::MPushMessageRequest request;
         proto::client::MPushMessageResponse response;
         auto subReq1 = request.mutable_datas()->Add();
@@ -47,13 +50,13 @@ protected:
         subReq4->set_s("c4");
 
         auto subReq5 = request.mutable_datas()->Add();
-        subReq5->set_db_name("db2");
+        subReq5->set_db_name("db1");
         subReq5->set_key(prefixKey("key_5"));
         subReq5->set_type(::proto::element::ElementType::STRING);
         subReq5->set_s("c5");
 
         auto subReq6 = request.mutable_datas()->Add();
-        subReq6->set_db_name("db2");
+        subReq6->set_db_name("db1");
         subReq6->set_key(prefixKey("key_6"));
         subReq6->set_type(::proto::element::ElementType::STRING);
         subReq6->set_s("c6");
@@ -62,45 +65,59 @@ protected:
         auto err = cluster->mpush(request, 10, response);
         ASSERT_EQ((err == false), true);
 
-        proto::element::Element element;
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        proto::client::GetMessageRequest getMessageRequest;
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_1"));
+        proto::client::GetMessageResponse getMessageResponse;
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
         if (err) LOG(ERROR) << err.what();
-
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c1");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c1");
 
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_2"));
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c2");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c2");
 
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_3"));
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c3");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c3");
 
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_4"));
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c4");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c4");
 
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_5"));
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
+        if (err) LOG(ERROR) << err.what();
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c5");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c5");
 
-        err = cluster->get("db1", prefixKey("key_1"), element);
+        getMessageRequest.set_db_name("db1");
+        getMessageRequest.set_key(prefixKey("key_6"));
+        err = cluster->get(getMessageRequest, getMessageResponse, true);
         ASSERT_EQ((err == false), true);
-        ASSERT_EQ(element.type(), proto::element::ElementType::STRING_ARRAY);
-        ASSERT_EQ(element.ss().value(0), "c6");
+        ASSERT_EQ(getMessageResponse.data().type(), proto::element::ElementType::STRING_ARRAY);
+        ASSERT_EQ(getMessageResponse.data().ss().value(0), "c6");
     }
 private:
     std::shared_ptr<chakra::client::ChakraCluster> cluster;
 };
 
-TEST_F(ChakraClusterPushTest, mpush) {
-    clusterTestMPush();
+TEST_F(ClientPushTest, case0) {
+    clusterPushCase0();
 }
 
+}
 #endif // CHAKRA_UT_CLIENT_PUSH_H

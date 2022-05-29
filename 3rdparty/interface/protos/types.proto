@@ -23,6 +23,7 @@ enum Type {
   C_MPUSH             = 1005;
   C_INCR              = 1006;
   C_MINCR             = 1007;
+  C_SCAN              = 1008;
 
   // replica
   R_PING              = 3001;

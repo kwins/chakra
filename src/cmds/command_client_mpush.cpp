@@ -21,17 +21,7 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
     if (err) {
         chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, err.what());
     } else {
-        for(auto& sub : mpushMessageRequest.datas()) {
-            if (!dbptr->servedDB(sub.db_name())) {
-                chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, "DB " + sub.db_name() + " not exist.");
-                return;
-            }
-            if (sub.key().empty()) {
-                chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, "Request key empty");
-                return;
-            }
-        }
-
+        int fails = 0;
         for(auto& sub : mpushMessageRequest.datas()) {
             auto& state = (*mpushMessageResponse.mutable_states())[sub.db_name()];
             auto& info = (*state.mutable_value())[sub.key()];
@@ -66,9 +56,13 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
             }
             
             if (err) {
+                fails++;
                 info.set_succ(false);
                 info.set_errmsg(err.what());
             }
+        }
+        if (fails > 0 && fails == mpushMessageRequest.datas_size()) {
+            chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, "all fail");
         }
         chakra::net::Packet::serialize(mpushMessageResponse, proto::types::C_MPUSH, cbf);
     }

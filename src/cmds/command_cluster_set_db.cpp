@@ -45,7 +45,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
                 num++;
         }
 
-        if (num > 0 && num == peers.size()) { /* 有这个DB的所有后节点都已经复制了 */
+        if (num > 0 && num == peers.size()) { /* 集群中存在这个DB的所有节点，当前节点都已经复制了 */
             chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "All peers has been served db or down" + dbSetMessage.db().name());
         } else {
             if (!peers.empty()) { /* 因为是多主，所以需要复制所有节点 */
@@ -53,25 +53,21 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
                     if (replicaptr->replicatedDB(peer->getName(), dbSetMessage.db().name()))
                         continue;
                     if (!peer->connected()) continue;
-                    auto err = replicaptr->setReplicateDB(peer->getName(), dbSetMessage.db().name(), 
-                                    peer->getIp(), peer->getReplicatePort());
-                    if (!err) {
-                        LOG(INFO) << "Replicate db " << dbSetMessage.db().name() << " FROM " << peer->getName();
-                    }
+                    replicaptr->setReplicateDB(peer->getName(), 
+                        dbSetMessage.db().name(), peer->getIp(), peer->getReplicatePort());
                 }
                 info.set_state(proto::peer::MetaDB_State_INIT);
             } else { /* 说明是一个新的 DB，需要自己复制自己 */
                 replicaptr->setReplicateDB(myself->getName(), dbSetMessage.db().name(), 
                             myself->getIp(), myself->getReplicatePort());
                 info.set_state(proto::peer::MetaDB_State_ONLINE);
-                LOG(INFO) << "Replicate db " << dbSetMessage.db().name() << " FROM myself " << myself->getName();
+                LOG(INFO) << "[cluster] replicate db " << dbSetMessage.db().name() << " FROM myself " << myself->getName();
             }
 
             dbptr->addDB(info.name(), info.cached());
             clsptr->updateMyselfDB(info); /* 更新集群信息 */
             replicaptr->dumpReplicateStates(); /* 更新复制信息 */
-            LOG(INFO) << "Cluster set db " << dbSetMessage.db().name()
-                    << " state " << proto::peer::MetaDB_State_Name(info.state());
+            LOG(INFO) << "[cluster] set db " << dbSetMessage.db().name() << " state " << proto::peer::MetaDB_State_Name(info.state());
         }
     }
     chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);

@@ -21,6 +21,7 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data,
     } else if (msetMessageRequest.datas().size() == 0) {
         chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "empty arguments");
     } else {
+        int fails = 0;
         for(auto& sub : msetMessageRequest.datas()) {
             auto& state = (*msetMessageResponse.mutable_states())[sub.db_name()];
             auto& info = (*state.mutable_value())[sub.key()];
@@ -32,14 +33,19 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data,
                 break;
             case proto::element::ElementType::FLOAT:
                 err = dbptr->set(sub.db_name(), sub.key(), sub.f(), sub.ttl());
+                break;
             default:
                 err = error::Error("set command only supprt string and float type");
                 break;
             }
             if (err) {
+                fails++;
                 info.set_succ(false);
                 info.set_errmsg(err.what());
             }
+        }
+        if (fails > 0 && fails == msetMessageRequest.datas_size()) {
+            chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "all fail");
         }
     }
     chakra::net::Packet::serialize(msetMessageResponse, proto::types::C_MSET, cbf);

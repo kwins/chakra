@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <arpa/inet.h>
+#include <cstddef>
 #include <error/err.h>
 #include <sys/socket.h>
 #include <poll.h>
@@ -63,6 +64,13 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
 }
 
 void chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
+    if (bufFree == 0 && bufLen == bufSize) { /* 包体大于buf，重分配为原来的两倍 */
+        size_t reallocSize = bufSize * 2; 
+        buf = (char*)::realloc((void*)buf, reallocSize);
+        bufFree = reallocSize - bufSize;
+        bufSize = reallocSize;
+    };
+
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0) {
         throw error::ConnectClosedError("connect closed");

@@ -1,7 +1,3 @@
-//
-// Created by kwins on 2021/9/2.
-//
-
 #include "command_client_get.h"
 #include "client.pb.h"
 #include "net/packet.h"

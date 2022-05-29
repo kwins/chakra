@@ -46,8 +46,11 @@ public:
     error::Error restoreDB();
     RestoreDB getLastRestoreDB();
     error::Error getUpdateSince(rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
-    // 获取 db 的一个快照 和 快照对应增量 seq
-    error::Error snapshot(rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
+    // 获取 DB 的一个快照
+    const rocksdb::Snapshot* snapshot();
+    void releaseSnapshot(const rocksdb::Snapshot *snapshot);
+    // 获取 DB 快照的迭代器
+    rocksdb::Iterator* iterator(const rocksdb::ReadOptions& readOptions);
     rocksdb::SequenceNumber getLastSeqNumber();
 
     ~ColumnDB() override;

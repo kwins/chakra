@@ -8,6 +8,8 @@
 #include <memory>
 #include "database/db_column_cache.h"
 
+namespace chakra::unitest {
+
 TEST(ColumnDBLRUCache, set) {
     auto cache = std::make_shared<chakra::database::ColumnDBLRUCache>(20000);
     std::string key1 = "key_1";
@@ -31,4 +33,5 @@ TEST(ColumnDBLRUCache, set) {
     ASSERT_EQ((err == true), true);
 }
 
+}
 #endif // CHAKRA_UT_CACHE_H
