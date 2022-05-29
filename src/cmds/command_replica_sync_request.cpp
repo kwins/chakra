@@ -19,15 +19,14 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, syncMessageRequest, proto::types::R_SYNC_REQUEST);
     if (err) {
-        chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, err.what());
+        chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), 1, err.what());
     } else if (syncMessageRequest.db_name().empty()) {
-        chakra::net::Packet::fillError(*syncMessageResponse.mutable_error(), 1, "db name empty");
+        chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), 1, "db name empty");
     } else {
-        LOG(INFO) << "Replicate request: " << syncMessageRequest.DebugString();
+        LOG(INFO) << "[replication] sync request: " << syncMessageRequest.DebugString();
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
         syncMessageResponse.set_seq(syncMessageRequest.seq());
-        
-        if (syncMessageRequest.seq() > 0){ /* 增量同步, 如果请求的 seq 已经过期，则需要全量同步 */
+        if (syncMessageRequest.seq() > 0) { /* 增量同步, 如果请求的 seq 已经过期，则需要全量同步 */
             std::unique_ptr<rocksdb::TransactionLogIterator> iter;
             err = dbptr->getUpdateSince(syncMessageRequest.db_name(), syncMessageRequest.seq(), &iter);
             if (err) {
@@ -47,7 +46,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
         }
     }
     
-    LOG(INFO) << "sync response: " << syncMessageResponse.DebugString();
+    LOG(INFO) << "[replication] sync response: " << syncMessageResponse.DebugString();
     chakra::net::Packet::serialize(syncMessageResponse, proto::types::R_SYNC_RESPONSE, cbf);
 }
 
@@ -58,7 +57,7 @@ void chakra::cmds::CommandReplicaSyncRequest::fullSync(chakra::replica::Replicat
     rocksdb::SequenceNumber lastSeq;
     auto err = link->snapshotDB(request.db_name(), lastSeq);
     if (err) {
-        chakra::net::Packet::fillError(*response.mutable_error(), 1, err.what());
+        chakra::net::Packet::fillError(response.mutable_error(), 1, err.what());
     } else {
         response.set_psync_type(proto::types::R_FULLSYNC);
         response.set_seq(lastSeq);

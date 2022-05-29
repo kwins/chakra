@@ -46,27 +46,24 @@ public:
     error::Error meet(const std::string& ip, int port);
     error::Error setdb(const std::string& nodename, const std::string& dbname, int cached);
 
-    error::Error get(const std::string& dbname, const std::string& key, proto::element::Element& element);
-    error::Error mget(const proto::client::MGetMessageRequest& request, int splitN, proto::client::MGetMessageResponse& response);
+    error::Error get(const proto::client::GetMessageRequest& request, proto::client::GetMessageResponse& response, bool hash = false);
+    error::Error mget(const proto::client::MGetMessageRequest& request, proto::client::MGetMessageResponse& response, int splitN = 20, bool hash = false);
 
-    error::Error set(const std::string& dbname, const std::string& key, const std::string& value, int64_t ttl = 0);
-    error::Error set(const std::string& dbname, const std::string& key, float value, int64_t ttl = 0);
-
+    error::Error set(const proto::client::SetMessageRequest& request, proto::client::SetMessageResponse& response);
+    error::Error mset(const proto::client::MSetMessageRequest& request, proto::client::MSetMessageResponse& response);
+    
     error::Error push(const proto::client::PushMessageRequest& request, proto::client::PushMessageResponse& response);
     error::Error mpush(const proto::client::MPushMessageRequest& request, int splitN, proto::client::MPushMessageResponse& response);
-    void close();
+    
+    error::Error scan(const proto::client::ScanMessageRequest& request, proto::client::ScanMessageResponse& response);
 
+    error::Error incr(const proto::client::IncrMessageRequest& request, proto::client::IncrMessageResponse& response);
+    error::Error mincr(const proto::client::MIncrMessageRequest& request, proto::client::MIncrMessageResponse& response);
+    void close();
 private:
     int next();
     bool clusterChanged();
     error::Error dbnf(const std::string& dbname);
-
-    using MGetSplitedRequest = std::vector<std::pair<std::shared_ptr<client::ChakraDB>, proto::client::MGetMessageRequest>>;
-    chakra::client::ChakraCluster::MGetSplitedRequest splitMGetRequest(const proto::client::MGetMessageRequest& request, int splitN);
-    
-    using MPushSplitedRequest = std::unordered_map<std::shared_ptr<client::ChakraDB>, proto::client::MPushMessageRequest>;
-    chakra::client::ChakraCluster::MPushSplitedRequest splitMPushRequest(const proto::client::MPushMessageRequest& request, int splitN);
-
     Options options;
     std::atomic<int> index;
     std::array<Clients, 2> clusterConns; /* 维护所有节点的连接 */

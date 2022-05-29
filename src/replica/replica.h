@@ -5,7 +5,10 @@
 #ifndef CHAKRA_REPLICA_H
 #define CHAKRA_REPLICA_H
 
+#include <cstddef>
+#include <cstdint>
 #include <ev++.h>
+#include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
 #include <array>
@@ -29,40 +32,42 @@ public:
     class Link : public chakra::net::Link , std::enable_shared_from_this<Link>{
     public:
         enum Type {
-            NEGATIVE = 1,
-            POSITIVE = 2,
+            NEGATIVE = 1,               /* server side */
+            POSITIVE = 2,               /* client side */
         };
 
         enum class State {
-            CONNECT = 1,       // 初始连接
-            CONNECTING,        // socket建立完成，准备接收或发送PING
-            CONNECTED,         // 首次全量同步已经完成
+            CONNECT = 1,                // 初始连接
+            CONNECTING,                 // socket建立完成，准备接收或发送PING
+            CONNECTED,                  // 首次全量同步已经完成
 
-            REPLICA_INIT,              // ReplicateDB INIT
-            REPLICA_TRANSFORING,       // 全量同步中
-            REPLICA_TRANSFORED,        // 全量同步完成
+            REPLICA_INIT,               // ReplicateDB INIT
+            REPLICA_TRANSFORING,        // 全量同步中
+            REPLICA_TRANSFORED,         // 全量同步完成
         };
 
-        struct ReplicateDB { /* 复制的DB信息*/
-            void startPullDelta(); // 触发拉取增量数据
-            void onPullDelta(ev::timer& watcher, int event); // 执行增量拉取
+        struct ReplicateDB {                                    /* 复制的DB信息*/
+            void startPullDelta();                              // 触发拉取增量数据
+            void onPullDelta(ev::timer& watcher, int event);    // 执行增量拉取
 
-            void startSendBulk(); // 触发全量复制
-            void onSendBulk(ev::timer& watcher, int event); // 执行全量复制
+            void startSendBulk();                               // 触发全量复制
+            void onSendBulk(ev::timer& watcher, int event);     // 执行全量复制
 
-            void reset(); // 清空所有成员配置
-            void close(); // 关闭当前正在进行的任务，成员信息保持不变
+            void reset();                                       // 清空所有成员配置
+            void close();                                       // 关闭当前正在进行的任务，成员信息保持不变
             ~ReplicateDB();
 
-            std::string name; /* DB name */
+            std::string name;                                   /* DB name */
             long lastTransferMs = 0;
-            long lastTryReSyncMs = 0;
-            State state = State::REPLICA_INIT; /* 复制状态 */
-            rocksdb::SequenceNumber deltaSeq = 0; /* 增量同步使用 */
+            long lastTryReSyncMs = 0;                           /* 客户端上次发起同步请求时间 */
+            State state = State::REPLICA_INIT;                  /* 复制状态 */
+            rocksdb::SequenceNumber deltaSeq = 0;               /* 增量同步使用 */
 
             ev::timer deltaIO;
             ev::timer transferIO;
-            rocksdb::Iterator* bulkiter = nullptr; /* 全量同步使用 */
+            rocksdb::Iterator* bulkiter = nullptr;              /* 全量同步使用 */
+            size_t itsize = 0;                                  /* 记录同步时传输数据个数 */
+            const rocksdb::Snapshot* snapshot = nullptr;        /* 全量同步使用 */
             Link* link = nullptr;
         };
         
@@ -138,7 +143,7 @@ public:
     static std::shared_ptr<Replicate> get();
     // 检查当前节点是否已经复制了节点为 peername DB为 dbname的数据
     bool replicatedDB(const std::string& peername, const std::string &dbname);
-    error::Error setReplicateDB(const std::string& peername, const std::string &dbname, const std::string& ip, int port);
+    void setReplicateDB(const std::string& peername, const std::string &dbname, const std::string& ip, int port);
     void startReplicaCron();
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicateStates();

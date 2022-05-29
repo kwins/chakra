@@ -1,4 +1,5 @@
 #include "command_set.h"
+#include <client.pb.h>
 
 DECLARE_string(set_db);
 DECLARE_string(set_key);
@@ -18,18 +19,28 @@ void chakra::cli::CommandSet::execute(std::shared_ptr<chakra::client::ChakraClus
         }
     }
     
+    proto::client::SetMessageRequest setMessageRequest;
+    setMessageRequest.set_db_name(FLAGS_set_db);
+    setMessageRequest.set_key(FLAGS_set_key);
+    setMessageRequest.set_ttl(FLAGS_set_ttl);
+
+    proto::client::SetMessageResponse setMessageResponse;
     error::Error err;
     if (count == value.size() && dot <= 1) {
         int pos = value.find('.');
+        float v = 0;
         if (pos > 0) { // float
-            float f = std::atof(value.c_str());
-            err = cluster->set(FLAGS_set_db, FLAGS_set_key, f, FLAGS_set_ttl);
+            v = std::atof(value.c_str());
         } else { // int
-            int64_t i = std::atoi(value.c_str());
-            err = cluster->set(FLAGS_set_db, FLAGS_set_key, i, FLAGS_set_ttl);
+            v = std::atoi(value.c_str());
         }
+        setMessageRequest.set_f(v);
+        setMessageRequest.set_type(::proto::element::ElementType::FLOAT);
+        err = cluster->set(setMessageRequest, setMessageResponse);
     } else {
-        err = cluster->set(FLAGS_set_db,FLAGS_set_key, value, FLAGS_set_ttl);
+        setMessageRequest.set_s(value);
+        setMessageRequest.set_type(::proto::element::ElementType::STRING);
+        err = cluster->set(setMessageRequest, setMessageResponse);
     }
     if (err) LOG(ERROR) << err.what();
 }

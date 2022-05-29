@@ -9,6 +9,7 @@
 #include <element.pb.h>
 #include <error/err.h>
 #include <memory>
+#include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -32,27 +33,28 @@ public:
     std::unordered_map<std::string, std::vector<std::shared_ptr<proto::element::Element>>> 
     mget(std::unordered_map<std::string, std::vector<std::string>> dbkeys);
     
-    void set(proto::element::Element&& element);
-    void set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
-    void set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
+    error::Error set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl = 0);
+    error::Error set(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
 
-    void push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
-    void push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
+    error::Error push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl = 0);
+    error::Error push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl = 0);
 
     error::Error incr(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
-
+    
     void erase(const std::string& name, const std::string& key);
 
     bool servedDB(const std::string& name);
-    error::Error getMetaDB(const std::string& dbname,proto::peer::MetaDB& meta);
+    error::Error getMetaDB(const std::string& name,proto::peer::MetaDB& meta);
     void addDB(const std::string& name, size_t cached);
     void addDB(const std::string& name, size_t blocktSize, size_t blocktCapacity);
     void dropDB(const std::string& name);
     error::Error restoreDB(const std::string& name);
     RestoreDB getLastRestoreDB();
     error::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
-    // 获取 db 的一个快照 和 快照对应增量 seq
-    error::Error snapshot(const std::string& name, rocksdb::Iterator** iter, rocksdb::SequenceNumber& seq);
+    // 获取 db 的一个快照
+    const rocksdb::Snapshot* snapshot(const std::string& name);
+    void releaseSnapshot(const std::string &name, const rocksdb::Snapshot *snapshot);
+    rocksdb::Iterator* iterator(const std::string &name, const rocksdb::ReadOptions& readOptions);
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
 
@@ -63,7 +65,7 @@ public:
 private:
     using ColumnName = std::string;
     using ColumnDBs = typename std::unordered_map<ColumnName, std::shared_ptr<ColumnDB>>;
-
+    error::Error dbnf(const std::string& str);
     std::atomic<int> index;
     std::array<ColumnDBs, 2> columnDBs;
     RestoreDB lastRestore;

@@ -46,7 +46,7 @@ bool chakra::cluster::Peer::connect() {
         link = nullptr; // ~Link
         if (!retryLinkTime)
             retryLinkTime = utils::Basic::getNowMillSec();
-        LOG(ERROR) << "Connect peer " << getName()
+        LOG(ERROR) << "[cluster] connect peer " << getName()
                    << "[" << ip + ":" << port << "]"
                    <<" retry time " << retryLinkTime << " error " << e.what();
         return false;
@@ -90,7 +90,7 @@ void chakra::cluster::Peer::addFailReport(const std::shared_ptr<Peer>& sender) {
     auto it = failReports.find(sender->getName());
     if (it != failReports.end()){
         it->second->time = utils::Basic::getNowMillSec();
-        LOG(INFO) << "sender " << sender->getName() << " already in fail reports, just update report time.";
+        LOG(INFO) << "[cluster] sender " << sender->getName() << " already in fail reports, just update report time.";
     } else{
         std::shared_ptr<FailReport> report = std::make_shared<FailReport>();
         report->peer = sender;
@@ -190,7 +190,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
         onReadError();
     } catch (const error::Error& e) {
         onReadError();
-        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << conn->remoteAddr();
+        LOG(ERROR) << "[cluster] i/o error " << e.what();
     }
 }
 
@@ -213,20 +213,7 @@ void chakra::cluster::Peer::updateSelf(const proto::peer::GossipSender &sender) 
     }
 }
 
-// void chakra::cluster::Peer::stateDesc(proto::peer::PeerState &peerState) {
-//     peerState.set_flag(getFg());
-//     peerState.set_ip(getIp());
-//     peerState.set_port(getPort());
-//     peerState.set_name(getName());
-//     peerState.set_epoch(getEpoch());
-//     for(auto& it : dbs){
-//         auto db = peerState.mutable_dbs()->Add();
-//         db->CopyFrom(it.second);
-//     }
-// }
-
 chakra::cluster::Peer::Link::~Link() {
-    DLOG(INFO) << "chakra::cluster::Peer::Link::~Link";
     close();
     if (reletedPeer) reletedPeer = nullptr;
 }

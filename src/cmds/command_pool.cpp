@@ -3,7 +3,6 @@
 //
 
 #include "command_pool.h"
-
 #include <memory>
 #include <types.pb.h>
 
@@ -25,41 +24,50 @@
 #include "command_replica_recv_bulk.h"
 
 #include "command_client_set.h"
+#include "command_client_mset.h"
 #include "command_client_get.h"
 #include "command_client_mget.h"
 #include "command_client_push.h"
 #include "command_client_mpush.h"
+#include "command_client_scan.h"
+#include "command_client_incr.h"
+#include "command_client_mincr.h"
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
-    // cluster
-    regCmd(proto::types::P_PING, std::make_shared<CommandClusterPing>());
-    regCmd(proto::types::P_MEET, std::make_shared<CommandClusterMeet>());
-    regCmd(proto::types::P_MEET_PEER, std::make_shared<CommandClusterMeetPeer>());
-    regCmd(proto::types::P_PONG, std::make_shared<CommandClusterPong>());
-    regCmd(proto::types::P_FAIL, std::make_shared<CommandClusterFail>());
-    regCmd(proto::types::P_SET_EPOCH, std::make_shared<CommandClusterSetEpoch>());
-    regCmd(proto::types::P_SET_DB, std::make_shared<CommandClusterSetDB>());
-    regCmd(proto::types::P_STATE, std::make_shared<CommandClusterState>());
+    cmds = {
+        // cluster
+        { proto::types::P_PING,       std::make_shared<CommandClusterPing>() },
+        { proto::types::P_MEET,       std::make_shared<CommandClusterMeet>() },
+        { proto::types::P_MEET_PEER,  std::make_shared<CommandClusterMeetPeer>() },
+        { proto::types::P_PONG,       std::make_shared<CommandClusterPong>() },
+        { proto::types::P_FAIL,       std::make_shared<CommandClusterFail>() },
+        { proto::types::P_SET_EPOCH,  std::make_shared<CommandClusterSetEpoch>() },
+        { proto::types::P_SET_DB,     std::make_shared<CommandClusterSetDB>() },
+        { proto::types::P_STATE,      std::make_shared<CommandClusterState>() },
 
-    // client
-    regCmd(proto::types::C_SET, std::make_shared<CommandClientSet>());
-    regCmd(proto::types::C_GET, std::make_shared<CommandClientGet>());
-    regCmd(proto::types::C_MGET, std::make_shared<CommandClientMGet>());
-    regCmd(proto::types::C_PUSH, std::make_shared<CommandClientPush>());
-    regCmd(proto::types::C_MPUSH, std::make_shared<CommandClientMPush>());
-    // replica
-    regCmd(proto::types::R_PING, std::make_shared<CommandReplicaPing>());
-    regCmd(proto::types::R_PONG, std::make_shared<CommandReplicaPong>());
-    regCmd(proto::types::R_HEARTBEAT, std::make_shared<CommandReplicaHeartbeat>());
-    regCmd(proto::types::R_DELTA_REQUEST, std::make_shared<CommandReplicaDeltaPull>());
-    regCmd(proto::types::R_DELTA_RESPONSE, std::make_shared<CommandReplicaDeltaRecv>());
-    regCmd(proto::types::R_BULK, std::make_shared<CommandReplicaRecvBulk>());
-    regCmd(proto::types::R_SYNC_REQUEST, std::make_shared<CommandReplicaSyncRequest>());
-    regCmd(proto::types::R_SYNC_RESPONSE, std::make_shared<CommandReplicaSyncResponse>());
+        // client
+        { proto::types::C_SET,          std::make_shared<CommandClientSet>() },
+        { proto::types::C_MSET,         std::make_shared<CommandClientMSet>() },
+        { proto::types::C_GET,          std::make_shared<CommandClientGet>() },
+        { proto::types::C_MGET,         std::make_shared<CommandClientMGet>() },
+        { proto::types::C_PUSH,         std::make_shared<CommandClientPush>() },
+        { proto::types::C_MPUSH,        std::make_shared<CommandClientMPush>() },
+        { proto::types::C_SCAN,         std::make_shared<CommandClientScan>() },
+        { proto::types::C_INCR,         std::make_shared<CommandClientIncr>() },
+        { proto::types::C_MINCR,         std::make_shared<CommandClientMIncr>() },
+        
+        // replica
+        { proto::types::R_PING,           std::make_shared<CommandReplicaPing>() },
+        { proto::types::R_PONG,           std::make_shared<CommandReplicaPong>() },
+        { proto::types::R_HEARTBEAT,      std::make_shared<CommandReplicaHeartbeat>() },
+        { proto::types::R_DELTA_REQUEST,  std::make_shared<CommandReplicaDeltaPull>() },
+        { proto::types::R_DELTA_RESPONSE, std::make_shared<CommandReplicaDeltaRecv>() },
+        { proto::types::R_BULK,           std::make_shared<CommandReplicaRecvBulk>() },
+        { proto::types::R_SYNC_REQUEST,   std::make_shared<CommandReplicaSyncRequest>() },
+        { proto::types::R_SYNC_RESPONSE,  std::make_shared<CommandReplicaSyncResponse>() },
+    };
 }
-
-void chakra::cmds::CommandPool::regCmd(proto::types::Type type, std::shared_ptr<Command> cmd) { cmds.emplace(type, cmd); }
 
 std::shared_ptr<chakra::cmds::Command> chakra::cmds::CommandPool::fetch(proto::types::Type type) {
     auto it = cmds.find(type);

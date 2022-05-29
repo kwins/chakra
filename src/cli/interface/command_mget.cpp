@@ -28,7 +28,7 @@ void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraClu
 
     LOG(INFO) << "request: " << request.DebugString();
     proto::client::MGetMessageResponse response;
-    auto err = cluster->mget(request, FLAGS_mget_split_n, response);
+    auto err = cluster->mget(request, response, FLAGS_mget_split_n);
     if (err) LOG(ERROR) << err.what();
     else LOG(INFO) << "response: " << response.DebugString();
 }

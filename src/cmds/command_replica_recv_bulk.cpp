@@ -17,13 +17,15 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
     proto::replica::BulkMessage bulkMessage;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, bulkMessage, proto::types::R_BULK);
     if (err) {
-        LOG(ERROR) << "Replicate recv bulk deserialize error " << err.what();
+        LOG(ERROR) << "[replication] bulk message deserialize error " << err.what();
     } else if (link->getState() != chakra::replica::Replicate::Link::State::CONNECTED) {
         LOG(WARNING) << "Replicate link state not connected when recv bulk(" << (int)link->getState() << ")";
     } else {
         auto replicateDB = link->getReplicateDB(bulkMessage.db_name());
         if (!replicateDB) {
-            LOG(ERROR) << "Replicate receive bulk message db " << bulkMessage.db_name() << " not found in server.";
+            LOG(ERROR) << "[replication] bulk message db " << bulkMessage.db_name() << " not found in server.";
+        } else if (replicateDB->state != chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING) {
+            LOG(ERROR) << "[replication] state not REPLICA_TRANSFORING";
         } else {
             link->setLastInteractionMs(utils::Basic::getNowMillSec());
             replicateDB->lastTransferMs = link->getLastInteractionMs();
@@ -36,18 +38,24 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
                 err = dbptr->rocksWriteBulk(bulkMessage.db_name(), batch);
                 if (err) {
                     LOG(ERROR) << err.what();
-                    link->close();
+                    replicateDB->reset();
                     return;
                 }
             }
-            
-            if (bulkMessage.end()) {
+
+            replicateDB->itsize += bulkMessage.kvs_size();
+            if (!bulkMessage.end()) return;
+
+            // 全量同步结束
+            if (replicateDB->itsize == bulkMessage.count()) {
                 replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
                 replicateDB->deltaSeq = bulkMessage.seq();
                 replica::Replicate::get()->dumpReplicateStates();
                 replicateDB->startPullDelta(); // 触发 pull delta
-                LOG(INFO) << "Replicate full  db " << bulkMessage.db_name() 
-                          << " from " << link->getPeerName() << " finished and start pull delta.";
+                LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
+                          << link->getPeerName() << " success(" << bulkMessage.count() << ") and start pull delta.";
+            } else {
+                replicateDB->reset();
             }
         }
     }

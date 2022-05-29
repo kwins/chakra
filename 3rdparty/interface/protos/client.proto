@@ -4,6 +4,15 @@ package proto.client;
 import "types.proto";
 import "element.proto";
 
+message StateInfo {
+  bool succ = 1;
+  string errmsg = 2;
+}
+
+message MultiState {
+  map<string, StateInfo> value = 1;
+}
+
 message SetMessageRequest {
   string db_name = 1;
   string key = 2;
@@ -19,6 +28,16 @@ message SetMessageRequest {
 
 message SetMessageResponse {
   types.Error error = 1;
+}
+
+message MSetMessageRequest {
+  repeated SetMessageRequest datas = 1;
+}
+
+message MSetMessageResponse {
+  types.Error error = 1;
+  // dbname -> keys action state
+  map<string, MultiState> states = 2;
 }
 
 message GetMessageRequest {
@@ -40,11 +59,13 @@ message MGetMessageRequest {
 }
 
 message Elements {
-  repeated element.Element value = 1;
+  // key -> value
+  map<string, element.Element> value = 1;
 }
 
 message MGetMessageResponse {
   types.Error error = 1;
+  // dbname -> elements
   map<string, Elements> datas = 2;
 }
 
@@ -69,11 +90,47 @@ message MPushMessageRequest {
   repeated PushMessageRequest datas = 1;
 }
 
-message PushState {
-  bool value = 1;
-}
-
 message MPushMessageResponse {
   types.Error error = 1;
-  repeated PushState states = 2;
+  map<string, MultiState> states = 2;
+}
+
+message IncrMessageRequest {
+  string db_name = 1;
+  string key = 2;
+  element.ElementType type = 3;
+  int64 ttl = 4;
+  oneof Value {
+      string s = 5;
+      float f = 7;
+      element.SS ss = 8;
+      element.FF ff = 10;
+  }
+}
+
+message IncrMessageResponse {
+  types.Error error = 1;
+}
+
+message MIncrMessageRequest {
+  repeated IncrMessageRequest datas = 1;
+}
+
+message MIncrMessageResponse {
+  types.Error error = 1;
+  map<string, MultiState> states = 2;
+}
+
+message ScanMessageRequest {
+  string dbname = 1;
+  string start = 2;     /* 从某个key开始 */
+  int64 batch_size = 3; /* 每次 scan 个数 */
+  string peername = 4;  /* 首次 scan 无需填写，再次 scan 需要填写第一次 scan 节点，保证 scan 的一致性 */
+}
+
+message ScanMessageResponse {
+  types.Error error = 1;
+  repeated element.Element elements = 2;
+  string peername = 3;  /* 下次 scan 的节点，再次请求需要带上 */
+  bool end = 4;         /* 是否结束 */
 }

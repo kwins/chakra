@@ -4,6 +4,9 @@
 
 #include "replica.h"
 
+#include <exception>
+#include <rocksdb/options.h>
+#include <rocksdb/snapshot.h>
 #include <thread>
 #include <glog/logging.h>
 #include <netinet/in.h>
@@ -33,20 +36,20 @@ DECLARE_int64(replica_bulk_batch_bytes);
 DECLARE_int64(replica_last_try_resync_timeout_ms);
 
 chakra::replica::Replicate::Replicate() {
-    LOG(INFO) << "Replicate init";
+    LOG(INFO) << "[replication] init";
     loadLastStateDB(); // 加载配置数据
     int port = FLAGS_cluster_port + 1;
     auto err = net::Network::tpcListen(port, FLAGS_replica_tcp_back_log, sfd);
     if (err) {
-        LOG(ERROR) << "Replicate listen on " << port 
-                    << " error " << err.what();
+        LOG(ERROR) << "[replication] listen on " << port << " error " << err.what();
         exit(1);
     }
+
     replicaio.set<chakra::replica::Replicate, &chakra::replica::Replicate::onAccept>(this);
     replicaio.set(ev::get_default_loop());
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
-    LOG(INFO) << "Replicate init success listen on " << port;
+    LOG(INFO) << "[replication] init success listen on " << port;
 }
 
 void chakra::replica::Replicate::startReplicaCron() {
@@ -56,7 +59,7 @@ void chakra::replica::Replicate::startReplicaCron() {
 }
 
 void chakra::replica::Replicate::loadLastStateDB() {
-    LOG(INFO) << "Replicate load";
+    LOG(INFO) << "[replication] load";
     std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     try {
         proto::replica::ReplicaStates replicaStates;
@@ -78,14 +81,13 @@ void chakra::replica::Replicate::loadLastStateDB() {
                 link->setReplicateDB(replicateDB);
             }
         }
-    } catch (error::FileError& err) {
+    } catch (const error::FileError& err) {
         return;
-    } catch (std::exception& err) {
-        LOG(ERROR) << "REPL load links from " << filename 
-                    << " error " << err.what();
+    } catch (const std::exception& err) {
+        LOG(ERROR) << "[replication] load file " << filename  << " error " << err.what();
         exit(-1);
     }
-    LOG(INFO) << "Replicate load success";
+    LOG(INFO) << "[replication] load success";
 }
 
 std::shared_ptr<chakra::replica::Replicate> chakra::replica::Replicate::get() {
@@ -109,7 +111,7 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
         if (timeout) {
             link->close();
             delete link;
-            LOG(WARNING)<< "Replicate close and delete timeout connect " << link->getPeerName();
+            LOG(WARNING)<< "[replication] close and delete timeout connect " << link->getPeerName();
         }
         return timeout;
     });
@@ -134,13 +136,13 @@ void chakra::replica::Replicate::dumpReplicateStates() {
 
     auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
     if (err) {
-        LOG(ERROR) << "Replicate flush links state error " << err.what();
+        LOG(ERROR) << "[replication] flush links state error " << err.what();
     } else {
-        DLOG(INFO) << "Replicate flush links state to file " << tofile << " success.";
+        DLOG(INFO) << "[replication] flush links state to file " << tofile << " success.";
     }
 }
 
-chakra::error::Error chakra::replica::Replicate::setReplicateDB(const std::string& peername, const std::string &dbname,
+void chakra::replica::Replicate::setReplicateDB(const std::string& peername, const std::string &dbname,
                                                                          const std::string& ip, int port) {
     auto replicateDB = std::make_shared<chakra::replica::Replicate::Link::ReplicateDB>();
     replicateDB->name = dbname;
@@ -150,23 +152,19 @@ chakra::error::Error chakra::replica::Replicate::setReplicateDB(const std::strin
     if (it != positiveLinks.end()) {
         replicateDB->link = it->second;
         it->second->setReplicateDB(replicateDB);
-        return error::Error();
+        return;
     }
 
-    try {
-        chakra::replica::Replicate::Link::PositiveOptions options;
-        options.ip = ip;
-        options.port = port;
-        auto link = new chakra::replica::Replicate::Link(options);
-        link->setPeerName(peername);
+    chakra::replica::Replicate::Link::PositiveOptions options;
+    options.ip = ip;
+    options.port = port;
+    options.connect = false; /* 这里先不连接，保证Link对象构建成功，会在后续轮训时进行连接 */ 
+    auto link = new chakra::replica::Replicate::Link(options);
+    link->setPeerName(peername);
 
-        replicateDB->link = link;
-        link->setReplicateDB(replicateDB);
-        positiveLinks.emplace(peername, link);
-        return error::Error();
-    } catch(const std::exception& e) {
-        return error::Error(e.what());
-    }
+    replicateDB->link = link;
+    link->setReplicateDB(replicateDB);
+    positiveLinks.emplace(peername, link);
 }
 
 void chakra::replica::Replicate::onAccept(ev::io &watcher, int event) {
@@ -174,7 +172,7 @@ void chakra::replica::Replicate::onAccept(ev::io &watcher, int event) {
     socklen_t slen = sizeof(addr);
     int sockfd = ::accept(watcher.fd, (sockaddr*)&addr, &slen);
     if (sockfd < 0){
-        LOG(ERROR) << "Replicate on accept error " << strerror(errno);
+        LOG(ERROR) << "[replication] on accept error " << strerror(errno);
         return;
     }
 
@@ -266,7 +264,7 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
         conn->receivePack([this](char *req, size_t reqLen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
-            DLOG(INFO) << "-- Replicate received message type "
+            DLOG(INFO) << "-- [replication] received message type "
                     << proto::types::Type_Name(msgType) << ":" << msgType
                     << " FROM " << (getPeerName().empty() ? conn->remoteAddr() : getPeerName());
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
@@ -274,7 +272,7 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
             error::Error err;
             cmdsptr->execute(req, reqLen, this, [this, &err](char *resp, size_t respLen) {
                 proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
-                DLOG(INFO) << "   Replicate reply message type " << proto::types::Type_Name(respType) << ":" << respType;
+                DLOG(INFO) << "   [replication] reply message type " << proto::types::Type_Name(respType) << ":" << respType;
                 err = conn->send(resp, respLen);
                 return err;
             });
@@ -283,7 +281,7 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
     } catch (const error::ConnectClosedError& e1) {
         close();
     } catch (const error::Error& e) {
-        LOG(ERROR) << "I/O error " << e.what() << " remote addr " << conn->remoteAddr();
+        LOG(ERROR) << "[replication] i/o error " << e.what();
         close();
     }
 }
@@ -296,11 +294,11 @@ void chakra::replica::Replicate::Link::reconnect() {
 
     auto err = conn->connect();
     if (err) {
-        LOG(ERROR) << "Replicate retry connect to (" << conn->remoteAddr() << ") error " << err.what();
+        LOG(ERROR) << "[replication] retry connect to (" << conn->remoteAddr() << ") error " << err.what();
     } else {
         setState(chakra::replica::Replicate::Link::State::CONNECTING);
         setLastInteractionMs(utils::Basic::getNowMillSec());
-        LOG(INFO) << "Replicate retry connect to (" << conn->remoteAddr()<< ") success.";
+        LOG(INFO) << "[replication] retry connect to (" << conn->remoteAddr()<< ") success.";
     }
 }
 
@@ -311,7 +309,7 @@ void chakra::replica::Replicate::Link::heartbeat() {
     heart.set_heartbeat_ms(utils::Basic::getNowMillSec());
     auto err = sendMsg(heart, proto::types::R_HEARTBEAT);
     if (err) {
-        LOG(ERROR) << "Replicate heartbeat error " << err.what();
+        LOG(ERROR) << "[replication] heartbeat error " << err.what();
     }
 }
 
@@ -322,12 +320,12 @@ void chakra::replica::Replicate::Link::handshake() {
 
     auto err = sendMsg(ping, proto::types::R_PING);
     if (err) {
-        LOG(ERROR) << "Replicate handshake to (" << ip << ":" << port << ")"
+        LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
                    << " and send ping error " <<  err.what();
     } else {
         setLastInteractionMs(utils::Basic::getNowMillSec());
         startReplicateRecvMsg();
-        LOG(ERROR) << "Replicate handshake to (" << ip << ":" << port << ")"
+        LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
                    << " and send ping success, start waiting for pong message.";
     }
 }
@@ -343,26 +341,26 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     if (state != Link::State::CONNECTED)
         return;
     
-    auto replicaDB = replicas.find(name);
-    if (replicaDB == replicas.end()){
-        LOG(ERROR) << "Replicate not found DB " << name << " when try a partial sync.";
+    auto replicateDB = replicas.find(name);
+    if (replicateDB == replicas.end()){
+        LOG(ERROR) << "[replication] not found db " << name << " when try a partial sync.";
         return;
     }
     
-    if (replicaDB->second->state != Link::State::REPLICA_INIT) return;
+    if (replicateDB->second->state != Link::State::REPLICA_INIT) return;
     /* 防止发送重同步次数过多，最终会以最后一次为准 */
-    if (utils::Basic::getNowMillSec() - replicaDB->second->lastTryReSyncMs < FLAGS_replica_last_try_resync_timeout_ms) return;
+    if (utils::Basic::getNowMillSec() - replicateDB->second->lastTryReSyncMs < FLAGS_replica_last_try_resync_timeout_ms) return;
 
     proto::replica::SyncMessageRequest syncMessageRequest;
     syncMessageRequest.set_db_name(name);
-    syncMessageRequest.set_seq(replicaDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始
+    syncMessageRequest.set_seq(replicateDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始
 
-    LOG(INFO) << "Try a partial replicate sync request " << syncMessageRequest.DebugString();
+    LOG(INFO) << "[replication] try a partial sync request " << syncMessageRequest.DebugString();
     auto err = sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
     if (err) {
-        LOG(ERROR) << "Send partial replicate request message error " << err.what();
+        LOG(ERROR) << "[replication] send partial sync request error " << err.what();
     } else {
-        replicaDB->second->lastTryReSyncMs = utils::Basic::getNowMillSec();
+        replicateDB->second->lastTryReSyncMs = utils::Basic::getNowMillSec();
     }
 }
 
@@ -389,35 +387,45 @@ void chakra::replica::Replicate::Link::setReplicateDB(std::shared_ptr<ReplicateD
 
 chakra::error::Error chakra::replica::Replicate::Link::snapshotDB(const std::string& dbname, rocksdb::SequenceNumber& lastSeq) {
     auto replicateDB = getReplicateDB(dbname); // 可能client请求了多次，以第一次为准
-    if (replicateDB != nullptr && replicateDB->state == chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING
-        && replicateDB->bulkiter != nullptr && replicateDB->link != nullptr) {
-        lastSeq = replicateDB->deltaSeq;
+    if (replicateDB != nullptr 
+        && replicateDB->state == State::REPLICA_TRANSFORING
+        && replicateDB->bulkiter != nullptr 
+        && replicateDB->link != nullptr
+        && replicateDB->snapshot != nullptr) {
         return error::Error();
     }
+
     if (replicateDB) replicateDB->reset();
 
     // 第一次
-    replicateDB = std::make_shared<chakra::replica::Replicate::Link::ReplicateDB>();
+    replicateDB = std::make_shared<ReplicateDB>();
     replicateDB->name = dbname;
     replicateDB->lastTransferMs = utils::Basic::getNowMillSec();
     auto dbptr = chakra::database::FamilyDB::get();
-    auto err = dbptr->snapshot(dbname, &replicateDB->bulkiter, lastSeq);
-    if (err) {
-        LOG(ERROR) << "Replicate db " << dbname << " snapshot error " << err.what();
-    } else {
-        LOG(INFO) << "Replicate db " << dbname << " snapshot success and start send bulk seq " << lastSeq;
-        replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING; /* 全量同步 */
+    try {
+        replicateDB->snapshot = dbptr->snapshot(replicateDB->name);
+        if (replicateDB->snapshot == nullptr) {
+            return error::Error("snapshot db " + replicateDB->name + " error");
+        }
+        
+        lastSeq = replicateDB->snapshot->GetSequenceNumber();
+        rocksdb::ReadOptions readOptions;
+        readOptions.snapshot = replicateDB->snapshot;
+        replicateDB->bulkiter = dbptr->iterator(replicateDB->name, readOptions);
+        replicateDB->state = State::REPLICA_TRANSFORING; /* 全量同步标识 */
         replicateDB->deltaSeq = lastSeq;
         replicateDB->bulkiter->SeekToFirst();
         replicateDB->link = this;
-        
         setReplicateDB(replicateDB);
 
-        // TODO: 这里立即开始发送 bulk 可能会有问题，此时client端可能还没准备好接受数据
         /* 开始周期性的发送全量数据，直到发送完成 */
-        startSendBulk(dbname); 
+        startSendBulk(dbname);
+        LOG(INFO) << "[replication] snapshot db " << dbname << " success and start send bulk seq " << lastSeq;
+        return error::Error();
+    } catch (const std::exception& err) {
+        LOG(ERROR) << "[replication] snapshot db " << dbname << " error " << err.what();
+        throw err;
     }
-    return err;
 }
 
 void chakra::replica::Replicate::Link::replicateLinkEvent() {
@@ -426,7 +434,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
     case chakra::replica::Replicate::Link::State::CONNECTING:
     {
         if (nowMillSec - getLastInteractionMs() > FLAGS_replica_timeout_ms) {
-            LOG(WARNING) << "Replicate handshake timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
+            LOG(WARNING) << "[replication] handshake timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
                          << " ms, no data nor PONG received from " << getPeerName();
             close();
         } else {
@@ -437,7 +445,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
     case chakra::replica::Replicate::Link::State::CONNECTED:
     {
         if (nowMillSec - getLastInteractionMs() > FLAGS_replica_timeout_ms) {
-            LOG(WARNING) << "Replicate connect timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
+            LOG(WARNING) << "[replication] connect timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
                          << " ms, no data nor PONG received from " << getPeerName();
             close();
         } else {
@@ -482,7 +490,7 @@ void chakra::replica::Replicate::Link::replicaEvent(const std::string& name) {
     case chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING:
     {
         if (nowMillSec - getLastTransferMs(name) > FLAGS_replica_timeout_ms) {
-            LOG(WARNING) << "Receiving bulk data from " << getPeerName() << " timeout..."
+            LOG(WARNING) << "[replication] bulk data from " << getPeerName() << " timeout..."
                         << " If the problem persists try to set the 'replica_timeout_ms' parameter in chakra.conf to a larger value.";
             replicateDB->second->close();
         }
@@ -548,9 +556,9 @@ void chakra::replica::Replicate::Link::ReplicateDB::onPullDelta(ev::timer& watch
     deltaMessageRequest.set_size(FLAGS_replica_delta_batch_bytes);
     auto err = link->sendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
     if (err) {
-        LOG(INFO) << "Replicate send delta pull message error " << err.what();
+        LOG(INFO) << "[replication] send delta message error " << err.what();
     } else {
-        DLOG(INFO) << "Replicate send delta pull message to  " << link->getPeerName() 
+        DLOG(INFO) << "[replication] send delta message to  " << link->getPeerName() 
                     << " success " << deltaMessageRequest.DebugString();
     }
 }
@@ -574,7 +582,7 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
     while (bulkiter->Valid()) {
         size += bulkiter->key().size();
         size += bulkiter->value().size();
-        if (size > FLAGS_replica_bulk_batch_bytes || size > FLAGS_connect_buff_size)
+        if (size > FLAGS_replica_bulk_batch_bytes)
             break;
         auto data = bulkMessage.mutable_kvs()->Add();
         data->set_key(bulkiter->key().ToString());
@@ -582,7 +590,10 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
         bulkiter->Next();
         num++;
     }
-    
+
+    itsize += bulkMessage.kvs_size();
+    bulkMessage.set_count(itsize);
+
     if (bulkiter->Valid()){
         bulkMessage.set_end(false);
         startSendBulk(); // next
@@ -592,15 +603,17 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
         state = State::REPLICA_TRANSFORED;
         delete bulkiter;
         bulkiter = nullptr;
-        LOG(INFO) << "Replicate send bulk message to " << name << " finished and stop transfor event.";
+        auto dbptr = chakra::database::FamilyDB::get();
+        dbptr->releaseSnapshot(name, snapshot);
+        LOG(INFO) << "[replication] send bulk message to " << name << " finished(" << itsize << ") and stop transfor event.";
     }
     
     if (size > 0 || bulkMessage.end()) { /* 可能出现某个DB为空，此时size=0 */
         auto err = link->sendMsg(bulkMessage, proto::types::R_BULK);
         if (err) {
-            LOG(ERROR) << "Replicate send bulk message to " << name << " error " << err.what();
-        } else {
-            DLOG(INFO) << "Replicate send bulk message to " << name << ", size " << size << ", is end " << bulkMessage.end() << " num " << num;
+            LOG(ERROR) << "[replication] send bulk message to " << name << " error " << err.what();
+        } else { /* 记录发送了多少个，用于最后校验 */
+            DLOG(INFO) << "[replication] send bulk message to " << name << ", size " << size << ", is end " << bulkMessage.end() << " num " << num;
         }
     }
 }
@@ -608,6 +621,7 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
 void chakra::replica::Replicate::Link::ReplicateDB::reset() {
     close();
     name = "";
+    itsize = 0;
     lastTransferMs = 0;
     link = nullptr;
     deltaSeq = 0;

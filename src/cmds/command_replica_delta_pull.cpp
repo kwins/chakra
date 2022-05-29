@@ -17,7 +17,7 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     proto::replica::DeltaMessageRequest deltaMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, deltaMessageRequest, proto::types::R_DELTA_REQUEST);
     if (err) {
-        LOG(ERROR) << "replica delta pull deserialize error " << err.what();
+        LOG(ERROR) << "[replication] delta pull message deserialize error " << err.what();
         return;
     }
 

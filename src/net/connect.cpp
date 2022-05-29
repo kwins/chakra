@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <arpa/inet.h>
+#include <cstddef>
 #include <error/err.h>
 #include <sys/socket.h>
 #include <poll.h>
@@ -63,6 +64,13 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
 }
 
 void chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
+    if (bufFree == 0 && bufLen == bufSize) { /* 包体大于buf，重分配为原来的两倍 */
+        size_t reallocSize = bufSize * 2; 
+        buf = (char*)::realloc((void*)buf, reallocSize);
+        bufFree = reallocSize - bufSize;
+        bufSize = reallocSize;
+    };
+
     ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
     if (readn == 0) {
         throw error::ConnectClosedError("connect closed");
@@ -131,9 +139,11 @@ chakra::error::Error chakra::net::Connect::connect() {
         if (errno == EHOSTUNREACH) {
             close();
             return error::Error(strerror(errno));
-        } else if (errno == EINPROGRESS){
-            if (!opts.block){
-                waitConnectReady(toMsec(opts.connectTimeOut));
+        } else if (errno == EINPROGRESS) {
+            if (!opts.block) { // wait for connect timeout
+                auto err = waitConnectReady(toMsec(opts.connectTimeOut));
+                if (err) return err;
+                goto next;
             }
         } else if (errno == EADDRNOTAVAIL) {
             if (++retryTimes >= opts.connectRetrys) {
@@ -145,6 +155,8 @@ chakra::error::Error chakra::net::Connect::connect() {
         }
         return error::Error(strerror(errno));
     }
+    
+    next:
     auto err = setBlock(false);
     if (err)
         return err;
@@ -208,6 +220,8 @@ chakra::error::Error chakra::net::Connect::waitConnectReady(long msec) {
         return error::Error(strerror(errno));;
     }
 
+    //  Returns the number of file descriptors with events, zero if timed out,
+    //  or -1 for errors.
     int res;
     if ((res = poll(wfd, 1, msec)) == -1){
         close();

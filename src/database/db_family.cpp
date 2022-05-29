@@ -8,6 +8,8 @@
 #include <element.pb.h>
 #include <glog/logging.h>
 #include <fstream>
+#include <rocksdb/iterator.h>
+#include <rocksdb/snapshot.h>
 #include <zlib.h>
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
@@ -22,7 +24,7 @@ DECLARE_int32(db_cache_shard_size);
 DECLARE_int64(db_wal_ttl_seconds);
 
 chakra::database::FamilyDB::FamilyDB() : index(0) {
-    LOG(INFO) << "FamilyDB init";
+    LOG(INFO) << "[familydb] init";
     proto::peer::MetaDBs metaDBs;
     std::string filename = FLAGS_cluster_dir + "/" + DB_FILE;
     try {
@@ -34,10 +36,10 @@ chakra::database::FamilyDB::FamilyDB() : index(0) {
     } catch (const error::FileError& err) {
         /* 文件不存在或者首次运行 */
     } catch (const std::exception& err) {
-        LOG(INFO) << "FamilyDB load db from" << filename << " error " << err.what();
+        LOG(INFO) << "[familydb] load db from" << filename << " error " << err.what();
         exit(-1);
     }
-    LOG(INFO) << "FamilyDB success";
+    LOG(INFO) << "[familydb] success";
 }
 
 chakra::error::Error chakra::database::FamilyDB::getMetaDB(const std::string &dbname, proto::peer::MetaDB &meta) {
@@ -74,7 +76,7 @@ void chakra::database::FamilyDB::addDB(const std::string &name, size_t blockSize
     auto columnDB = std::make_shared<ColumnDB>(meta);
     columnDBs[next].emplace(std::make_pair(name, columnDB));
     index = next;
-    LOG(INFO) << "Add db " << name << " success.";
+    LOG(INFO) << "[familydb] add db " << name << " success.";
 }
 
 bool chakra::database::FamilyDB::servedDB(const std::string &name) {
@@ -90,19 +92,20 @@ void chakra::database::FamilyDB::dropDB(const std::string &name) {
         }
     }
     index = next;
-    LOG(INFO) << "Drop db " << name << " success.";
+    LOG(INFO) << "[familydb] drop db " << name << " success.";
 }
 
 std::shared_ptr<proto::element::Element> chakra::database::FamilyDB::get(const std::string& name, const std::string &key) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
+        LOG(INFO) << "[familydb]:" << name << " not found";
         return nullptr;
     }
     return it->second->get(key);
 }
 
-std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> chakra::database::FamilyDB::mget(std::unordered_map<std::string,std::vector<std::string>> dbkeys) {
+std::unordered_map<std::string, std::vector<std::shared_ptr<proto::element::Element>>> chakra::database::FamilyDB::mget(std::unordered_map<std::string,std::vector<std::string>> dbkeys) {
     std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Element>>> result;
     int pos = index.load();
     for(auto& keys : dbkeys) {
@@ -115,47 +118,47 @@ std::unordered_map<std::string,std::vector<std::shared_ptr<proto::element::Eleme
     return result;
 }
 
-void chakra::database::FamilyDB::set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl) {
+chakra::error::Error chakra::database::FamilyDB::set(const std::string& name, const std::string& key, const std::string& value, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        return;
+        return dbnf(name);
     }
-    it->second->set(key, value, ttl);
+    return it->second->set(key, value, ttl);
 }
 
-void chakra::database::FamilyDB::set(const std::string& name, const std::string& key, float value, int64_t ttl) {
+chakra::error::Error chakra::database::FamilyDB::set(const std::string& name, const std::string& key, float value, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        return;
+        return dbnf(name);
     }
-    it->second->set(key, value, ttl);
+    return it->second->set(key, value, ttl);
 }
 
-void chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl) {
+chakra::error::Error chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<std::string>& values, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        return;
+        return dbnf(name);;
     }
-    it->second->push(key, values, ttl);    
+    return it->second->push(key, values, ttl);    
 }
 
-void chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl) {
+chakra::error::Error chakra::database::FamilyDB::push(const std::string& name, const std::string& key, const std::vector<float>& values, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        return;
+        return dbnf(name);;
     }
-    it->second->push(key, values, ttl);    
+    return it->second->push(key, values, ttl);    
 }
 
 chakra::error::Error chakra::database::FamilyDB::incr(const std::string& name, const std::string& key, float value, int64_t ttl) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        return error::Error("db " + name + " not found");
+        return dbnf(name);
     }
     return it->second->incr(key, value, ttl); 
 }
@@ -173,7 +176,7 @@ chakra::error::Error chakra::database::FamilyDB::rocksWriteBulk(const std::strin
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){
-        return error::Error("db " + name + " not found");
+        return dbnf(name);
     }
     return it->second->rocksWriteBulk(batch);
 }
@@ -191,7 +194,7 @@ chakra::error::Error chakra::database::FamilyDB::restoreDB(const std::string &na
     int pos = index;
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){
-        return error::Error("db " + name + " not found");
+        return dbnf(name);
     }
 
     return it->second->restoreDB();
@@ -204,7 +207,7 @@ chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::S
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){
-        return error::Error("db " + name + " not found");
+        return dbnf(name);
     }
     seq = it->second->getLastSeqNumber();
     return error::Error();
@@ -216,20 +219,37 @@ chakra::database::FamilyDB::getUpdateSince(const std::string &name, rocksdb::Seq
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){
-        return error::Error("db " + name + " not found");
+        return dbnf(name);
     }
 
     return it->second->getUpdateSince(seq, iter);
 }
 
-chakra::error::Error
-chakra::database::FamilyDB::snapshot(const std::string &name, rocksdb::Iterator **iter, rocksdb::SequenceNumber &seq) {
+const rocksdb::Snapshot* chakra::database::FamilyDB::snapshot(const std::string &name) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){
-        return error::Error("db " + name + " not found");
+        throw dbnf(name);
     }
-    return it->second->snapshot(iter, seq);
+    return it->second->snapshot();
+}
+
+void chakra::database::FamilyDB::releaseSnapshot(const std::string &name, const rocksdb::Snapshot *snapshot) {
+    int pos = index.load();
+    auto it = columnDBs[pos].find(name);
+    if (it == columnDBs[pos].end()){
+        return;
+    }
+    it->second->releaseSnapshot(snapshot);
+}
+
+rocksdb::Iterator* chakra::database::FamilyDB::iterator(const std::string &name, const rocksdb::ReadOptions& readOptions) {
+    int pos = index.load();
+    auto it = columnDBs[pos].find(name);
+    if (it == columnDBs[pos].end()){
+        throw dbnf(name);
+    }
+    return it->second->iterator(readOptions);
 }
 
 void chakra::database::FamilyDB::stop() {
@@ -237,4 +257,5 @@ void chakra::database::FamilyDB::stop() {
     columnDBs[1].clear();
 }
 
+chakra::error::Error chakra::database::FamilyDB::dbnf(const std::string& str) { return error::Error("db:" + str + " not found"); }
 const std::string chakra::database::FamilyDB::DB_FILE = "dbs.json";
