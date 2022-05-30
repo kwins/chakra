@@ -4,8 +4,7 @@
 
 #include "packet.h"
 #include <glog/logging.h>
-chakra::error::Error
-chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::types::Type type, const std::function<error::Error(char*, size_t)>& cbf) {
+chakra::error::Error chakra::net::Packet::serialize(const google::protobuf::Message &msg, proto::types::Type type, const std::function<error::Error(char*, size_t)>& cbf) {
     size_t bodySize = msg.ByteSizeLong();
     uint64_t packSize = HEAD_LEN + FLAG_LEN + TYPE_LEN + bodySize;
     char reply[packSize];

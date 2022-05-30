@@ -12,7 +12,8 @@
 #include <service/chakra.h>
 #include <types.pb.h>
 
-void chakra::cmds::CommandClientMIncr::execute(char *req, size_t len, void *data, std::function<error::Error (char *, size_t)> cbf) {
+void chakra::cmds::CommandClientMIncr::execute(char *req, size_t len, void *data) {
+    auto link = static_cast<chakra::serv::Chakra::Link*>(data);
     proto::client::MIncrMessageRequest mincrMessageRequest;
     proto::client::MIncrMessageResponse mincrMessageResponse;
     auto dbptr = chakra::database::FamilyDB::get();
@@ -45,5 +46,5 @@ void chakra::cmds::CommandClientMIncr::execute(char *req, size_t len, void *data
             chakra::net::Packet::fillError(mincrMessageResponse.mutable_error(), 1, "all fail");
         }
     }
-    chakra::net::Packet::serialize(mincrMessageResponse, proto::types::C_MINCR, cbf);
+    link->asyncSendMsg(mincrMessageResponse, proto::types::C_MINCR);
 }

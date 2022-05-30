@@ -89,6 +89,8 @@ public:
 
         void startReplicateRecvMsg(); // 开始接收命令
         void onReplicateRecvMsg(ev::io& watcher, int event);
+        void asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+        void onReplicateWriteMsg(ev::io& watcher, int event);
 
         void handshake();
         void heartbeat();

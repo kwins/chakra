@@ -9,9 +9,7 @@
 #include "database/db_family.h"
 
 
-void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, void *data,
-                                                      std::function<error::Error(char *resp, size_t respLen)> cbf) {
-
+void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, void *data) {
     proto::replica::SyncMessageResponse syncMessageResponse;
     proto::replica::SyncMessageRequest syncMessageRequest;
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
@@ -47,7 +45,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
     }
     
     LOG(INFO) << "[replication] sync response: " << syncMessageResponse.DebugString();
-    chakra::net::Packet::serialize(syncMessageResponse, proto::types::R_SYNC_RESPONSE, cbf);
+    link->asyncSendMsg(syncMessageResponse, proto::types::R_SYNC_RESPONSE);
 }
 
 void chakra::cmds::CommandReplicaSyncRequest::fullSync(chakra::replica::Replicate::Link* link, 

@@ -9,11 +9,12 @@
 #include "cluster/peer.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::FailMessage failMessage;
     auto err = chakra::net::Packet::deSerialize(req, len, failMessage, proto::types::P_FAIL);
     if (err) return;
-    LOG(INFO) << "[cluster] fail message received " << failMessage.DebugString();
+    DLOG(INFO) << "[cluster] fail message request: " << failMessage.DebugString();
     auto clsptr = cluster::Cluster::get();
     auto sender = cluster::Cluster::get()->getPeer(failMessage.sender().name());
     if (sender && !sender->isHandShake()) {

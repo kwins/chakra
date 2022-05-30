@@ -9,8 +9,7 @@
 #include "net/packet.h"
 #include "types.pb.h"
 
-void chakra::cmds::CommandReplicaPong::execute(char *req, size_t len, void *data,
-                                               std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandReplicaPong::execute(char *req, size_t len, void *data) {
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     if (link->getState() != chakra::replica::Replicate::Link::State::CONNECTING) {
         LOG(ERROR) << "[replication] command replica pong handshake state is not SEND_PING but " << (int)link->getState();

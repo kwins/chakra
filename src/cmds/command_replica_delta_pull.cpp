@@ -9,8 +9,7 @@
 #include "replica/replica.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data,
-                                                    std::function<error::Error(char *resp, size_t respLen)> cbf) {
+void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data) {
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
@@ -46,5 +45,5 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             iter->Next();
         }
     }
-    chakra::net::Packet::serialize(deltaMessageResponse, proto::types::R_DELTA_RESPONSE, cbf);
+    link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
 }

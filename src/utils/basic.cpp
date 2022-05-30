@@ -5,8 +5,12 @@
 #include "basic.h"
 
 #include <chrono>
+#include <gflags/gflags_declare.h>
 #include <random>
 #include <algorithm>
+#include <gflags/gflags.h>
+
+DECLARE_int32(server_port);
 
 std::string chakra::utils::Basic::genRandomID(size_t len) {
     if (len < 16) len = 16;
@@ -34,3 +38,7 @@ long chakra::utils::Basic::getNowMillSec() {
     auto now = std::chrono::system_clock::now();
     return std::chrono::time_point_cast<std::chrono::milliseconds>(now).time_since_epoch().count();
 }
+
+int32_t chakra::utils::Basic::sport() { return FLAGS_server_port; }
+int32_t chakra::utils::Basic::cport() { return FLAGS_server_port + 1; }
+int32_t chakra::utils::Basic::rport() { return FLAGS_server_port + 2;}

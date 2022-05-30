@@ -7,13 +7,19 @@
 #include "utils/basic.h"
 #include "net/packet.h"
 #include "cmds/command_pool.h"
+#include <cstdint>
 #include <error/err.h>
+#include <ev++.h>
+#include <gflags/gflags_declare.h>
 #include <glog/logging.h>
+#include <gflags/gflags.h>
+
+DECLARE_int32(server_port);
 
 const std::string &chakra::cluster::Peer::getName() const { return name; }
 const std::string &chakra::cluster::Peer::getIp() const { return ip; }
-int chakra::cluster::Peer::getPort() const { return port; }
-int chakra::cluster::Peer::getReplicatePort() { return port + 1; }
+int chakra::cluster::Peer::getPort() const { return this->port; }
+int chakra::cluster::Peer::getReplicatePort() { return this->port + 1; }
 uint64_t chakra::cluster::Peer::getFg() const { return fg; }
 uint64_t chakra::cluster::Peer::getEpoch() const { return epoch; }
 void chakra::cluster::Peer::setIp(const std::string &ip) { this->ip = ip; }
@@ -64,7 +70,7 @@ void chakra::cluster::Peer::dumpPeer(proto::peer::PeerState& peerState) {
     peerState.set_port(port);
     peerState.set_epoch(epoch);
     peerState.set_flag(fg);
-    for (auto& it : dbs){
+    for (auto& it : dbs) {
         auto db = peerState.mutable_dbs();
         (*db)[it.first] = it.second;
         // db->CopyFrom(it.second);
@@ -76,8 +82,8 @@ void chakra::cluster::Peer::setLastPingSend(long lastPingSend) { last_ping_send 
 long chakra::cluster::Peer::getLastPongRecv() const { return last_pong_recv; }
 void chakra::cluster::Peer::setLastPongRecv(long lastPongRecv) { last_pong_recv = lastPongRecv; }
 
-chakra::error::Error chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
-    return link->sendMsg(msg, type);
+void chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::types::Type type) {
+    link->asyncSendMsg(msg, type);
 }
 
 void chakra::cluster::Peer::linkFree() {
@@ -135,7 +141,7 @@ void chakra::cluster::Peer::setFailTime(long failtime) { Peer::failTime = failti
 std::string chakra::cluster::Peer::desc() {
     std::string str;
     str.append("ip: ").append(getIp()).append("\n");
-    str.append("port: ").append(std::to_string(getPort())).append("\n");
+    str.append("cport: ").append(std::to_string(getPort())).append("\n");
     str.append("name: ").append(getName()).append("\n");
     str.append("last_ping_send: ").append(std::to_string(getLastPingSend())).append("\n");
     str.append("last_pong_recved: ").append(std::to_string(getLastPongRecv())).append("\n");
@@ -169,22 +175,15 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
     try {
-        conn->receivePack([this](char *req, size_t reqlen) {
+        conn->receive(rbuffer, [this](char *req, size_t reqlen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
-            DLOG(INFO) << "-- PEER received message type "
-                    << proto::types::Type_Name(msgType) << ":" << msgType
-                    << " FROM " << (reletedPeer != nullptr ? reletedPeer->getName() : conn->remoteAddr());
+            DLOG(INFO) << "[cluster] received message type "
+                    << proto::types::Type_Name(msgType) << ":" << msgType << " FROM " <<  conn->remoteAddr();
 
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-            error::Error err;
-            cmdsptr->execute(req, reqlen, nullptr, [this, &err](char *reply, size_t replylen) {
-                proto::types::Type replyType = chakra::net::Packet::getType(reply, replylen);
-                DLOG(INFO) << "   PEER reply message type " << proto::types::Type_Name(replyType) << ":" << replyType;
-                err = conn->send(reply, replylen);
-                return err;
-            });
-            return err;
+            cmdsptr->execute(req, reqlen, this);
+            return error::Error();
         });
     } catch (const error::ConnectClosedError& e1) {
         onReadError();
@@ -192,6 +191,33 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
         onReadError();
         LOG(ERROR) << "[cluster] i/o error " << e.what();
     }
+}
+
+void chakra::cluster::Peer::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
+    DLOG(INFO) << "[cluster] async send message type " << proto::types::Type_Name(type) << ":" << type << " to " << conn->remoteAddr();;
+    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
+        wbuffer->maybeRealloc(len);
+        memcpy(&wbuffer->data[wbuffer->len], data, len);
+        wbuffer->len += len;
+        wbuffer->free -= len;
+        return error::Error();
+    });
+
+    wio.set<chakra::cluster::Peer::Link, &chakra::cluster::Peer::Link::onPeerWrite>(this);
+    wio.set(ev::get_default_loop());
+    wio.start(conn->fd(), ev::WRITE);
+}
+
+void chakra::cluster::Peer::Link::onPeerWrite(ev::io& watcher, int event) {
+    try {
+        auto type = chakra::net::Packet::getType(wbuffer->data, wbuffer->len);;
+        DLOG(INFO) << "[cluster] async write message type " << proto::types::Type_Name(type) << ":" << type << " to " << conn->remoteAddr();
+        conn->send(wbuffer);
+    } catch (const error::ConnectClosedError& err) {
+    } catch (const std::exception& err) {
+        LOG(ERROR) << err.what();
+    }
+    wio.stop();
 }
 
 void chakra::cluster::Peer::Link::onReadError() {

@@ -7,7 +7,9 @@
 #include <cerrno>
 #include <arpa/inet.h>
 #include <cstddef>
+#include <cstdlib>
 #include <error/err.h>
+#include <net/buffer.h>
 #include <sys/socket.h>
 #include <poll.h>
 #include <unistd.h>
@@ -23,16 +25,42 @@ chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
     this->opts = std::move(opts);
     this->sar = nullptr;
     this->lastActive = system_clock::now();
-    this->buf = (char*) malloc(sizeof(char) * FLAGS_connect_buff_size);
-    this->bufSize = FLAGS_connect_buff_size;
-    this->bufLen = 0;
-    this->bufFree = FLAGS_connect_buff_size;
+    this->cbuffer = new chakra::net::Buffer(FLAGS_connect_buff_size);
     if (this->opts.fd > 0) {
         this->FD = this->opts.fd;
         this->state = State::CONNECTED;
-    } else{
+    } else {
         this->FD = -1;
         this->state = State::INIT;
+    }
+}
+
+void chakra::net::Connect::send(Buffer* buffer) {
+    if (buffer->data == nullptr) return;
+    long size = buffer->len;
+    long nextlen = size;
+    ssize_t sended = 0;
+    while (true) {
+        ssize_t writed = ::send(fd(), &buffer->data[sended], nextlen, MSG_NOSIGNAL);
+        if (writed == 0) {
+            throw error::ConnectClosedError("connect closed");;
+        } else if (writed < 0) {
+            if ((errno == EWOULDBLOCK && !opts.block) || errno == EINTR) {
+                /* try aganin later */
+            } else {
+                throw error::Error(strerror(errno));
+            }
+        } else {
+            sended += writed;
+            if (sended == size) { /* send finished */
+                buffer->len -= sended;
+                buffer->free += sended;
+                buffer->move(sended, -1);
+                break;
+            } else { /* continue send */
+                nextlen = size - sended;
+            }
+        }
     }
 }
 
@@ -63,15 +91,44 @@ chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
     return error::Error();
 }
 
-void chakra::net::Connect::receivePack(const std::function< error::Error (char* ptr, size_t len)>& process) {
-    if (bufFree == 0 && bufLen == bufSize) { /* 包体大于buf，重分配为原来的两倍 */
-        size_t reallocSize = bufSize * 2; 
-        buf = (char*)::realloc((void*)buf, reallocSize);
-        bufFree = reallocSize - bufSize;
-        bufSize = reallocSize;
-    };
+void chakra::net::Connect::receivePack(const std::function<error::Error(char* ptr, size_t len)>& process) { 
+    while (true) {
+        cbuffer->maybeRealloc();
+        ssize_t readn = ::read(fd(), &cbuffer->data[cbuffer->len], cbuffer->free);
+        if (readn == 0) {
+            throw error::ConnectClosedError("connect closed");
+        } else if (readn < 0) {
+            if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
+                /* Try again later */
+            } else if (errno == ETIMEDOUT && opts.block) {
+                throw error::ConnectReadError(strerror(errno));
+            } else {
+                throw error::ConnectReadError(strerror(errno));
+            }
+        } else {
+            cbuffer->len += readn;
+            cbuffer->free -= readn;
+            cbuffer->data[cbuffer->len] = '\0';
+        }
+        
+        auto packSize = net::Packet::read<uint64_t>(cbuffer->data, cbuffer->len, 0);
+        if ((packSize == 0) || (packSize > 0 && cbuffer->len < packSize)) {
+            LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << cbuffer->len;
+            continue;
+        }
 
-    ssize_t readn = ::read(fd(), &buf[bufLen], bufFree);
+        // 读到一个完整的包
+        auto err = process(cbuffer->data, packSize);
+        cbuffer->move(packSize, -1);
+        if (err) throw err;
+        break;
+    }
+}
+
+void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Error(char* ptr, size_t len)>& process) {
+    DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+    buffer->maybeRealloc();
+    ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->free);
     if (readn == 0) {
         throw error::ConnectClosedError("connect closed");
     } else if (readn < 0) {
@@ -83,23 +140,32 @@ void chakra::net::Connect::receivePack(const std::function< error::Error (char* 
             throw error::ConnectReadError(strerror(errno));
         }
     } else {
-        bufLen += readn;
-        bufFree -= readn;
-        buf[bufLen] = '\0';
-    }
-    auto packSize = net::Packet::read<uint64_t>(buf, bufLen, 0);
-    if ((packSize == 0) || (packSize > 0 && bufLen < packSize)) {
-        LOG(WARNING) << "connect recv pack not enough, pack size is " << packSize << " recved is " << bufLen;
-        return; // 这里不返回错误，只是打印日志，下次继续读取
+        buffer->len += readn;
+        buffer->free -= readn;
+        buffer->data[buffer->len] = '\0';
     }
 
-    // 处理整个包
-    // 从缓冲区中删除已经读取的内容
-    // 剩下的为未读取, 移动到缓存最前端
-    // 如果包解析失败，则丢弃
-    auto err = process(buf, packSize);
-    moveBuf(packSize, -1);
-    if (err) throw err;
+    int processed = 0;
+    do {
+        auto packSize = net::Packet::read<uint64_t>(buffer->data, buffer->len, 0);
+        if ((packSize == 0) || (packSize > 0 && buffer->len < packSize)) {
+            LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << buffer->len;
+            return; // 这里不返回错误，只是打印日志，下次继续读取
+        }
+
+        // 处理整个包
+        // 从缓冲区中删除已经读取的内容
+        // 剩下的为未读取, 移动到缓存最前端
+        // 如果包解析失败，则丢弃
+        auto err = process(buffer->data, packSize);
+        DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been processed and it's size is " << packSize 
+                   << " and read size is " << readn << " and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+        buffer->move(packSize, -1);
+        DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been moved and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+        processed++;
+        if (err) throw err;
+    } while (buffer->len > 0);
+    DLOG(INFO) << "[connect:" << remoteAddr() << "] buffer process finish(" << processed << ")" << "\n\n\n";
 }
 
 std::string chakra::net::Connect::remoteAddr()  {
@@ -302,7 +368,7 @@ void chakra::net::Connect::close() {
 chakra::net::Connect::~Connect() {
     close();
     if (sar != nullptr) free(sar);
-    if (buf != nullptr) free(buf);
+    // if (buf != nullptr) free(buf);
 }
 
 void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexcept {
@@ -310,40 +376,5 @@ void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexc
     std::swap(lc.FD, rc.FD);
     std::swap(lc.sar, rc.sar);
     std::swap(lc.state, rc.state);
-    std::swap(lc.buf, rc.buf);
-    std::swap(lc.bufFree, rc.bufFree);
-    std::swap(lc.bufSize, rc.bufSize);
     std::swap(lc.lastActive, rc.lastActive);
-}
-
-void chakra::net::Connect::moveBuf(int start, int end) {
-    int len = bufLen;
-    int newLen = 0;
-    if (len == 0) return;
-    if (start < 0) {
-        start = len+start;
-        if (start < 0) start = 0;
-    }
-    if (end < 0) {
-        end = len+end;
-        if (end < 0) end = 0;
-    }
-    newLen = (start > end) ? 0 : (end-start)+1;
-    if (newLen != 0) {
-        if (start >= (signed)len) {
-            newLen = 0;
-        } else if (end >= (signed)len) {
-            end = len-1;
-            newLen = (start > end) ? 0 : (end-start)+1;
-        }
-    } else {
-        start = 0;
-    }
-
-    // 如果有需要，对字符串进行移动
-    // T = O(N)
-    if (start && newLen) memmove(buf, buf+start, newLen);
-    buf[newLen] = '\0';
-    bufFree = bufFree + (len - newLen);
-    bufLen = newLen;
 }

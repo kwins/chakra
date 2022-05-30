@@ -10,9 +10,7 @@
 #include "replica/replica.h"
 #include "database/db_family.h"
 
-void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, void *data,
-                                                   std::function<error::Error(char *, size_t)> cbf) {
-
+void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, void *data) {
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     proto::replica::BulkMessage bulkMessage;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, bulkMessage, proto::types::R_BULK);

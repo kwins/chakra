@@ -17,7 +17,6 @@
 #include "error/err.h"
 
 DECLARE_string(cluster_dir);
-DECLARE_int32(cluster_port);
 DECLARE_int32(cluster_handshake_timeout_ms);
 DECLARE_int32(cluster_peer_timeout_ms);
 DECLARE_int32(cluster_peer_link_retry_timeout_ms);
@@ -33,7 +32,7 @@ chakra::cluster::Cluster::Cluster() {
     startEv();
     updateClusterState();
     dumpMyselfDBs();
-    LOG(INFO) << "[cluster] listen in " << FLAGS_cluster_port
+    LOG(INFO) << "[cluster] listen in " << utils::Basic::cport()
               << " success, myself is " << myself->getName();
 }
 
@@ -66,7 +65,7 @@ void chakra::cluster::Cluster::loadPeers() {
     } catch (const error::FileError& err) {
         myself = std::make_shared<Peer>(); // 第一次初始化
         myself->setIp("127.0.0.1");
-        myself->setPort(FLAGS_cluster_port);
+        myself->setPort(utils::Basic::cport());
         myself->setName(utils::Basic::genRandomID());
         myself->setFlag(Peer::FLAG_MYSELF);
         peers.insert(std::make_pair(myself->getName(), myself));
@@ -85,9 +84,9 @@ std::shared_ptr<chakra::cluster::Cluster> chakra::cluster::Cluster::get() {
 
 void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
-    auto err = net::Network::tpcListen(FLAGS_cluster_port ,FLAGS_cluster_tcp_back_log, sfd);
+    auto err = net::Network::tpcListen(utils::Basic::cport() ,FLAGS_cluster_tcp_back_log, sfd);
     if (err || sfd == -1) {
-        LOG(ERROR) << "[cluster] listening on " << FLAGS_cluster_port << " " << err.what();
+        LOG(ERROR) << "[cluster] listening on " << utils::Basic::cport() << " " << err.what();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -101,7 +100,6 @@ void chakra::cluster::Cluster::startPeersCron() {
     cronIO.set(ev::get_default_loop());
     cronIO.start(FLAGS_cluster_cron_interval_sec);
 }
-
 
 void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
     iteraion++;
@@ -132,9 +130,8 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
             peer->delFlag(Peer::FLAG_MEET); // whether or not meet message
             LOG(INFO) << "[cluster] connecting peer " << peer->getName()
                       << " at " << peer->getIp() << ":" << peer->getPort()
-                      << " success, send "
+                      << " success and send "
                       << proto::types::Type_Name(proto::types::P_MEET_PEER)
-                      << " create time " << peer->createTimeMs()
                       << " message to it."
                       ;
         }

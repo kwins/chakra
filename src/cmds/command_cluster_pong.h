@@ -9,7 +9,7 @@
 namespace chakra::cmds {
 class CommandClusterPong : public Command {
 public:
-    void execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) override;
+    void execute(char *req, size_t len, void* data) override;
     ~CommandClusterPong() override = default;
 };
 

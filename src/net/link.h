@@ -7,6 +7,7 @@
 #include <ev++.h>
 #include "net/connect.h"
 #include <google/protobuf/message.h>
+#include <net/buffer.h>
 #include "types.pb.h"
 #include "error/err.h"
 
@@ -23,7 +24,9 @@ public:
 
     std::shared_ptr<net::Connect> conn = nullptr;
     ev::io rio;
+    Buffer* rbuffer;
     ev::io wio;
+    Buffer* wbuffer;
 };
 
 }

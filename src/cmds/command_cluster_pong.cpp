@@ -9,11 +9,11 @@
 #include "cluster/peer.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterPong::execute(char *req, size_t len, void* data) {
     proto::peer::GossipMessage gossip;
     auto err = chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PONG);
     if (err) return;
-
+    DLOG(INFO) << "[cluster] pong message request: " << gossip.DebugString();
     auto clsptr = cluster::Cluster::get();
     auto sender = clsptr->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()) {

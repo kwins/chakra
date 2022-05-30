@@ -7,8 +7,8 @@
 #include "net/packet.h"
 #include "cluster/cluster.h"
 
-void chakra::cmds::CommandClusterState::execute(char *req, size_t reqLen, void *data,
-                                                std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClusterState::execute(char *req, size_t reqLen, void *data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::StateMessageRequest stateMessageRequest;
     proto::peer::StateMessageResponse stateMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, stateMessageRequest, proto::types::P_STATE);
@@ -18,5 +18,5 @@ void chakra::cmds::CommandClusterState::execute(char *req, size_t reqLen, void *
         auto clsptr = chakra::cluster::Cluster::get();
         clsptr->stateDesc(*stateMessageResponse.mutable_state());
     }
-    chakra::net::Packet::serialize(stateMessageResponse, proto::types::P_STATE, cbf);
+    link->asyncSendMsg(stateMessageResponse, proto::types::P_STATE);
 }

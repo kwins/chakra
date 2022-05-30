@@ -10,8 +10,10 @@
 #include "database/type_string.h"
 #include <element.pb.h>
 #include <error/err.h>
+#include <service/chakra.h>
 
-void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data) {
+    auto link = static_cast<chakra::serv::Chakra::Link*>(data);
     proto::client::MSetMessageRequest msetMessageRequest;
     proto::client::MSetMessageResponse msetMessageResponse;
     auto dbptr = chakra::database::FamilyDB::get();
@@ -48,5 +50,5 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data,
             chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "all fail");
         }
     }
-    chakra::net::Packet::serialize(msetMessageResponse, proto::types::C_MSET, cbf);
+    link->asyncSendMsg(msetMessageResponse, proto::types::C_MSET);
 }
