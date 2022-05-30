@@ -247,10 +247,6 @@ void chakra::serv::Chakra::Link::startEvRead(chakra::serv::Chakra::Worker* worke
 
 chakra::serv::Chakra::Link::~Link() {
     close();
-    if (iterator != nullptr) { 
-        delete iterator;
-        iterator = nullptr;
-    }
 }
 
 void chakra::serv::Chakra::Worker::startUp(int id) {

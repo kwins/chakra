@@ -31,9 +31,6 @@ public:
         ~Link();
         
         int workID = 0;
-        rocksdb::Iterator* iterator = nullptr;
-        size_t lastIteratorTimeSec = 0;
-        proto::client::ScanMessageRequest scanRequest;
     };
 
     struct Worker {
