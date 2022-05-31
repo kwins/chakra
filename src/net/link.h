@@ -7,6 +7,7 @@
 #include <ev++.h>
 #include "net/connect.h"
 #include <google/protobuf/message.h>
+#include <net/buffer.h>
 #include "types.pb.h"
 #include "error/err.h"
 
@@ -18,12 +19,15 @@ public:
     explicit Link(int sockfd);
     error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     bool connected() const;
+    std::string remoteAddr();
     void close();
     ~Link();
 
     std::shared_ptr<net::Connect> conn = nullptr;
     ev::io rio;
+    Buffer* rbuffer;
     ev::io wio;
+    Buffer* wbuffer;
 };
 
 }

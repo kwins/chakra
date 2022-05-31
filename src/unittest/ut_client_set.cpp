@@ -24,7 +24,7 @@ protected:
 
         proto::client::GetMessageRequest getMessageRequest;
         proto::client::GetMessageResponse getMessageResponse;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 1; i++) {
             std::string set_db = "db1";
             std::string set_key = prefixKey("set_get_1");
             std::string set_value = prefixKey("set_get_value_1");

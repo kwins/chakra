@@ -2,8 +2,8 @@
 // Created by kwins on 2021/5/13.
 //
 
-#ifndef LIBGOSSIP_CONNECT_H
-#define LIBGOSSIP_CONNECT_H
+#ifndef CHAKRA_NET_CONNECT_H
+#define CHAKRA_NET_CONNECT_H
 
 #include <string>
 #include <chrono>
@@ -12,8 +12,9 @@
 #include <functional>
 #include <array>
 #include <atomic>
+#include "buffer.h"
 
-namespace chakra::net{
+namespace chakra::net {
 
 using namespace std::chrono;
 
@@ -37,14 +38,17 @@ public:
     };
 
 public:
-    explicit Connect(chakra::net::Connect::Options opts);
+    explicit Connect(net::Connect::Options opts);
     error::Error connect();
     int reconnect();
-    chakra::error::Error send(const char* data, size_t len);
-    // 服务端尽可能一次读完，如果读不完，等下次再度，可以有效减少IO次数.
-    // 处理数据的 回调函数 一次只会处理一个 pack
-    // throw exception
+    error::Error send(const char* data, size_t len);
+
+    void send(Buffer* buffer);
+    // 服务端尽可能一次多读，如果读不完，等下次再读，可以有效减少IO次数.
+    void receive(Buffer* buffer, const std::function< error::Error (char* ptr, size_t len)>& process);
+    /* 客户端使用，一次读取一个包 */
     void receivePack(const std::function<error::Error(char* ptr, size_t len)>& process);
+
     // 返回远端地址和端口
     std::string remoteAddr();
     State connState() const;
@@ -62,7 +66,7 @@ private:
     error::Error checkConnectOK(int& completed);
     error::Error checkSockErr();
 
-    void moveBuf(int start, int end);
+    // void moveBuf(int start, int end);
     static void toTimeVal(const milliseconds& duration, timeval& tv);
     static long toMsec(const milliseconds& duration);
 
@@ -71,10 +75,7 @@ private:
     sockaddr* sar;
     State state;
 
-    char* buf;
-    size_t bufFree; // 可用长度
-    size_t bufLen;  // 已缓存长度
-    size_t bufSize; // 缓存大小
+    Buffer* cbuffer;  /* client connect use */
     system_clock::time_point lastActive;
 };
 
@@ -82,4 +83,4 @@ private:
 
 
 
-#endif //LIBGOSSIP_CONNECT_H
+#endif // CHAKRA_NET_CONNECT_H

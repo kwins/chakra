@@ -4,6 +4,7 @@
 
 #include "replica.h"
 
+#include <ev++.h>
 #include <exception>
 #include <rocksdb/options.h>
 #include <rocksdb/snapshot.h>
@@ -22,10 +23,9 @@
 #include "utils/basic.h"
 #include "database/db_family.h"
 
-DECLARE_int32(cluster_port);
 DECLARE_int64(connect_buff_size);
 DECLARE_string(replica_dir);
-DECLARE_int32(replica_tcp_back_log);
+DECLARE_int32(server_tcp_backlog);
 DECLARE_int32(replica_timeout_ms);
 DECLARE_double(replica_cron_interval_sec);
 DECLARE_int32(replica_timeout_retry);
@@ -36,12 +36,11 @@ DECLARE_int64(replica_bulk_batch_bytes);
 DECLARE_int64(replica_last_try_resync_timeout_ms);
 
 chakra::replica::Replicate::Replicate() {
-    LOG(INFO) << "[replication] init";
+    DLOG(INFO) << "[replication] init";
     loadLastStateDB(); // 加载配置数据
-    int port = FLAGS_cluster_port + 1;
-    auto err = net::Network::tpcListen(port, FLAGS_replica_tcp_back_log, sfd);
+    auto err = net::Network::tpcListen(utils::Basic::rport(), FLAGS_server_tcp_backlog, sfd);
     if (err) {
-        LOG(ERROR) << "[replication] listen on " << port << " error " << err.what();
+        LOG(ERROR) << "[replication] listen on " << utils::Basic::rport() << " error " << err.what();
         exit(1);
     }
 
@@ -49,7 +48,7 @@ chakra::replica::Replicate::Replicate() {
     replicaio.set(ev::get_default_loop());
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
-    LOG(INFO) << "[replication] init success listen on " << port;
+    LOG(INFO) << "[replication] init success listen on " << utils::Basic::rport();
 }
 
 void chakra::replica::Replicate::startReplicaCron() {
@@ -59,7 +58,7 @@ void chakra::replica::Replicate::startReplicaCron() {
 }
 
 void chakra::replica::Replicate::loadLastStateDB() {
-    LOG(INFO) << "[replication] load";
+    DLOG(INFO) << "[replication] load";
     std::string filename = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     try {
         proto::replica::ReplicaStates replicaStates;
@@ -87,7 +86,7 @@ void chakra::replica::Replicate::loadLastStateDB() {
         LOG(ERROR) << "[replication] load file " << filename  << " error " << err.what();
         exit(-1);
     }
-    LOG(INFO) << "[replication] load success";
+    DLOG(INFO) << "[replication] load success";
 }
 
 std::shared_ptr<chakra::replica::Replicate> chakra::replica::Replicate::get() {
@@ -261,22 +260,15 @@ void chakra::replica::Replicate::Link::startReplicateRecvMsg() {
 
 void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int event) {
     try {
-        conn->receivePack([this](char *req, size_t reqLen) {
+        conn->receive(rbuffer, [this](char *req, size_t reqLen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
             DLOG(INFO) << "-- [replication] received message type "
                     << proto::types::Type_Name(msgType) << ":" << msgType
                     << " FROM " << (getPeerName().empty() ? conn->remoteAddr() : getPeerName());
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-
-            error::Error err;
-            cmdsptr->execute(req, reqLen, this, [this, &err](char *resp, size_t respLen) {
-                proto::types::Type respType = chakra::net::Packet::getType(resp, respLen);
-                DLOG(INFO) << "   [replication] reply message type " << proto::types::Type_Name(respType) << ":" << respType;
-                err = conn->send(resp, respLen);
-                return err;
-            });
-            return err;
+            cmdsptr->execute(req, reqLen, this);
+            return error::Error();
         });
     } catch (const error::ConnectClosedError& e1) {
         close();
@@ -284,6 +276,31 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
         LOG(ERROR) << "[replication] i/o error " << e.what();
         close();
     }
+}
+
+void chakra::replica::Replicate::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
+    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
+        wbuffer->maybeRealloc(len);
+        memcpy(&wbuffer->data[wbuffer->len], data, len);
+        wbuffer->len += len;
+        wbuffer->free -= len;
+        return error::Error();
+    });
+    DLOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
+    wio.set<chakra::replica::Replicate::Link, &chakra::replica::Replicate::Link::onReplicateWriteMsg>(this);
+    wio.set(ev::get_default_loop());
+    wio.start(conn->fd(), ev::WRITE);
+}
+
+void chakra::replica::Replicate::Link::onReplicateWriteMsg(ev::io& watcher, int event) {
+    try {
+        conn->send(wbuffer);
+    } catch (const error::ConnectClosedError& err) {
+        
+    } catch (const std::exception& err) {
+        LOG(ERROR) << err.what();
+    }
+    wio.stop();
 }
 
 const std::unordered_map<std::string, std::shared_ptr<chakra::replica::Replicate::Link::ReplicateDB>>& 
@@ -318,16 +335,11 @@ void chakra::replica::Replicate::Link::handshake() {
     proto::replica::PingMessage ping;
     ping.set_sender_name(clsptr->getMyself()->getName());
 
-    auto err = sendMsg(ping, proto::types::R_PING);
-    if (err) {
-        LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
-                   << " and send ping error " <<  err.what();
-    } else {
-        setLastInteractionMs(utils::Basic::getNowMillSec());
-        startReplicateRecvMsg();
-        LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
-                   << " and send ping success, start waiting for pong message.";
-    }
+    asyncSendMsg(ping, proto::types::R_PING);
+    setLastInteractionMs(utils::Basic::getNowMillSec());
+    startReplicateRecvMsg();
+    LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
+                << " and send ping success, start waiting for pong message.";
 }
 
 void chakra::replica::Replicate::Link::startSendBulk(const std::string& name) {

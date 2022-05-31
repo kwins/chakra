@@ -20,7 +20,7 @@ protected:
     void TearDown() override {}
 
     //  方便换key
-    std::string prefixKey(std::string key) { return "7_" + key; }
+    std::string prefixKey(std::string key) { return "20_" + key; }
     
     void clusterPushCase0() {
         proto::client::MPushMessageRequest request;

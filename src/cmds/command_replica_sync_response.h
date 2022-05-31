@@ -11,7 +11,7 @@
 namespace chakra::cmds {
 class CommandReplicaSyncResponse : public Command {
 public:
-    void execute(char *req, size_t len, void *data,std::function<error::Error(char *, size_t)> cbf) override;
+    void execute(char *req, size_t len, void *data) override;
     ~CommandReplicaSyncResponse() override = default;
 };
 }

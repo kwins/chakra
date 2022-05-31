@@ -41,12 +41,29 @@ protected:
             }
         }
     }
+
+    void clientScanTestCase1() {
+        proto::client::ScanMessageRequest scanMessageRequest;
+        scanMessageRequest.set_dbname("db1");
+        scanMessageRequest.set_batch_size(10);
+
+        proto::client::ScanMessageResponse scanMessageResponse;
+
+        auto err = cluster->scan(scanMessageRequest, scanMessageResponse);
+        if (err) LOG(ERROR) << err.what();
+        ASSERT_EQ((err == false), true);
+        LOG(INFO) << scanMessageResponse.DebugString();
+    }
 private:
     std::shared_ptr<chakra::client::ChakraCluster> cluster;
 };
 
 TEST_F(ClientScanTest, case0) {
     clientScanTestCase0();
+}
+
+TEST_F(ClientScanTest, case1) {
+    clientScanTestCase1();
 }
 
 }

@@ -9,7 +9,7 @@
 namespace chakra::cmds {
 class CommandClusterMeetPeer : public Command {
 public:
-    void execute(char *req, size_t reqLen, void* data, std::function<error::Error(char *, size_t)> cbf) override;
+    void execute(char *req, size_t reqLen, void* data) override;
     ~CommandClusterMeetPeer() override = default;
 };
 

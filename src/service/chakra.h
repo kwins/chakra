@@ -26,10 +26,11 @@ public:
     struct Worker;
     struct Link : public chakra::net::Link {
         explicit Link(int sockfd);
-        static void onPeerRead(ev::io& watcher, int event);
         void startEvRead(chakra::serv::Chakra::Worker* worker);
-        ~Link();
-        
+        void onClientRead(ev::io& watcher, int event);
+        void asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+        void onClientWrite(ev::io& watcher, int event);
+        ~Link(); 
         int workID = 0;
     };
 
@@ -56,6 +57,7 @@ public:
     void onServCron(ev::timer& watcher, int event);
     static void onSignal(ev::sig&, int);
     void startUp() const;
+    Worker* getWorker(int id);
     void stop();
     ~Chakra();
 

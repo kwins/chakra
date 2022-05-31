@@ -7,11 +7,12 @@
 #include "cluster/cluster.h"
 #include "net/packet.h"
 
-void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data, std::function<error::Error(char *, size_t)> reply) {
+void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::GossipMessage gossip;
     auto err = chakra::net::Packet::deSerialize(req, len, gossip, proto::types::P_PING);
     if (err) return;
-
+    DLOG(INFO) << "[cluster] ping message request: " << gossip.DebugString();
     auto clsptr = cluster::Cluster::get();
     std::shared_ptr<cluster::Peer> sender = clsptr->getPeer(gossip.sender().name());
     if (sender && !sender->isHandShake()) {
@@ -31,5 +32,6 @@ void chakra::cmds::CommandClusterPing::execute(char *req, size_t len, void* data
 
     proto::peer::GossipMessage pong;
     cluster::Cluster::get()->buildGossipMessage(pong);
-    chakra::net::Packet::serialize(pong, proto::types::P_PONG, reply);
+    DLOG(INFO) << "[cluster] pong message response: " << gossip.DebugString();
+    link->asyncSendMsg(pong, proto::types::P_PONG);
 }

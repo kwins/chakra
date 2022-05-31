@@ -47,11 +47,12 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
         ${CMAKE_SOURCE_DIR}/src
         )
-add_dependencies(chakra ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 target_link_directories(chakra PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
-        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
+        )
 target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
+add_dependencies(chakra ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 
 # cli
 add_executable(chakra-cli src/cli/main.cpp
@@ -64,12 +65,13 @@ target_include_directories(chakra-cli SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/src/cli/interface
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
-)
-add_dependencies(chakra-cli ev interface protobuf rocksdb glog gflags gtest zlib lz4)
+        )
 target_link_directories(chakra-cli PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
-        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
+        )
 target_link_libraries(chakra-cli ${CLI_LIBS} ${LINUX_LINKS})
+add_dependencies(chakra-cli ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 
 
 # ut
@@ -86,9 +88,9 @@ target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src/unittest
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
 )
-add_dependencies(ut ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 target_link_directories(ut PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
 target_link_libraries(ut ${TEST_LIB} ${LINUX_LINKS})
+add_dependencies(ut ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 

@@ -8,9 +8,8 @@
 #include "types.pb.h"
 #include "cluster/cluster.h"
 
-void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, void *data,
-                                                   std::function<error::Error(char *, size_t)> cbf) {
-
+void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, void *data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::EpochSetMessageRequest epochSetMessageRequest;
     proto::peer::EpochSetMessageResponse epochSetMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, epochSetMessageRequest, proto::types::P_SET_EPOCH);
@@ -33,5 +32,5 @@ void chakra::cmds::CommandClusterSetEpoch::execute(char *req, size_t reqLen, voi
             }
         }
     }
-    chakra::net::Packet::serialize(epochSetMessageResponse, proto::types::P_SET_EPOCH, cbf);
+    link->asyncSendMsg(epochSetMessageResponse, proto::types::P_SET_EPOCH);
 }

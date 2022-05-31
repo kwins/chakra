@@ -27,6 +27,8 @@ public:
         void onPeerRead(ev::io& watcher, int event);
         void onReadError();
         void startEvRead();
+        void asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+        void onPeerWrite(ev::io& watcher, int event);
         ~Link();
         std::shared_ptr<Peer> reletedPeer;
     };
@@ -52,7 +54,7 @@ public:
     Peer() = default;
     const std::string &getName() const;
     const std::string &getIp() const;
-    int getPort() const;
+    int getPort() const; // 获取集群的端口
     int getReplicatePort();
     uint64_t getFg() const;
     uint64_t getEpoch() const;
@@ -99,9 +101,8 @@ public:
     bool delFailReport(const std::shared_ptr<Peer>& sender);
     size_t cleanFailReport(long timeOutMillSec);
     void updateSelf(const proto::peer::GossipSender& sender);
-    error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    void sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     ~Peer();
-
 private:
 
     // 节点的名字，由 40 个十六进制字符组成

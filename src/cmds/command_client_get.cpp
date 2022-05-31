@@ -2,8 +2,10 @@
 #include "client.pb.h"
 #include "net/packet.h"
 #include "database/db_family.h"
+#include <service/chakra.h>
 
-void chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data) {
+    auto link = static_cast<chakra::serv::Chakra::Link*>(data);
     proto::client::GetMessageResponse getMessageResponse;
     proto::client::GetMessageRequest getMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, len, getMessageRequest, proto::types::C_GET);
@@ -18,5 +20,5 @@ void chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data, 
             getMessageResponse.mutable_data()->CopyFrom(*value);
         }
     }
-    chakra::net::Packet::serialize(getMessageResponse, proto::types::C_GET, cbf);
+    link->asyncSendMsg(getMessageResponse, proto::types::C_GET);
 }

@@ -16,7 +16,7 @@ protected:
         cluster = std::make_shared<chakra::client::ChakraCluster>(opts);
     }
     void TearDown() override {}
-    std::string prefixKey(std::string key) { return "incr4_" + key; }
+    std::string prefixKey(std::string key) { return "incr5_" + key; }
 
     void clientIncrTestCase0() {
         std::string set_db = "db1";

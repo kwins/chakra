@@ -9,8 +9,7 @@
 #include "net/packet.h"
 #include "utils/basic.h"
 
-void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, void *data,
-                                                       std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, void *data) {
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     proto::replica::SyncMessageResponse syncMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, len, syncMessageResponse, proto::types::R_SYNC_RESPONSE);

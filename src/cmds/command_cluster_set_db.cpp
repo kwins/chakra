@@ -10,9 +10,8 @@
 #include "types.pb.h"
 #include "replica/replica.h"
 
-void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data,
-                                                std::function<error::Error(char *, size_t)> cbf) {
-
+void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::DBSetMessageRequest dbSetMessage;
     proto::peer::DBSetMessageResponse dbSetMessageResponse;
     auto clsptr = cluster::Cluster::get();
@@ -70,5 +69,5 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
             LOG(INFO) << "[cluster] set db " << dbSetMessage.db().name() << " state " << proto::peer::MetaDB_State_Name(info.state());
         }
     }
-    chakra::net::Packet::serialize(dbSetMessageResponse, proto::types::P_SET_DB, cbf);
+    link->asyncSendMsg(dbSetMessageResponse, proto::types::P_SET_DB);
 }

@@ -24,7 +24,7 @@ DECLARE_int32(db_cache_shard_size);
 DECLARE_int64(db_wal_ttl_seconds);
 
 chakra::database::FamilyDB::FamilyDB() : index(0) {
-    LOG(INFO) << "[familydb] init";
+    DLOG(INFO) << "[familydb] init";
     proto::peer::MetaDBs metaDBs;
     std::string filename = FLAGS_cluster_dir + "/" + DB_FILE;
     try {
@@ -39,7 +39,7 @@ chakra::database::FamilyDB::FamilyDB() : index(0) {
         LOG(INFO) << "[familydb] load db from" << filename << " error " << err.what();
         exit(-1);
     }
-    LOG(INFO) << "[familydb] success";
+    DLOG(INFO) << "[familydb] success";
 }
 
 chakra::error::Error chakra::database::FamilyDB::getMetaDB(const std::string &dbname, proto::peer::MetaDB &meta) {

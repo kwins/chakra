@@ -12,7 +12,6 @@ enum Type {
   P_SET_DB            = 6;            // 初始化 DB
   P_SET_EPOCH         = 7;            // 初始化节点 epoch
   P_UPDATE_DB         = 8;
-  P_STATE             = 9;            // 获取机器状态
 
   // client
   C_GET               = 1000;
@@ -24,6 +23,7 @@ enum Type {
   C_INCR              = 1006;
   C_MINCR             = 1007;
   C_SCAN              = 1008;
+  C_STATE             = 1009;
 
   // replica
   R_PING              = 3001;

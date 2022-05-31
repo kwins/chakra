@@ -7,11 +7,12 @@
 #include "net/packet.h"
 #include "cluster/cluster.h"
 
-void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, void* data, std::function<error::Error(char *, size_t)> cbf) {
+void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, void* data) {
+    auto link = static_cast<chakra::cluster::Peer::Link*>(data);
     proto::peer::GossipMessage gossip;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, gossip, proto::types::P_MEET_PEER);
     if (err) return;
-    LOG(INFO) << "[cluster] meet peer message received: " << gossip.DebugString();
+    DLOG(INFO) << "[cluster] meet peer message request: " << gossip.DebugString();
     auto clsptr = cluster::Cluster::get();
     clsptr->setCronTODO(cluster::Cluster::FLAG_SAVE_CONFIG);
 
@@ -40,5 +41,6 @@ void chakra::cmds::CommandClusterMeetPeer::execute(char *req, size_t reqLen, voi
     // 会带上当前节点的 name
     proto::peer::GossipMessage pong;
     clsptr->buildGossipMessage(pong, gossip.sender().data());
-    chakra::net::Packet::serialize(pong, proto::types::P_PONG, cbf);
+    DLOG(INFO) << "[cluster] meet peer message response: " << pong.DebugString();
+    link->asyncSendMsg(pong, proto::types::P_PONG);
 }

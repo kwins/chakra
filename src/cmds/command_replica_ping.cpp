@@ -9,9 +9,7 @@
 #include "net/packet.h"
 #include "cluster/cluster.h"
 
-void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data,
-                                               std::function<error::Error(char *, size_t)> cbf) {
-
+void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data) {
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
     auto clsptr = cluster::Cluster::get();
@@ -29,5 +27,5 @@ void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data
         link->setPeerName(pingMessage.sender_name());
         link->setState(chakra::replica::Replicate::Link::State::CONNECTED);
     }
-    chakra::net::Packet::serialize(pongMessage, proto::types::R_PONG, cbf);
+    link->asyncSendMsg(pongMessage, proto::types::R_PONG);
 }

@@ -31,7 +31,6 @@ chakra::client::ChakraCluster::ChakraCluster(Options opts) : options(std::move(o
                 if (err) LOG(ERROR) << "Update cluster client error when cluster changed:" << err.what();
             }
         }
-        // LOG(INFO) << "backup update thread exit.";
     });
 }
 
@@ -64,14 +63,15 @@ chakra::error::Error chakra::client::ChakraCluster::connectCluster() {
     DBS dbConn;
 
     for (auto peerState : clusterState.peers()) {
-        if (peerState.first.empty() || peerState.second.ip().empty() || peerState.second.port() <= 0) {
+        if (peerState.first.empty() || peerState.second.ip().empty() 
+            || peerState.second.port() <= 0) {
             return error::Error("load bad cluster state");
         }
 
         client::Chakra::Options peerOptions;
         peerOptions.name = peerState.first;
         peerOptions.ip = peerState.second.ip();
-        peerOptions.port = peerState.second.port();
+        peerOptions.port = peerState.second.port() - 1;
         peerOptions.connectTimeOut = options.connectTimeOut;
         peerOptions.readTimeOut = options.readTimeOut;
         peerOptions.writeTimeOut = options.writeTimeOut;

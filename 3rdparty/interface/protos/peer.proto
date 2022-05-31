@@ -33,7 +33,7 @@ message PeerState {
     int32 epoch = 1;
     int32 flag = 2;
     string ip = 3;
-    int32 port = 4;
+    int32 port = 4; // server port
     string name = 5;
     map<string, MetaDB> dbs = 6; // key=dbname
 }
