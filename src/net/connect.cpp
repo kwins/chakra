@@ -126,7 +126,7 @@ void chakra::net::Connect::receivePack(const std::function<error::Error(char* pt
 }
 
 void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Error(char* ptr, size_t len)>& process) {
-    DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+    // DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
     buffer->maybeRealloc();
     ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->free);
     if (readn == 0) {
@@ -158,14 +158,14 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
         // 剩下的为未读取, 移动到缓存最前端
         // 如果包解析失败，则丢弃
         auto err = process(buffer->data, packSize);
-        DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been processed and it's size is " << packSize 
-                   << " and read size is " << readn << " and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+        // DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been processed and it's size is " << packSize 
+        //            << " and read size is " << readn << " and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
         buffer->move(packSize, -1);
-        DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been moved and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+        // DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been moved and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
         processed++;
         if (err) throw err;
     } while (buffer->len > 0);
-    DLOG(INFO) << "[connect:" << remoteAddr() << "] buffer process finish(" << processed << ")" << "\n\n\n";
+    // DLOG(INFO) << "[connect:" << remoteAddr() << "] buffer process finish(" << processed << ")" << "\n\n\n";
 }
 
 std::string chakra::net::Connect::remoteAddr()  {

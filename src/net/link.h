@@ -19,6 +19,7 @@ public:
     explicit Link(int sockfd);
     error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     bool connected() const;
+    std::string remoteAddr();
     void close();
     ~Link();
 

@@ -21,10 +21,9 @@ DECLARE_int32(cluster_handshake_timeout_ms);
 DECLARE_int32(cluster_peer_timeout_ms);
 DECLARE_int32(cluster_peer_link_retry_timeout_ms);
 DECLARE_double(cluster_cron_interval_sec);
-DECLARE_int32(cluster_tcp_back_log);
+DECLARE_int32(server_tcp_backlog);
 
 chakra::cluster::Cluster::Cluster() {
-    LOG(INFO) << "[cluster] init dir " << FLAGS_cluster_dir;
     state = STATE_FAIL;
     cronLoops = 0;
     seed = std::make_shared<std::default_random_engine>(time(nullptr));
@@ -32,15 +31,14 @@ chakra::cluster::Cluster::Cluster() {
     startEv();
     updateClusterState();
     dumpMyselfDBs();
-    LOG(INFO) << "[cluster] listen in " << utils::Basic::cport()
-              << " success, myself is " << myself->getName();
+    LOG(INFO) << "[cluster] listen on " << utils::Basic::cport() << " success";
 }
 
 void chakra::cluster::Cluster::loadPeers() {
     try {
         proto::peer::ClusterState clusterState;
         utils::FileHelper::loadFile(FLAGS_cluster_dir + "/" + PEERS_FILE, clusterState);
-        LOG(INFO) << "[cluster] state :" << clusterState.DebugString();
+        DLOG(INFO) << "[cluster] state :" << clusterState.DebugString();
         currentEpoch = clusterState.current_epoch();
         state = clusterState.state();
         for(auto& info : clusterState.peers()){
@@ -69,7 +67,7 @@ void chakra::cluster::Cluster::loadPeers() {
         myself->setName(utils::Basic::genRandomID());
         myself->setFlag(Peer::FLAG_MYSELF);
         peers.insert(std::make_pair(myself->getName(), myself));
-        LOG(INFO) << "[cluster] init first and peers size:" << peers.size();
+        DLOG(INFO) << "[cluster] init first and peers size:" << peers.size();
     } catch (const std::exception& err) {
         LOG(ERROR) << "[cluster] exit with error " << err.what();
         exit(-1);
@@ -84,7 +82,7 @@ std::shared_ptr<chakra::cluster::Cluster> chakra::cluster::Cluster::get() {
 
 void chakra::cluster::Cluster::startEv() {
     // ev listen and accept
-    auto err = net::Network::tpcListen(utils::Basic::cport() ,FLAGS_cluster_tcp_back_log, sfd);
+    auto err = net::Network::tpcListen(utils::Basic::cport() ,FLAGS_server_tcp_backlog, sfd);
     if (err || sfd == -1) {
         LOG(ERROR) << "[cluster] listening on " << utils::Basic::cport() << " " << err.what();
         exit(1);
@@ -210,7 +208,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         if ((peer->getLastPingSend() && delay > FLAGS_cluster_peer_timeout_ms)
                 || (peer->getRetryLinkTime() && retryDelay > FLAGS_cluster_peer_link_retry_timeout_ms)) {
             if (!peer->isFail() && !peer->isPfail()) {
-                LOG(INFO) << "[cluster] NOTE peer " << peer->getName() << " possibly failing delay=" << delay
+                LOG(WARNING) << "[cluster] NOTE peer " << peer->getName() << " possibly failing when delay " << delay
                              << "ms, peer time out config is " << FLAGS_cluster_peer_timeout_ms << " ms.";
                 peer->setFlag(Peer::FLAG_PFAIL);
                 setCronTODO(FLAG_UPDATE_STATE | FLAG_SAVE_CONFIG);
@@ -240,8 +238,9 @@ void chakra::cluster::Cluster::onAccept(ev::io &watcher, int event) {
         LOG(ERROR) << "[cluster] on accept peer error" << strerror(errno);
         return;
     }
-
-    (new chakra::cluster::Peer::Link(sd))->startEvRead();
+    auto link = new chakra::cluster::Peer::Link(sd);
+    link->startEvRead();
+    DLOG(INFO) << "[cluster] accept " << link->remoteAddr() << " ok.";
 }
 
 void chakra::cluster::Cluster::stop() {

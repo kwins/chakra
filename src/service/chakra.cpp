@@ -23,7 +23,7 @@ DECLARE_int32(server_tcp_backlog);
 DECLARE_double(server_cron_interval_sec);
 
 chakra::serv::Chakra::Chakra() {
-    LOG(INFO) << "[chakra] start";
+    DLOG(INFO) << "[chakra] start";
     workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
@@ -62,7 +62,7 @@ chakra::serv::Chakra::Chakra() {
     chakra::replica::Replicate::get();
     // sig
     initLibev();
-    LOG(INFO) << "[chakra] end";
+    DLOG(INFO) << "[chakra] end";
 }
 
 // Chakra
@@ -73,11 +73,11 @@ std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
 
 chakra::serv::Chakra::Worker* chakra::serv::Chakra::getWorker(int id) { return workers[id]; }
 void chakra::serv::Chakra::initLibev() {
-    LOG(INFO) << "[chakra] init lib ev";
+    DLOG(INFO) << "[chakra] init lib ev";
     sfd = -1;
     auto err = net::Network::tpcListen(utils::Basic::sport() ,FLAGS_server_tcp_backlog, sfd);
     if (err) {
-        LOG(ERROR) << "[chakra] listen on :" << utils::Basic::sport() << " " << err.what();
+        LOG(ERROR) << "[chakra] listen on " << utils::Basic::sport() << " " << err.what();
         exit(1);
     }
     acceptIO.set(ev::get_default_loop());
@@ -99,7 +99,7 @@ void chakra::serv::Chakra::initLibev() {
 }
 
 void chakra::serv::Chakra::onSignal(ev::sig & sig, int event) {
-    LOG(INFO) << "[chakra] on signal";
+    DLOG(INFO) << "[chakra] on signal";
     sig.stop();
     auto serv = static_cast<chakra::serv::Chakra*>(sig.data);
     if (serv)
@@ -119,7 +119,7 @@ void chakra::serv::Chakra::onAccept(ev::io &watcher, int event) {
     auto link = new chakra::serv::Chakra::Link(sockfd);
     workers[index]->links.push_back(link);
     workers[index]->async.send();
-    LOG(INFO) << "[chakra] accept ok, dispatch connect to work " << index << ", remote addr " << link->conn->remoteAddr();
+    DLOG(INFO) << "[chakra] accept ok, dispatch connect to work " << index << ", remote addr " << link->conn->remoteAddr();
 }
 
 void chakra::serv::Chakra::startServCron() {
@@ -221,7 +221,7 @@ void chakra::serv::Chakra::Link::onClientRead(ev::io &watcher, int event) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
             DLOG(INFO) << "[chakra] client received message type "
-                    << proto::types::Type_Name(msgType) << ":" << msgType;
+                       << proto::types::Type_Name(msgType) << ":" << msgType;
 
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
             cmdsptr->execute(req, reqlen, this);
@@ -254,7 +254,7 @@ void chakra::serv::Chakra::Link::asyncSendMsg(::google::protobuf::Message& msg, 
         wbuffer->free -= len;
         return error::Error();
     });
-    DLOG(INFO) << "[chakra] async send message to work id " << workID;
+    LOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to work id " << workID;
     auto worker = chakra::serv::Chakra::get()->getWorker(workID);
     wio.set<chakra::serv::Chakra::Link, &chakra::serv::Chakra::Link::onClientWrite>(this);
     wio.set(worker->loop);

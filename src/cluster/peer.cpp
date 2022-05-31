@@ -194,7 +194,6 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
 }
 
 void chakra::cluster::Peer::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
-    DLOG(INFO) << "[cluster] async send message type " << proto::types::Type_Name(type) << ":" << type << " to " << conn->remoteAddr();;
     chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
         wbuffer->maybeRealloc(len);
         memcpy(&wbuffer->data[wbuffer->len], data, len);
@@ -202,7 +201,7 @@ void chakra::cluster::Peer::Link::asyncSendMsg(::google::protobuf::Message& msg,
         wbuffer->free -= len;
         return error::Error();
     });
-
+    DLOG(INFO) << "[cluster] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
     wio.set<chakra::cluster::Peer::Link, &chakra::cluster::Peer::Link::onPeerWrite>(this);
     wio.set(ev::get_default_loop());
     wio.start(conn->fd(), ev::WRITE);

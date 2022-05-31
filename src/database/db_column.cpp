@@ -26,7 +26,7 @@ DECLARE_int64(db_default_cache_bytes);
 
 chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     metaDB = meta;
-    LOG(INFO) << "[columndb] create meta is " << metaDB.DebugString();
+    DLOG(INFO) << "[columndb] create meta is " << metaDB.DebugString();
     rocksdb::Options rocksOpts;
     rocksOpts.keep_log_file_num = 5;
     rocksOpts.create_if_missing = true;
@@ -68,11 +68,11 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
         }
     }
 
-    LOG(INFO) << "[columndb] " << meta.name() 
+    DLOG(INFO) << "[columndb] " << meta.name() 
               << " preheat cache usage " << std::to_string(cacheUsage())
               << " cache size " << size();
     delete iter;
-    LOG(INFO) << "[columndb] end";
+    DLOG(INFO) << "[columndb] end";
 }
 
 std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const std::string &key) {

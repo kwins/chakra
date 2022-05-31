@@ -152,7 +152,7 @@ chakra::error::Error chakra::client::Chakra::state(proto::peer::ClusterState &cl
     proto::peer::StateMessageRequest stateMessageRequest;
     stateMessageRequest.set_from(" ");
     proto::peer::StateMessageResponse stateMessageResponse;
-    auto err = executeCmd(stateMessageRequest, proto::types::P_STATE, stateMessageResponse);
+    auto err = executeCmd(stateMessageRequest, proto::types::C_STATE, stateMessageResponse);
     if (err) return err;
     if (stateMessageResponse.error().errcode() != 0) {
         return error::Error(stateMessageResponse.error().errmsg());

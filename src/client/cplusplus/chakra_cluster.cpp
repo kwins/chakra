@@ -31,7 +31,6 @@ chakra::client::ChakraCluster::ChakraCluster(Options opts) : options(std::move(o
                 if (err) LOG(ERROR) << "Update cluster client error when cluster changed:" << err.what();
             }
         }
-        // LOG(INFO) << "backup update thread exit.";
     });
 }
 

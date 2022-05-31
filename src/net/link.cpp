@@ -38,6 +38,7 @@ bool chakra::net::Link::connected() const {
     return conn != nullptr && conn->connState() == chakra::net::Connect::State::CONNECTED;
 }
 
+std::string chakra::net::Link::remoteAddr() { return conn->remoteAddr(); }
 void chakra::net::Link::close() {
     rio.stop();
     if (conn)

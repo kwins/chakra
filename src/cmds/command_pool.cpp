@@ -13,7 +13,6 @@
 #include "command_cluster_fail.h"
 #include "command_cluster_set_db.h"
 #include "command_cluster_set_epoch.h"
-#include "command_cluster_state.h"
 #include "command_replica_heartbeat.h"
 #include "command_replica_delta_pull.h"
 #include "command_replica_delta_recv.h"
@@ -32,6 +31,7 @@
 #include "command_client_scan.h"
 #include "command_client_incr.h"
 #include "command_client_mincr.h"
+#include "command_client_state.h"
 
 chakra::cmds::CommandPool::CommandPool() {
     cmdnf = std::make_shared<CommandNF>();
@@ -44,7 +44,6 @@ chakra::cmds::CommandPool::CommandPool() {
         { proto::types::P_FAIL,       std::make_shared<CommandClusterFail>() },
         { proto::types::P_SET_EPOCH,  std::make_shared<CommandClusterSetEpoch>() },
         { proto::types::P_SET_DB,     std::make_shared<CommandClusterSetDB>() },
-        { proto::types::P_STATE,      std::make_shared<CommandClusterState>() },
 
         // client
         { proto::types::C_SET,          std::make_shared<CommandClientSet>() },
@@ -55,8 +54,9 @@ chakra::cmds::CommandPool::CommandPool() {
         { proto::types::C_MPUSH,        std::make_shared<CommandClientMPush>() },
         { proto::types::C_SCAN,         std::make_shared<CommandClientScan>() },
         { proto::types::C_INCR,         std::make_shared<CommandClientIncr>() },
-        { proto::types::C_MINCR,         std::make_shared<CommandClientMIncr>() },
-        
+        { proto::types::C_MINCR,        std::make_shared<CommandClientMIncr>() },
+        { proto::types::C_STATE,        std::make_shared<CommandClientState>() },
+
         // replica
         { proto::types::R_PING,           std::make_shared<CommandReplicaPing>() },
         { proto::types::R_PONG,           std::make_shared<CommandReplicaPong>() },
