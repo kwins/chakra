@@ -11,7 +11,6 @@
 #include "error/err.h"
 #include "utils/nocopy.h"
 #include "peer.pb.h"
-#include "element.h"
 #include "db_column_cache.h"
 
 namespace chakra::database {

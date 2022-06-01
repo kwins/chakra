@@ -13,7 +13,7 @@ void chakra::cmds::CommandClientState::execute(char *req, size_t reqLen, void *d
     proto::peer::StateMessageResponse stateMessageResponse;
     auto err = chakra::net::Packet::deSerialize(req, reqLen, stateMessageRequest, proto::types::C_STATE);
     if (err) {
-        chakra::net::Packet::fillError(stateMessageResponse.mutable_error(), 1, err.what());
+        fillError(stateMessageResponse.mutable_error(), 1, err.what());
     } else {
         DLOG(INFO) << "[cluster] state request: " << stateMessageRequest.DebugString();
         auto clsptr = chakra::cluster::Cluster::get();

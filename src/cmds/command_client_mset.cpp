@@ -7,7 +7,6 @@
 #include "net/packet.h"
 #include "database/db_family.h"
 #include "utils/basic.h"
-#include "database/type_string.h"
 #include <element.pb.h>
 #include <error/err.h>
 #include <service/chakra.h>
@@ -19,9 +18,9 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data)
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, msetMessageRequest, proto::types::C_MSET);
     if (err) {
-        chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, err.what());
+        fillError(msetMessageResponse.mutable_error(), 1, err.what());
     } else if (msetMessageRequest.datas().size() == 0) {
-        chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "empty arguments");
+        fillError(msetMessageResponse.mutable_error(), 1, "empty arguments");
     } else {
         int fails = 0;
         for(auto& sub : msetMessageRequest.datas()) {
@@ -47,7 +46,7 @@ void chakra::cmds::CommandClientMSet::execute(char *req, size_t len, void *data)
             }
         }
         if (fails > 0 && fails == msetMessageRequest.datas_size()) {
-            chakra::net::Packet::fillError(msetMessageResponse.mutable_error(), 1, "all fail");
+            fillError(msetMessageResponse.mutable_error(), 1, "all fail");
         }
     }
     link->asyncSendMsg(msetMessageResponse, proto::types::C_MSET);

@@ -21,17 +21,17 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, dbSetMessage, proto::types::P_SET_DB);
     if (err) {
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, err.what());
+        fillError(dbSetMessageResponse.mutable_error(), 1, err.what());
     
     } else if (!clsptr->stateOK()){ /* 集群状态正常 */
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster state fail");
+        fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster state fail");
     
     } else if (dbSetMessage.db().name().empty() || dbSetMessage.db().cached() <= 0){ /* 请求参数正常 */
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Bad request");
+        fillError(dbSetMessageResponse.mutable_error(), 1, "Bad request");
     
     } else if (dbptr->servedDB(dbSetMessage.db().name())
             || myself->servedDB(dbSetMessage.db().name())){ /* 当前节点没有处理请求的DB */
-        chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster has been served db " + dbSetMessage.db().name());
+        fillError(dbSetMessageResponse.mutable_error(), 1, "Cluster has been served db " + dbSetMessage.db().name());
     
     } else {
         /* 找到集群中目前正在处理此DB的节点,创建新的DB 或者 开始复制流程 */
@@ -45,7 +45,7 @@ void chakra::cmds::CommandClusterSetDB::execute(char *req, size_t reqLen, void *
         }
 
         if (num > 0 && num == peers.size()) { /* 集群中存在这个DB的所有节点，当前节点都已经复制了 */
-            chakra::net::Packet::fillError(dbSetMessageResponse.mutable_error(), 1, "All peers has been served db or down" + dbSetMessage.db().name());
+            fillError(dbSetMessageResponse.mutable_error(), 1, "All peers has been served db or down" + dbSetMessage.db().name());
         } else {
             if (!peers.empty()) { /* 因为是多主，所以需要复制所有节点 */
                 for(auto& peer: peers) {

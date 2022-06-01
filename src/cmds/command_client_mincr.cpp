@@ -19,9 +19,9 @@ void chakra::cmds::CommandClientMIncr::execute(char *req, size_t len, void *data
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, mincrMessageRequest, proto::types::C_MINCR);
     if (err) {
-        chakra::net::Packet::fillError(mincrMessageResponse.mutable_error(), 1, err.what());
+        fillError(mincrMessageResponse.mutable_error(), 1, err.what());
     } else if (mincrMessageRequest.datas().size() == 0) {
-        chakra::net::Packet::fillError(mincrMessageResponse.mutable_error(), 1, "empty data");
+        fillError(mincrMessageResponse.mutable_error(), 1, "empty data");
     } else {
         int fails = 0;
         for (auto& sub : mincrMessageRequest.datas()) {
@@ -43,7 +43,7 @@ void chakra::cmds::CommandClientMIncr::execute(char *req, size_t len, void *data
             }            
         }
         if (fails > 0 && fails == mincrMessageRequest.datas_size()) {
-            chakra::net::Packet::fillError(mincrMessageResponse.mutable_error(), 1, "all fail");
+            fillError(mincrMessageResponse.mutable_error(), 1, "all fail");
         }
     }
     link->asyncSendMsg(mincrMessageResponse, proto::types::C_MINCR);

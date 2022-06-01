@@ -10,12 +10,12 @@ void chakra::cmds::CommandClientGet::execute(char *req, size_t len, void *data) 
     proto::client::GetMessageRequest getMessageRequest;
     auto err = chakra::net::Packet::deSerialize(req, len, getMessageRequest, proto::types::C_GET);
     if (err) {
-        chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, err.what());
+        fillError(getMessageResponse.mutable_error(), 1, err.what());
     } else {
         auto dbptr = chakra::database::FamilyDB::get();
         auto value = dbptr->get(getMessageRequest.db_name(), getMessageRequest.key());
         if (!value) {
-            chakra::net::Packet::fillError(getMessageResponse.mutable_error(), 1, "db or key not found");
+            fillError(getMessageResponse.mutable_error(), 1, "db or key not found");
         } else {
             getMessageResponse.mutable_data()->CopyFrom(*value);
         }

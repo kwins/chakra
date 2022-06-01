@@ -17,9 +17,9 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
 
     auto err = chakra::net::Packet::deSerialize(req, reqLen, syncMessageRequest, proto::types::R_SYNC_REQUEST);
     if (err) {
-        chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), 1, err.what());
+        fillError(syncMessageResponse.mutable_error(), 1, err.what());
     } else if (syncMessageRequest.db_name().empty()) {
-        chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), 1, "db name empty");
+        fillError(syncMessageResponse.mutable_error(), 1, "db name empty");
     } else {
         LOG(INFO) << "[replication] sync request: " << syncMessageRequest.DebugString();
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
@@ -28,7 +28,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
             std::unique_ptr<rocksdb::TransactionLogIterator> iter;
             err = dbptr->getUpdateSince(syncMessageRequest.db_name(), syncMessageRequest.seq(), &iter);
             if (err) {
-                chakra::net::Packet::fillError(syncMessageResponse.mutable_error(), 1, err.what());
+                fillError(syncMessageResponse.mutable_error(), 1, err.what());
             } else if (iter->Valid() && iter->GetBatch().sequence == syncMessageRequest.seq()) {
                 auto replicateDB = std::make_shared<chakra::replica::Replicate::Link::ReplicateDB>();
                 replicateDB->name = syncMessageRequest.db_name();
@@ -55,7 +55,7 @@ void chakra::cmds::CommandReplicaSyncRequest::fullSync(chakra::replica::Replicat
     rocksdb::SequenceNumber lastSeq;
     auto err = link->snapshotDB(request.db_name(), lastSeq);
     if (err) {
-        chakra::net::Packet::fillError(response.mutable_error(), 1, err.what());
+        fillError(response.mutable_error(), 1, err.what());
     } else {
         response.set_psync_type(proto::types::R_FULLSYNC);
         response.set_seq(lastSeq);

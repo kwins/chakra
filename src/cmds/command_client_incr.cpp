@@ -18,17 +18,17 @@ void chakra::cmds::CommandClientIncr::execute(char *req, size_t len, void *data)
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, incrMessageRequest, proto::types::C_INCR);
     if (err) {
-        chakra::net::Packet::fillError(incrMessageResponse.mutable_error(), 1, err.what());
+        fillError(incrMessageResponse.mutable_error(), 1, err.what());
     } else if (!dbptr->servedDB(incrMessageRequest.db_name())) {
-        chakra::net::Packet::fillError(incrMessageResponse.mutable_error(), 1, "db " + incrMessageRequest.db_name() + " not exist.");
+        fillError(incrMessageResponse.mutable_error(), 1, "db " + incrMessageRequest.db_name() + " not exist.");
     } else if (incrMessageRequest.key().empty()) {
-        chakra::net::Packet::fillError(incrMessageResponse.mutable_error(), 1, "key empty");
+        fillError(incrMessageResponse.mutable_error(), 1, "key empty");
     } else if (incrMessageRequest.type() != proto::element::ElementType::FLOAT) {
-        chakra::net::Packet::fillError(incrMessageResponse.mutable_error(), 1, "type must be float");
+        fillError(incrMessageResponse.mutable_error(), 1, "type must be float");
     } else {
         auto err = dbptr->incr(incrMessageRequest.db_name(), incrMessageRequest.key(), incrMessageRequest.f());
         if (err) {
-            chakra::net::Packet::fillError(incrMessageResponse.mutable_error(), 1, err.what());
+            fillError(incrMessageResponse.mutable_error(), 1, err.what());
         }
     }
     link->asyncSendMsg(incrMessageResponse, proto::types::C_INCR);

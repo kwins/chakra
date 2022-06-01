@@ -12,7 +12,6 @@
 #include <google/protobuf/map.h>
 #include <memory>
 #include <types.pb.h>
-#include "database/db_object.h"
 
 chakra::client::Chakra::Chakra(Options opts) : options(opts), connUsingNumber(0) {
     chakra::net::Connect::Options connOptions;

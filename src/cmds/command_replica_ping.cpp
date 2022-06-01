@@ -18,9 +18,9 @@ void chakra::cmds::CommandReplicaPing::execute(char *req, size_t len, void *data
     proto::replica::PingMessage pingMessage;
     auto err = chakra::net::Packet::deSerialize(req, len, pingMessage, proto::types::R_PING);
     if (err) {
-        chakra::net::Packet::fillError(pongMessage.mutable_error(), 1, err.what());
+        fillError(pongMessage.mutable_error(), 1, err.what());
     } else if (pingMessage.sender_name().empty()) {
-        chakra::net::Packet::fillError(pongMessage.mutable_error(), 1, "replica sender name is empty.");
+        fillError(pongMessage.mutable_error(), 1, "replica sender name is empty.");
     }else {
         // 回复Pong
         pongMessage.set_sender_name(clsptr->getMyself()->getName());

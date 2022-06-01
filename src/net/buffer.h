@@ -17,6 +17,15 @@ struct Buffer {
     void writeMsg(const ::google::protobuf::Message& message, proto::types::Type type);
     void move(int start, int end);
     void maybeRealloc(size_t added = 0);
+
+    template<typename T>
+    T read(int index){
+        if (index + sizeof(T) <= len){
+            return *((T*)&data[index]);
+        }
+        return 0;
+    }
+
     ~Buffer();
 };
 

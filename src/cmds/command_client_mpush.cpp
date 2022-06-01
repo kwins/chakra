@@ -10,7 +10,6 @@
 #include "net/packet.h"
 #include "database/db_family.h"
 #include "utils/basic.h"
-#include "database/type_string.h"
 #include <service/chakra.h>
 
 void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data) {
@@ -20,7 +19,7 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, mpushMessageRequest, proto::types::C_MPUSH);
     if (err) {
-        chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, err.what());
+        fillError(mpushMessageResponse.mutable_error(), 1, err.what());
     } else {
         int fails = 0;
         for(auto& sub : mpushMessageRequest.datas()) {
@@ -63,7 +62,7 @@ void chakra::cmds::CommandClientMPush::execute(char *req, size_t len, void *data
             }
         }
         if (fails > 0 && fails == mpushMessageRequest.datas_size()) {
-            chakra::net::Packet::fillError(mpushMessageResponse.mutable_error(), 1, "all fail");
+            fillError(mpushMessageResponse.mutable_error(), 1, "all fail");
         }
     }
     link->asyncSendMsg(mpushMessageResponse, proto::types::C_MPUSH);

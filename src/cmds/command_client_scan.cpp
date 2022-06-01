@@ -18,9 +18,9 @@ void chakra::cmds::CommandClientScan::execute(char *req, size_t len, void *data)
     
     auto err = chakra::net::Packet::deSerialize(req, len, scanMessageRequest, proto::types::C_SCAN);
     if (err) {
-        chakra::net::Packet::fillError(scanMessageResponse.mutable_error(), 1, err.what());
+        fillError(scanMessageResponse.mutable_error(), 1, err.what());
     } else if (scanMessageRequest.batch_size() <= 0 || scanMessageRequest.dbname().empty()) {
-        chakra::net::Packet::fillError(scanMessageResponse.mutable_error(), 1, "batch size zero or dbname empty");
+        fillError(scanMessageResponse.mutable_error(), 1, "batch size zero or dbname empty");
     } else {
         LOG(INFO) << "[chakra] scan request: " << scanMessageRequest.DebugString();
         try {
@@ -54,7 +54,7 @@ void chakra::cmds::CommandClientScan::execute(char *req, size_t len, void *data)
             iterator = nullptr;
         } catch (const std::exception& err) {
             LOG(ERROR) << "[chakra] scan new iterator error " << err.what();
-            chakra::net::Packet::fillError(scanMessageResponse.mutable_error(), 1, err.what());
+            fillError(scanMessageResponse.mutable_error(), 1, err.what());
         }
     }
     LOG(INFO) << "[chakra] scan response: " << scanMessageResponse.DebugString();

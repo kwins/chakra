@@ -7,6 +7,7 @@
 #include <cerrno>
 #include <arpa/inet.h>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <error/err.h>
 #include <net/buffer.h>
@@ -16,7 +17,6 @@
 #include <fcntl.h>
 #include <glog/logging.h>
 #include <gflags/gflags.h>
-
 #include "packet.h"
 
 DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");  /* NOLINT */
@@ -87,23 +87,23 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
             buffer->data[buffer->len] = '\0';
         }
 
-        auto packSize = net::Packet::read<uint64_t>(buffer->data, buffer->len, 0);
+        auto packSize = buffer->read<uint64_t>(0);
         if (packSize > 0 && buffer->len >= packSize) break;
         LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize  << " buffer len is " << buffer->len;
     } while (true);
 
     int processed = 0;
     do { /* process as many messages as possible */
-        auto packSize = net::Packet::read<uint64_t>(buffer->data, buffer->len, 0);
-        if ((packSize == 0) || (packSize > 0 && buffer->len < packSize)) {
+        auto packSize = buffer->read<uint64_t>(0);
+        if ((packSize == 0) || (packSize > 0 && buffer->len < packSize)) { /* it means that no data or not enough for a complete package in buffer */
             LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << buffer->len;
-            return; // 这里不返回错误，只是打印日志，下次继续读取
+            return;
         }
 
-        // 处理整个包
-        // 从缓冲区中删除已经读取的内容
-        // 剩下的为未读取, 移动到缓存最前端
-        // 如果包解析失败，则丢弃
+        // process a package
+        // delete readed data from buffer
+        // move to head if remain some data in buffer
+        // drop it if process fail
         auto err = process(buffer->data, packSize);
         // DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been processed and it's size is " << packSize 
         //            << " and read size is " << readn << " and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;

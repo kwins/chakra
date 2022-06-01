@@ -7,7 +7,6 @@
 #include "net/packet.h"
 #include "database/db_family.h"
 #include "utils/basic.h"
-#include "database/type_string.h"
 #include <element.pb.h>
 #include <error/err.h>
 #include <service/chakra.h>
@@ -19,11 +18,11 @@ void chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data) 
     auto dbptr = chakra::database::FamilyDB::get();
     auto err = chakra::net::Packet::deSerialize(req, len, setMessageRequest, proto::types::C_SET);
     if (err) {
-        chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, err.what());
+        fillError(setMessageResponse.mutable_error(), 1, err.what());
     } else if (!dbptr->servedDB(setMessageRequest.db_name())) {
-        chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "DB " + setMessageRequest.db_name() + " not exist.");
+        fillError(setMessageResponse.mutable_error(), 1, "DB " + setMessageRequest.db_name() + " not exist.");
     } else if (setMessageRequest.key().empty()) {
-        chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, "bad arguments");
+        fillError(setMessageResponse.mutable_error(), 1, "bad arguments");
     } else {
         DLOG(INFO) << "[chakra] set request: " << setMessageRequest.DebugString();
         switch (setMessageRequest.type()) {
@@ -38,7 +37,7 @@ void chakra::cmds::CommandClientSet::execute(char *req, size_t len, void *data) 
             break;
         }
         if (err) {
-            chakra::net::Packet::fillError(setMessageResponse.mutable_error(), 1, err.what());
+            fillError(setMessageResponse.mutable_error(), 1, err.what());
         }
     }
     link->asyncSendMsg(setMessageResponse, proto::types::C_SET);
