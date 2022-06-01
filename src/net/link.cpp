@@ -12,8 +12,6 @@ DECLARE_int64(connect_buff_size);
 
 chakra::net::Link::Link(int sockfd) {
     conn = std::make_shared<net::Connect>(net::Connect::Options{ .fd = sockfd });
-    rbuffer = new Buffer(FLAGS_connect_buff_size);
-    wbuffer = new Buffer(FLAGS_connect_buff_size);
 }
 
 chakra::net::Link::Link(const std::string &ip, int port, bool connect) {
@@ -24,15 +22,13 @@ chakra::net::Link::Link(const std::string &ip, int port, bool connect) {
             throw err;
         }
     }
-    rbuffer = new Buffer(FLAGS_connect_buff_size);
-    wbuffer = new Buffer(FLAGS_connect_buff_size);
 }
 
-chakra::error::Error chakra::net::Link::sendMsg(google::protobuf::Message &msg, proto::types::Type type) {
-    return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
-        return conn->send(data, len);
-    });
-}
+// chakra::error::Error chakra::net::Link::sendMsg(google::protobuf::Message &msg, proto::types::Type type) {
+//     return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
+//         return conn->send(data, len);
+//     });
+// }
 
 bool chakra::net::Link::connected() const {
     return conn != nullptr && conn->connState() == chakra::net::Connect::State::CONNECTED;
@@ -47,6 +43,4 @@ void chakra::net::Link::close() {
 
 chakra::net::Link::~Link() {
     if (conn) conn = nullptr;
-    if (wbuffer != nullptr) delete wbuffer;
-    if (rbuffer != nullptr) delete rbuffer;
 }

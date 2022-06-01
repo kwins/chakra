@@ -133,6 +133,15 @@ chakra::error::Error chakra::client::ChakraCluster::meet(const std::string& ip, 
     return client->meet(ip, port);
 }
 
+chakra::error::Error chakra::client::ChakraCluster::state(proto::peer::ClusterState& clusterState, bool stateNow) { 
+    if (stateNow) {
+        return client->state(clusterState); 
+    }
+    
+    clusterState = clusterStates[index.load()];
+    return error::Error();
+}
+
 chakra::error::Error chakra::client::ChakraCluster::get(const proto::client::GetMessageRequest& request, proto::client::GetMessageResponse& response, bool hash) {
     auto& dbs = dbConns[index.load()];
     auto it = dbs.find(request.db_name());

@@ -15,7 +15,7 @@ ExternalProject_Add (
 ExternalProject_Add (
         zlib
         URL ${PROJECT_SOURCE_DIR}/3rdparty/zlib-1.2.11.tar.gz
-        CONFIGURE_COMMAND cmake ${CMakeConfig} -Wno-dev .
+        CONFIGURE_COMMAND cmake -Wno-dev ${CMakeConfig} .
         BUILD_IN_SOURCE 1
 )
 
@@ -23,6 +23,16 @@ ExternalProject_Add (
         gtest
         URL ${PROJECT_SOURCE_DIR}/3rdparty/googletest-release-1.8.0.tar.gz
         CONFIGURE_COMMAND cmake ${CMakeConfig} .
+        BUILD_COMMAND ${Make}
+        BUILD_IN_SOURCE 1
+        INSTALL_COMMAND make install
+)
+
+ExternalProject_Add (
+        gbenchmark
+        DEPENDS gtest
+        URL ${PROJECT_SOURCE_DIR}/3rdparty/googlebenchmark-v1.6.1.tar.gz
+        CONFIGURE_COMMAND cmake -DBENCHMARK_ENABLE_GTEST_TESTS=OFF -DCMAKE_BUILD_TYPE=RELEASE ${CMakeConfig} .
         BUILD_COMMAND ${Make}
         BUILD_IN_SOURCE 1
         INSTALL_COMMAND make install
@@ -69,7 +79,8 @@ ExternalProject_Add (
         rocksdb
         DEPENDS lz4
         URL ${PROJECT_SOURCE_DIR}/3rdparty/rocksdb-6.20.3.tar.gz
-        CONFIGURE_COMMAND cmake ${CMakeConfig} . -DWITH_TESTS=OFF -DWITH_TOOLS=OFF -DWITH_GFLAGS=OFF -DWITH_LZ4=ON -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DWITH_BENCHMARK_TOOLS=OFF -DUSE_RTTI=ON
+        CONFIGURE_COMMAND cmake -DWITH_TESTS=OFF -DWITH_TOOLS=OFF -DWITH_GFLAGS=OFF -DWITH_LZ4=ON -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_BUILD_TYPE=Release -DWITH_BENCHMARK_TOOLS=OFF -DUSE_RTTI=ON ${CMakeConfig}  .
+        BUILD_COMMAND ${Make}
         BUILD_IN_SOURCE 1
         INSTALL_COMMAND ${Make} install PREFIX=${EPBase}/Install
 )

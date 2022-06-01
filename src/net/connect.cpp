@@ -21,24 +21,27 @@
 
 DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");  /* NOLINT */
 
-chakra::net::Connect::Connect(chakra::net::Connect::Options opts) {
-    this->opts = std::move(opts);
-    this->sar = nullptr;
-    this->lastActive = system_clock::now();
-    this->cbuffer = new chakra::net::Buffer(FLAGS_connect_buff_size);
-    if (this->opts.fd > 0) {
-        this->FD = this->opts.fd;
-        this->state = State::CONNECTED;
+chakra::net::Connect::Connect(chakra::net::Connect::Options options) {
+    opts = std::move(options);
+    sar = nullptr;
+    lastActive = system_clock::now();
+    wbuffer = new chakra::net::Buffer(FLAGS_connect_buff_size);
+    rbuffer = new chakra::net::Buffer(FLAGS_connect_buff_size);
+    if (opts.fd > 0) {
+        FD = opts.fd;
+        state = State::CONNECTED;
     } else {
-        this->FD = -1;
-        this->state = State::INIT;
+        FD = -1;
+        state = State::INIT;
     }
 }
-
+void chakra::net::Connect::writeBuffer(const google::protobuf::Message& message, proto::types::Type type) {  wbuffer->writeMsg(message, type); }
+void chakra::net::Connect::sendBuffer() { send(wbuffer); }
 void chakra::net::Connect::send(Buffer* buffer) {
     if (buffer->data == nullptr) return;
-    long size = buffer->len;
-    long nextlen = size;
+    if (buffer->len == 0) return;
+    size_t size = buffer->len;
+    size_t nextlen = size;
     ssize_t sended = 0;
     while (true) {
         ssize_t writed = ::send(fd(), &buffer->data[sended], nextlen, MSG_NOSIGNAL);
@@ -53,8 +56,6 @@ void chakra::net::Connect::send(Buffer* buffer) {
         } else {
             sended += writed;
             if (sended == size) { /* send finished */
-                buffer->len -= sended;
-                buffer->free += sended;
                 buffer->move(sended, -1);
                 break;
             } else { /* continue send */
@@ -64,37 +65,12 @@ void chakra::net::Connect::send(Buffer* buffer) {
     }
 }
 
-chakra::error::Error chakra::net::Connect::send(const char *data, size_t len) {
-    if (data == nullptr || len <= 0) return error::Error("bad data or len");
-    long size = len;
-    long nextLen = size;
-    ssize_t sendSize = 0;
-    while (true) {
-        ssize_t writed = ::send(fd(), &data[sendSize], nextLen, MSG_NOSIGNAL);
-        if (writed == 0) {
-            return error::Error("connect closed");;
-        } else if (writed < 0) {
-            if ((errno == EWOULDBLOCK && !opts.block) || errno == EINTR) {
-                /* try aganin later */
-            } else {
-                return error::Error(strerror(errno));
-            }
-        } else {
-            sendSize += writed;
-            if (sendSize == size) {
-                break;
-            } else {
-                nextLen = size - sendSize;
-            }
-        }
-    }
-    return error::Error();
-}
-
-void chakra::net::Connect::receivePack(const std::function<error::Error(char* ptr, size_t len)>& process) { 
-    while (true) {
-        cbuffer->maybeRealloc();
-        ssize_t readn = ::read(fd(), &cbuffer->data[cbuffer->len], cbuffer->free);
+void chakra::net::Connect::receive(const std::function<error::Error(char* ptr, size_t len)>& process) {  receive(rbuffer, process); }
+void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Error(char* ptr, size_t len)>& process) {
+    // DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
+    do { /* read as many messages as possible */
+        buffer->maybeRealloc();
+        ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->free);
         if (readn == 0) {
             throw error::ConnectClosedError("connect closed");
         } else if (readn < 0) {
@@ -106,47 +82,18 @@ void chakra::net::Connect::receivePack(const std::function<error::Error(char* pt
                 throw error::ConnectReadError(strerror(errno));
             }
         } else {
-            cbuffer->len += readn;
-            cbuffer->free -= readn;
-            cbuffer->data[cbuffer->len] = '\0';
-        }
-        
-        auto packSize = net::Packet::read<uint64_t>(cbuffer->data, cbuffer->len, 0);
-        if ((packSize == 0) || (packSize > 0 && cbuffer->len < packSize)) {
-            LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << cbuffer->len;
-            continue;
+            buffer->len += readn;
+            buffer->free -= readn;
+            buffer->data[buffer->len] = '\0';
         }
 
-        // 读到一个完整的包
-        auto err = process(cbuffer->data, packSize);
-        cbuffer->move(packSize, -1);
-        if (err) throw err;
-        break;
-    }
-}
-
-void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Error(char* ptr, size_t len)>& process) {
-    // DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
-    buffer->maybeRealloc();
-    ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->free);
-    if (readn == 0) {
-        throw error::ConnectClosedError("connect closed");
-    } else if (readn < 0) {
-        if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
-            /* Try again later */
-        } else if (errno == ETIMEDOUT && opts.block) {
-            throw error::ConnectReadError(strerror(errno));
-        } else {
-            throw error::ConnectReadError(strerror(errno));
-        }
-    } else {
-        buffer->len += readn;
-        buffer->free -= readn;
-        buffer->data[buffer->len] = '\0';
-    }
+        auto packSize = net::Packet::read<uint64_t>(buffer->data, buffer->len, 0);
+        if (packSize > 0 && buffer->len >= packSize) break;
+        LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize  << " buffer len is " << buffer->len;
+    } while (true);
 
     int processed = 0;
-    do {
+    do { /* process as many messages as possible */
         auto packSize = net::Packet::read<uint64_t>(buffer->data, buffer->len, 0);
         if ((packSize == 0) || (packSize > 0 && buffer->len < packSize)) {
             LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << buffer->len;
@@ -358,6 +305,9 @@ int chakra::net::Connect::reconnect() {
     return 0;
 }
 
+size_t chakra::net::Connect::sendBufferLength() { return wbuffer->len; }
+size_t chakra::net::Connect::receiveBufferLength() { return rbuffer->len; }
+
 void chakra::net::Connect::close() {
     if (FD == -1) return;
     ::close(FD);
@@ -368,7 +318,8 @@ void chakra::net::Connect::close() {
 chakra::net::Connect::~Connect() {
     close();
     if (sar != nullptr) free(sar);
-    // if (buf != nullptr) free(buf);
+    if (wbuffer != nullptr) delete wbuffer;
+    if (rbuffer != nullptr) delete rbuffer;
 }
 
 void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexcept {

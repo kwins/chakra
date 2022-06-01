@@ -15,6 +15,28 @@ chakra::error::Error chakra::net::Packet::serialize(const google::protobuf::Mess
     return cbf(reply, packSize);
 }
 
+void chakra::net::Packet::serialize(const ::google::protobuf::Message& msg, proto::types::Type type, Buffer* buffer) {
+    size_t bodySize = msg.ByteSizeLong();
+    uint64_t packSize = HEAD_LEN + FLAG_LEN + TYPE_LEN + bodySize;
+    buffer->maybeRealloc(packSize);
+
+    append<uint64_t>(buffer->data, buffer->len, packSize);
+    buffer->len += sizeof(uint64_t);
+    buffer->free -= sizeof(uint64_t);
+
+    append<uint32_t>(buffer->data, buffer->len, (uint32_t)0);
+    buffer->len += sizeof(uint32_t);
+    buffer->free -= sizeof(uint32_t);
+
+    append<uint32_t>(buffer->data, buffer->len, (uint32_t)type);
+    buffer->len += sizeof(uint32_t);
+    buffer->free -= sizeof(uint32_t);
+
+    msg.SerializeToArray(&buffer->data[buffer->len], bodySize);
+    buffer->len += bodySize;
+    buffer->free -= bodySize;
+}
+
 chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg, proto::types::Type type) {
     proto::types::Type reqtype;
     if ((reqtype = chakra::net::Packet::getType(src, srcLen)) != type) {

@@ -7,6 +7,7 @@
 #include "client.pb.h"
 #include <algorithm>
 #include <element.pb.h>
+#include <error/err.h>
 #include <glog/logging.h>
 #include <google/protobuf/map.h>
 #include <memory>
@@ -175,29 +176,27 @@ chakra::error::Error chakra::client::Chakra::setEpoch(int64_t epoch, bool increa
 }
 
 chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::Message &msg, proto::types::Type type, google::protobuf::Message &reply) {
-    return chakra::net::Packet::serialize(msg, type,[this, &reply, type](char* req, size_t reqlen) {
-        try {
-            auto conn = connnectGet();
-            auto err = conn->send(req, reqlen);
-            if (err) {
-                connectBack(conn);
-                return err;
+    std::shared_ptr<chakra::net::Connect> conn;
+    try {
+        conn = connnectGet();
+        conn->writeBuffer(msg, type);
+        conn->sendBuffer();
+        
+        conn->receive([this, &reply, type](char *resp, size_t resplen) -> error::Error {
+            auto reqtype = chakra::net::Packet::getType(resp, resplen);
+            if (reqtype == 0) { // server command not define
+                proto::types::Error nferr;
+                chakra::net::Packet::deSerialize(resp, resplen, nferr, type);
+                return error::Error(nferr.errmsg());
             }
-            conn->receivePack([this, &reply, type](char *resp, size_t resplen) -> error::Error {
-                auto reqtype = chakra::net::Packet::getType(resp, resplen);
-                if (reqtype == 0) { // server command not define
-                    proto::types::Error nferr;
-                    chakra::net::Packet::deSerialize(resp, resplen, nferr, type);
-                    return error::Error(nferr.errmsg());
-                }
-                return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
-            });
-            connectBack(conn);
-            return err;
-        } catch (const error::Error& err) {
-            return err;
-        }
-    });
+            return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
+        });
+        connectBack(conn);
+        return error::Error();
+    } catch (const error::Error& err) {
+        connectBack(conn);
+        return err;
+    }
 }
 
 std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {

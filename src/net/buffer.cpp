@@ -2,17 +2,17 @@
 #include <cstring>
 #include <cstdlib>
 #include <glog/logging.h>
-chakra::net::Buffer::Buffer(size_t n) {
-    size = n;
-    len = 0;
-    free = size;
+#include "net/packet.h"
+
+chakra::net::Buffer::Buffer(size_t n) : size(n), len(0), free(n) {
     data = (char*) ::malloc(sizeof(char) * n); 
 }
 
 chakra::net::Buffer::~Buffer() { if (data != nullptr) ::free(data); }
 void chakra::net::Buffer::maybeRealloc(size_t added) {
     if (free < added || (free == 0 && len == size)) { /* buffer not enough or full */
-        LOG(INFO) << "buffer realloc=" << added;
+        LOG(INFO) << "[buffer] realloc because add size" << added 
+                  << " current len " << len << " free " << free << " size " << size;
         size_t rsize = 0;
         if (added > size) {
             rsize = size * 2 + added;
@@ -23,6 +23,10 @@ void chakra::net::Buffer::maybeRealloc(size_t added) {
         free = rsize - size;
         size = rsize;
     }
+}
+
+void chakra::net::Buffer::writeMsg(const ::google::protobuf::Message& message, proto::types::Type type) {
+    chakra::net::Packet::serialize(message, type, this);
 }
 
 void chakra::net::Buffer::move(int start, int end) {

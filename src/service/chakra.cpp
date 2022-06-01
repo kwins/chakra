@@ -217,7 +217,7 @@ chakra::serv::Chakra::Link::Link(int sockfd) : chakra::net::Link(sockfd) {}
 
 void chakra::serv::Chakra::Link::onClientRead(ev::io &watcher, int event) {
     try {
-        conn->receive(rbuffer, [this](char *req, size_t reqlen) {
+        conn->receive([this](char *req, size_t reqlen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
             DLOG(INFO) << "[chakra] client received message type "
@@ -236,9 +236,9 @@ void chakra::serv::Chakra::Link::onClientRead(ev::io &watcher, int event) {
 }
 
 void chakra::serv::Chakra::Link::onClientWrite(ev::io& watcher, int event) {
-    DLOG(INFO) << "[chakra] on client write len " << wbuffer->len;
+    DLOG(INFO) << "[chakra] on client write data len " << conn->sendBufferLength();
     try {
-        conn->send(wbuffer);
+        conn->sendBuffer();
     } catch (const error::ConnectClosedError& err) {
     } catch (const std::exception& err) {
         LOG(ERROR) << err.what();
@@ -246,15 +246,9 @@ void chakra::serv::Chakra::Link::onClientWrite(ev::io& watcher, int event) {
     wio.stop();
 }
 
-void chakra::serv::Chakra::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
-    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
-        wbuffer->maybeRealloc(len);
-        memcpy(&wbuffer->data[wbuffer->len], data, len);
-        wbuffer->len += len;
-        wbuffer->free -= len;
-        return error::Error();
-    });
-    LOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to work id " << workID;
+void chakra::serv::Chakra::Link::asyncSendMsg(const ::google::protobuf::Message& msg, proto::types::Type type) {
+    DLOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to work id " << workID;
+    conn->writeBuffer(msg, type);
     auto worker = chakra::serv::Chakra::get()->getWorker(workID);
     wio.set<chakra::serv::Chakra::Link, &chakra::serv::Chakra::Link::onClientWrite>(this);
     wio.set(worker->loop);
@@ -288,8 +282,10 @@ void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
     auto worker = static_cast<chakra::serv::Chakra::Worker*>(watcher.data);
     watcher.stop();
     if (!worker->links.empty()){
-        for (auto link : worker->links)
+        for (auto link : worker->links) {
             delete link;
+            link = nullptr;
+        }  
     }
     watcher.loop.break_loop(ev::ALL);
 }

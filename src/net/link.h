@@ -17,7 +17,7 @@ class Link {
 public:
     explicit Link(const std::string& ip, int port, bool connect = true);
     explicit Link(int sockfd);
-    error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+    // error::Error sendMsg(::google::protobuf::Message& msg, proto::types::Type type);
     bool connected() const;
     std::string remoteAddr();
     void close();
@@ -25,9 +25,7 @@ public:
 
     std::shared_ptr<net::Connect> conn = nullptr;
     ev::io rio;
-    Buffer* rbuffer;
     ev::io wio;
-    Buffer* wbuffer;
 };
 
 }
