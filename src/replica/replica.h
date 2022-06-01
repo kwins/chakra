@@ -102,7 +102,6 @@ public:
         void startSendBulk(const std::string& name); // 触发全量复制
 
         void setRocksSeq(const std::string& name, int64_t seq);
-        // void setReplicate
         void close();
         bool isTimeout() const;
 

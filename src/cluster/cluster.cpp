@@ -406,39 +406,39 @@ void chakra::cluster::Cluster::updateClusterState() {
     int newState = STATE_OK, emptyPeer = 0, unReachablePeer = 0, size = 0;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Peer>>>  dbPeers;
     for (auto& it : peers){
-        if (it.second->getPeerDBs().empty()){
+        if (it.second->getPeerDBs().empty()) {
             emptyPeer++;
         } else{
             size++;
         }
-        if (it.second->isFail() || it.second->isPfail()){
+        if (it.second->isFail() || it.second->isPfail()) {
             unReachablePeer++;
         }
 
-        for(auto& db : it.second->getPeerDBs()){
+        for(auto& db : it.second->getPeerDBs()) {
             dbPeers[db.first].push_back(it.second);
         }
     }
 
-    // 1、如果集群中任意节点挂掉，且节点服务的DB中有任意一个DB没有副本，则集群进入fail
-    for(auto&it : dbPeers){
+    /* cluster is fail state if all nodes of a DB are down */
+    for(auto&it : dbPeers) {
         int fails = 0;
-        for(auto& peer : it.second){
-            if (peer->isFail() || peer->isPfail()){
+        for(auto& peer : it.second) {
+            if (peer->isFail() || peer->isPfail()) {
                 fails++;
             }
         }
-        if (fails == it.second.size()){
+        if (fails == it.second.size()) {
             newState = STATE_FAIL;
         }
     }
 
-    // 2、如果集群中挂掉的节点数量超过半数，则集群进入fail
-    if (unReachablePeer >= (size/2) +1){
+    /* cluster is fail state if more than half of nodes in cluster are down */
+    if (unReachablePeer >= (size/2) +1) {
         newState = STATE_FAIL;
     }
 
-    if (peers.size() < 3){
+    if (peers.size() < 3) {
         newState = STATE_FAIL;
     }
 
@@ -527,7 +527,7 @@ void chakra::cluster::Cluster::processGossip(const proto::peer::GossipMessage &g
 void chakra::cluster::Cluster::tryMarkFailPeer(const std::shared_ptr<Peer> &peer) {
     LOG(INFO) << "[cluster] try mark peer " << peer->getName() << " fail(" << peer->isFail() << ").";
     if (peer->isFail()) return;
-    size_t needQuorum = peers.size()/2+1;
+    size_t needQuorum = peers.size()/2 + 1;
     size_t failCount = peer->cleanFailReport(FLAGS_cluster_peer_timeout_ms);
 
     // 当前节点也算在内

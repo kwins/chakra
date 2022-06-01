@@ -30,7 +30,7 @@ public:
         void onClientRead(ev::io& watcher, int event);
         void asyncSendMsg(const ::google::protobuf::Message& msg, proto::types::Type type);
         void onClientWrite(ev::io& watcher, int event);
-        ~Link(); 
+        ~Link();
         int workID = 0;
     };
 

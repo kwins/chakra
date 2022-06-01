@@ -24,12 +24,6 @@ chakra::net::Link::Link(const std::string &ip, int port, bool connect) {
     }
 }
 
-// chakra::error::Error chakra::net::Link::sendMsg(google::protobuf::Message &msg, proto::types::Type type) {
-//     return chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
-//         return conn->send(data, len);
-//     });
-// }
-
 bool chakra::net::Link::connected() const {
     return conn != nullptr && conn->connState() == chakra::net::Connect::State::CONNECTED;
 }
