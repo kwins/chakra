@@ -24,7 +24,7 @@ file(GLOB_RECURSE TEST_SRC ${CMAKE_SOURCE_DIR}/src/unittest/*.cpp)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
 set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a liblz4.a)
-set(TEST_LIB  libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
+set(TEST_LIB  libev.a libinterface.a libprotobuf.a libbenchmark_main.a libbenchmark.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
     set(LINUX_LINKS pthread rt atomic gomp m gfortran profiler dl)
@@ -42,6 +42,7 @@ add_executable(chakra src/main.cpp
         ${REPLICA_SRC}
         ${ERROR_SRC}
         )
+add_dependencies(chakra interface ev protobuf rocksdb glog gflags gtest zlib lz4)
 target_include_directories(
         chakra SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
@@ -52,7 +53,6 @@ target_link_directories(chakra PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
         )
 target_link_libraries(chakra ${LIBS} ${LINUX_LINKS})
-add_dependencies(chakra ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 
 # cli
 add_executable(chakra-cli src/cli/main.cpp
@@ -61,6 +61,7 @@ add_executable(chakra-cli src/cli/main.cpp
         ${NET_SRC}
         ${ERROR_SRC}
         )
+add_dependencies(chakra-cli interface ev protobuf rocksdb glog gflags gtest zlib lz4)
 target_include_directories(chakra-cli SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/src/cli/interface
@@ -71,7 +72,6 @@ target_link_directories(chakra-cli PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
         )
 target_link_libraries(chakra-cli ${CLI_LIBS} ${LINUX_LINKS})
-add_dependencies(chakra-cli ev interface protobuf rocksdb glog gflags gtest zlib lz4)
 
 
 # ut
@@ -83,14 +83,16 @@ add_executable(ut src/unittest/ut_main.cpp
         ${ERROR_SRC}
         ${TEST_SRC}
         )
+add_dependencies(ut interface ev protobuf rocksdb glog gflags gbenchmark gtest zlib lz4)
 target_include_directories(ut SYSTEM PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/src/unittest
         ${CMAKE_SOURCE_DIR}/build/depends/Install/include
-)
+        )
 target_link_directories(ut PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
-        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64)
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
+        )
 target_link_libraries(ut ${TEST_LIB} ${LINUX_LINKS})
-add_dependencies(ut ev interface protobuf rocksdb glog gflags gtest zlib lz4)
+
 

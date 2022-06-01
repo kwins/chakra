@@ -44,6 +44,7 @@ public:
     ~ChakraCluster();
     error::Error connectCluster();
     error::Error meet(const std::string& ip, int port);
+    error::Error state(proto::peer::ClusterState& clusterState, bool stateNow = false);
     error::Error setdb(const std::string& nodename, const std::string& dbname, int cached);
 
     error::Error get(const proto::client::GetMessageRequest& request, proto::client::GetMessageResponse& response, bool hash = false);

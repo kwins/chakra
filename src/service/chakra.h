@@ -28,7 +28,7 @@ public:
         explicit Link(int sockfd);
         void startEvRead(chakra::serv::Chakra::Worker* worker);
         void onClientRead(ev::io& watcher, int event);
-        void asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type);
+        void asyncSendMsg(const ::google::protobuf::Message& msg, proto::types::Type type);
         void onClientWrite(ev::io& watcher, int event);
         ~Link(); 
         int workID = 0;

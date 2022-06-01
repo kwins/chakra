@@ -5,6 +5,8 @@
 #ifndef CHAKRA_NET_CONNECT_H
 #define CHAKRA_NET_CONNECT_H
 
+#include <cstddef>
+#include <google/protobuf/message.h>
 #include <string>
 #include <chrono>
 #include <sys/socket.h>
@@ -12,6 +14,7 @@
 #include <functional>
 #include <array>
 #include <atomic>
+#include <types.pb.h>
 #include "buffer.h"
 
 namespace chakra::net {
@@ -38,16 +41,19 @@ public:
     };
 
 public:
-    explicit Connect(net::Connect::Options opts);
+    explicit Connect(net::Connect::Options options);
     error::Error connect();
     int reconnect();
-    error::Error send(const char* data, size_t len);
 
+    void writeBuffer(const google::protobuf::Message& message, proto::types::Type type);
+    void sendBuffer(); /* send wbuffer data to remote connect */
     void send(Buffer* buffer);
+    size_t sendBufferLength();
+   
     // 服务端尽可能一次多读，如果读不完，等下次再读，可以有效减少IO次数.
     void receive(Buffer* buffer, const std::function< error::Error (char* ptr, size_t len)>& process);
-    /* 客户端使用，一次读取一个包 */
-    void receivePack(const std::function<error::Error(char* ptr, size_t len)>& process);
+    void receive(const std::function<error::Error(char* ptr, size_t len)>& process);
+    size_t receiveBufferLength();
 
     // 返回远端地址和端口
     std::string remoteAddr();
@@ -66,7 +72,6 @@ private:
     error::Error checkConnectOK(int& completed);
     error::Error checkSockErr();
 
-    // void moveBuf(int start, int end);
     static void toTimeVal(const milliseconds& duration, timeval& tv);
     static long toMsec(const milliseconds& duration);
 
@@ -75,7 +80,8 @@ private:
     sockaddr* sar;
     State state;
 
-    Buffer* cbuffer;  /* client connect use */
+    Buffer* wbuffer; /* send data buffer */
+    Buffer* rbuffer; /* receive data buffer */
     system_clock::time_point lastActive;
 };
 

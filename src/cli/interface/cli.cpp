@@ -8,6 +8,7 @@
 #include <command_push.h>
 #include <command_set.h>
 #include <command_setdb.h>
+#include <command_state.h>
 #include <cstdint>
 #include <cstdlib>
 #include <error/err.h>
@@ -58,4 +59,5 @@ std::unordered_map<std::string, std::shared_ptr<chakra::cli::Command>> chakra::c
     {"get",   std::make_shared<chakra::cli::CommandGet>()},
     {"mget",  std::make_shared<chakra::cli::CommandMGet>()},
     {"push",  std::make_shared<chakra::cli::CommandPush>()},
+    {"state", std::make_shared<chakra::cli::CommandState>()},
 };

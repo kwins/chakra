@@ -32,7 +32,7 @@ static bool validCliPort(const char* flagname, int32_t value){
 DEFINE_validator(port, validCliPort); 
 
 DEFINE_int32(max_idle_conns, 3, "max idle connect num");
-DEFINE_int32(max_conns, 3, "max connect num");
+DEFINE_int32(max_conns, 10, "max connect num");
 DEFINE_int32(connect_timeout_ms, 50, "connect timeout ms");
 DEFINE_int32(connect_read_timeout_ms, 100, "connect read timeout ms");
 DEFINE_int32(connect_write_timeout_ms, 100, "connect write timeout ms");
@@ -54,7 +54,6 @@ DEFINE_string(setdb_nodename, "", "setdb command node name"); // node name
 DEFINE_int64(setdb_cached, 0, "setdb command db cache size"); // db cached
 
 // get command
-DEFINE_string(get_db, "", "get command db name"); // db name
 DEFINE_string(get_key, "", "get command key name"); // key name
 
 // mget command
@@ -65,4 +64,7 @@ DEFINE_int64(mget_split_n, 10, "mget command split num");
 DEFINE_string(push_key, "", "push command key");
 DEFINE_string(push_values, "", "push command values");
 DEFINE_int64(push_ttl, 0, "push command ttl"); // ms
+
+// state command
+DEFINE_bool(state_now, false, "state command that get cluster now state");
 #endif // CHAKRA_CLI_FLAGS_CPP

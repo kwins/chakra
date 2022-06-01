@@ -160,6 +160,7 @@ std::string chakra::cluster::Peer::desc() {
 chakra::cluster::Peer::~Peer() {
     linkFree();
     delete link;
+    link = nullptr;
 }
 
 long chakra::cluster::Peer::getRetryLinkTime() const { return retryLinkTime; }
@@ -175,7 +176,7 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
     try {
-        conn->receive(rbuffer, [this](char *req, size_t reqlen) {
+        conn->receive([this](char *req, size_t reqlen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
             DLOG(INFO) << "[cluster] received message type "
@@ -194,24 +195,17 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
 }
 
 void chakra::cluster::Peer::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
-    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
-        wbuffer->maybeRealloc(len);
-        memcpy(&wbuffer->data[wbuffer->len], data, len);
-        wbuffer->len += len;
-        wbuffer->free -= len;
-        return error::Error();
-    });
     DLOG(INFO) << "[cluster] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
+    conn->writeBuffer(msg, type);
     wio.set<chakra::cluster::Peer::Link, &chakra::cluster::Peer::Link::onPeerWrite>(this);
     wio.set(ev::get_default_loop());
     wio.start(conn->fd(), ev::WRITE);
 }
 
 void chakra::cluster::Peer::Link::onPeerWrite(ev::io& watcher, int event) {
+    DLOG(INFO) << "[cluster] on peer write data len " << conn->sendBufferLength();
     try {
-        auto type = chakra::net::Packet::getType(wbuffer->data, wbuffer->len);;
-        DLOG(INFO) << "[cluster] async write message type " << proto::types::Type_Name(type) << ":" << type << " to " << conn->remoteAddr();
-        conn->send(wbuffer);
+        conn->sendBuffer();
     } catch (const error::ConnectClosedError& err) {
     } catch (const std::exception& err) {
         LOG(ERROR) << err.what();

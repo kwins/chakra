@@ -10,7 +10,7 @@ DECLARE_int64(mget_split_n);
 
 void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraCluster> cluster) {
     if (FLAGS_mget_keys.empty()) {
-        LOG(ERROR) << "mget keys empty";
+        LOG(ERROR) << "mget command keys empty";
         return;
     }
 
@@ -19,7 +19,8 @@ void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraClu
     for(auto& dbk : dbkeys) {
         auto v = stringSplit(dbk, ':');
         if (v.size() != 2) {
-            LOG(ERROR) << "mget key format error:" << FLAGS_mget_keys;
+            LOG(ERROR) << "mget command keys format error: " << FLAGS_mget_keys;
+            return;
         }
         auto& dbname = v[0];
         auto& key = v[1];

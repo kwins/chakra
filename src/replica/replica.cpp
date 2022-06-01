@@ -4,6 +4,7 @@
 
 #include "replica.h"
 
+#include <cstddef>
 #include <ev++.h>
 #include <exception>
 #include <rocksdb/options.h>
@@ -109,8 +110,9 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
         auto timeout = link->isTimeout();
         if (timeout) {
             link->close();
-            delete link;
             LOG(WARNING)<< "[replication] close and delete timeout connect " << link->getPeerName();
+            delete link;
+            link = nullptr;
         }
         return timeout;
     });
@@ -208,6 +210,7 @@ void chakra::replica::Replicate::stop() {
     negativeLinks.remove_if([](chakra::replica::Replicate::Link* link){
         link->close();
         delete link;
+        link = nullptr;
         return true;
     });
 }
@@ -260,7 +263,7 @@ void chakra::replica::Replicate::Link::startReplicateRecvMsg() {
 
 void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int event) {
     try {
-        conn->receive(rbuffer, [this](char *req, size_t reqLen) {
+        conn->receive([this](char *req, size_t reqLen) {
 
             proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
             DLOG(INFO) << "-- [replication] received message type "
@@ -279,24 +282,18 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
 }
 
 void chakra::replica::Replicate::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
-    chakra::net::Packet::serialize(msg, type, [this](char* data, size_t len) -> error::Error{
-        wbuffer->maybeRealloc(len);
-        memcpy(&wbuffer->data[wbuffer->len], data, len);
-        wbuffer->len += len;
-        wbuffer->free -= len;
-        return error::Error();
-    });
     DLOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
+    conn->writeBuffer(msg, type);
     wio.set<chakra::replica::Replicate::Link, &chakra::replica::Replicate::Link::onReplicateWriteMsg>(this);
     wio.set(ev::get_default_loop());
     wio.start(conn->fd(), ev::WRITE);
 }
 
 void chakra::replica::Replicate::Link::onReplicateWriteMsg(ev::io& watcher, int event) {
+    DLOG(INFO) << "[chakra] on replicate write data len " << conn->sendBufferLength();
     try {
-        conn->send(wbuffer);
+        conn->sendBuffer();
     } catch (const error::ConnectClosedError& err) {
-        
     } catch (const std::exception& err) {
         LOG(ERROR) << err.what();
     }
@@ -324,10 +321,7 @@ void chakra::replica::Replicate::Link::heartbeat() {
 
     proto::replica::HeartBeatMessage heart;
     heart.set_heartbeat_ms(utils::Basic::getNowMillSec());
-    auto err = sendMsg(heart, proto::types::R_HEARTBEAT);
-    if (err) {
-        LOG(ERROR) << "[replication] heartbeat error " << err.what();
-    }
+    asyncSendMsg(heart, proto::types::R_HEARTBEAT);
 }
 
 void chakra::replica::Replicate::Link::handshake() {
@@ -368,12 +362,7 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     syncMessageRequest.set_seq(replicateDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始
 
     LOG(INFO) << "[replication] try a partial sync request " << syncMessageRequest.DebugString();
-    auto err = sendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
-    if (err) {
-        LOG(ERROR) << "[replication] send partial sync request error " << err.what();
-    } else {
-        replicateDB->second->lastTryReSyncMs = utils::Basic::getNowMillSec();
-    }
+    asyncSendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
 void chakra::replica::Replicate::Link::setRocksSeq(const std::string& name, int64_t seq) {
@@ -566,13 +555,9 @@ void chakra::replica::Replicate::Link::ReplicateDB::onPullDelta(ev::timer& watch
     deltaMessageRequest.set_db_name(name);
     deltaMessageRequest.set_seq(deltaSeq);
     deltaMessageRequest.set_size(FLAGS_replica_delta_batch_bytes);
-    auto err = link->sendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
-    if (err) {
-        LOG(INFO) << "[replication] send delta message error " << err.what();
-    } else {
-        DLOG(INFO) << "[replication] send delta message to  " << link->getPeerName() 
+    link->asyncSendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
+    DLOG(INFO) << "[replication] send delta message to  " << link->getPeerName() 
                     << " success " << deltaMessageRequest.DebugString();
-    }
 }
 
 
@@ -621,12 +606,9 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
     }
     
     if (size > 0 || bulkMessage.end()) { /* 可能出现某个DB为空，此时size=0 */
-        auto err = link->sendMsg(bulkMessage, proto::types::R_BULK);
-        if (err) {
-            LOG(ERROR) << "[replication] send bulk message to " << name << " error " << err.what();
-        } else { /* 记录发送了多少个，用于最后校验 */
-            DLOG(INFO) << "[replication] send bulk message to " << name << ", size " << size << ", is end " << bulkMessage.end() << " num " << num;
-        }
+        link->asyncSendMsg(bulkMessage, proto::types::R_BULK);
+        DLOG(INFO) << "[replication] send bulk message to " << name 
+                   << " data (size:" << size << " num:" << num << " end:" << bulkMessage.end() << ")";
     }
 }
 

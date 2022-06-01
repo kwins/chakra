@@ -9,6 +9,7 @@
 #include "types.pb.h"
 #include <functional>
 #include "error/err.h"
+#include "buffer.h"
 
 namespace chakra::net{
 
@@ -16,6 +17,7 @@ class Packet {
 public:
     static error::Error serialize(const ::google::protobuf::Message& msg, proto::types::Type type,
                           const std::function<error::Error(char* reply, size_t len)>& cbf);
+    static void serialize(const ::google::protobuf::Message& msg, proto::types::Type type, Buffer* buffer);
 
     static error::Error deSerialize(char* src, size_t srcLen, ::google::protobuf::Message& msg, proto::types::Type type);
 
