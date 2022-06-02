@@ -24,13 +24,9 @@ TEST(ColumnDBLRUCache, set) {
     element = cache->get(key1);
     ASSERT_NE(element, nullptr);
 
-    cache->push(element, key1, std::vector<float>{10.0,11.0,12.0});
-    element = cache->get(key1);
-    ASSERT_NE(element, nullptr);
-    ASSERT_EQ(element->type(), proto::element::ElementType::FLOAT_ARRAY);
-
-    auto err = cache->incr(element, key1, 2.0);
-    ASSERT_EQ((err == true), true);
+    auto err = cache->push(element, key1, std::vector<float>{10.0,11.0,12.0});
+    if (err) LOG(ERROR) << err.what();
+    EXPECT_TRUE((err == true));
 }
 
 }

@@ -7,21 +7,21 @@
 #include <sys/types.h>
 #include <google/protobuf/message.h>
 #include "types.pb.h"
-#include <functional>
 #include "error/err.h"
 #include "buffer.h"
 
-namespace chakra::net{
+namespace chakra::net {
 
 class Packet {
 public:
-    static void serialize(const ::google::protobuf::Message& msg, proto::types::Type type, Buffer* buffer);
-    static error::Error deSerialize(char* src, size_t srcLen, ::google::protobuf::Message& msg, proto::types::Type type);
+    static void serialize(const ::google::protobuf::Message& msg, proto::types::Type msgtype, Buffer* buffer);
+    static error::Error deSerialize(char* src, size_t sl, ::google::protobuf::Message& msg, proto::types::Type msgtype);
+    static uint64_t size(char* src, size_t l);
+    static uint32_t flag(char* src, size_t l);
+    static proto::types::Type type(char* src, size_t l);
+    static size_t headLength();
 
-    static uint64_t getSize(char* src, size_t len);
-    static uint32_t getFlag(char* src, size_t len);
-    static proto::types::Type getType(char* src, size_t len);
-
+private:
     template<typename T>
     static T read(char* src, size_t len, int index){
         if (index + sizeof(T) <= len){
@@ -32,9 +32,10 @@ public:
 
     // 针对数值 append
     template<typename T>
-    static void append(char* dest, size_t pos, T data){
-        uint32_t dataLen = sizeof(data);
-        memcpy(&dest[pos], (char*)&data, dataLen);
+    static uint32_t append(char* dest, size_t pos, T data){
+        uint32_t dl = sizeof(data);
+        memcpy(&dest[pos], (char*)&data, dl);
+        return dl;
     }
 
     static const size_t HEAD_LEN = 8; // 字节

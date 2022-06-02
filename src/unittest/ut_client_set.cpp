@@ -110,7 +110,7 @@ protected:
         auto err = cluster->mset(msetMessageRequest, msetMessageResponse);
         EXPECT_TRUE((err == false));
         
-        LOG(INFO) << "mset request: " << msetMessageRequest.DebugString() << " response: " << msetMessageResponse.DebugString();
+        // LOG(INFO) << "mset request: " << msetMessageRequest.DebugString() << " response: " << msetMessageResponse.DebugString();
         
         proto::client::MGetMessageRequest mgetMessageRequest;
         for (int i = 0; i < num; i++) {
@@ -122,7 +122,7 @@ protected:
         err = cluster->mget(mgetMessageRequest, response, 5, true);
         EXPECT_TRUE((err == false));
         
-        LOG(INFO) << "mget request: " << mgetMessageRequest.DebugString() << " response: " << response.DebugString();
+        // LOG(INFO) << "mget request: " << mgetMessageRequest.DebugString() << " response: " << response.DebugString();
         
         auto it = response.datas().find("db1");
         ASSERT_NE(it, response.datas().end());

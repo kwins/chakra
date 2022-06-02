@@ -181,14 +181,12 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
         conn->writeBuffer(msg, type);
         conn->sendBuffer();
         
-        conn->receive([this, &reply, type](char *resp, size_t resplen) -> error::Error {
-            auto reqtype = chakra::net::Packet::getType(resp, resplen);
-            if (reqtype == 0) { // server command not define
-                proto::types::Error nferr;
-                chakra::net::Packet::deSerialize(resp, resplen, nferr, type);
-                return error::Error(nferr.errmsg());
+        conn->receive([this, &reply, type](char *resp, size_t rsl) -> error::Error {
+            auto reqtype = chakra::net::Packet::type(resp, rsl);
+            if (reqtype == 0) {
+                return error::Error("bad type received");
             }
-            return chakra::net::Packet::deSerialize(resp, resplen, reply, type);
+            return chakra::net::Packet::deSerialize(resp, rsl, reply, type);
         });
         connectBack(conn);
         return error::Error();

@@ -176,14 +176,14 @@ chakra::cluster::Peer::Link::Link(const std::string &ip, int port, const std::sh
 
 void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
     try {
-        conn->receive([this](char *req, size_t reqlen) {
+        conn->receive([this](char *req, size_t rl) {
 
-            proto::types::Type msgType = chakra::net::Packet::getType(req, reqlen);
+            proto::types::Type msgType = chakra::net::Packet::type(req, rl);
             DLOG(INFO) << "[cluster] received message type "
                     << proto::types::Type_Name(msgType) << ":" << msgType << " FROM " <<  conn->remoteAddr();
 
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-            cmdsptr->execute(req, reqlen, this);
+            cmdsptr->execute(req, rl, this);
             return error::Error();
         });
     } catch (const error::ConnectClosedError& e1) {

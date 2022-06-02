@@ -4,9 +4,6 @@
 
 #include "link.h"
 #include <gflags/gflags_declare.h>
-#include <net/buffer.h>
-#include <net/packet.h>
-#include <glog/logging.h>
 
 DECLARE_int64(connect_buff_size);
 

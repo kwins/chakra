@@ -70,7 +70,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<pro
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::FLOAT) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT));
+        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
     }
 
     if (ttl > 0) {
@@ -96,7 +96,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::STRING_ARRAY) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::STRING_ARRAY));
+        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
     }
     
     if (ttl > 0) {
@@ -124,7 +124,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::FLOAT_ARRAY) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT_ARRAY));
+        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
     }
 
     if (ttl > 0) {
@@ -152,7 +152,7 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<pr
         element->set_create_time(nowms);
         element->set_last_visit_time(0);
     } else if (element->type() != proto::element::ElementType::FLOAT) {
-        return error::Error("data type must be " + proto::element::ElementType_Name(proto::element::ElementType::FLOAT));
+        return error::Error("data type must be " + proto::element::ElementType_Name(element->type()));
     }
 
     if (ttl > 0) {

@@ -6,10 +6,6 @@
 #define CHAKRA_NET_LINK_H
 #include <ev++.h>
 #include "net/connect.h"
-#include <google/protobuf/message.h>
-#include <net/buffer.h>
-#include "types.pb.h"
-#include "error/err.h"
 
 namespace chakra::net {
 

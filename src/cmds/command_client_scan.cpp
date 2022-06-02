@@ -11,7 +11,6 @@
 #include <types.pb.h>
 
 void chakra::cmds::CommandClientScan::execute(char *req, size_t len, void *data) {
-    LOG(INFO) << "chakra::cmds::CommandClientScan::execute";
     auto link = static_cast<chakra::serv::Chakra::Link*>(data);
     proto::client::ScanMessageRequest scanMessageRequest;
     proto::client::ScanMessageResponse scanMessageResponse;
@@ -22,7 +21,7 @@ void chakra::cmds::CommandClientScan::execute(char *req, size_t len, void *data)
     } else if (scanMessageRequest.batch_size() <= 0 || scanMessageRequest.dbname().empty()) {
         fillError(scanMessageResponse.mutable_error(), 1, "batch size zero or dbname empty");
     } else {
-        LOG(INFO) << "[chakra] scan request: " << scanMessageRequest.DebugString();
+        DLOG(INFO) << "[chakra] scan request: " << scanMessageRequest.DebugString();
         try {
             auto dbptr = chakra::database::FamilyDB::get();
             rocksdb::ReadOptions readOptions;
@@ -57,6 +56,6 @@ void chakra::cmds::CommandClientScan::execute(char *req, size_t len, void *data)
             fillError(scanMessageResponse.mutable_error(), 1, err.what());
         }
     }
-    LOG(INFO) << "[chakra] scan response: " << scanMessageResponse.DebugString();
+    DLOG(INFO) << "[chakra] scan response: " << scanMessageResponse.DebugString();
     link->asyncSendMsg(scanMessageResponse, proto::types::C_SCAN);
 }

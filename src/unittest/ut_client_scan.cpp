@@ -31,10 +31,8 @@ protected:
                 LOG(ERROR) << err.what();
                 break;
             } else {
-                for (auto& element : scanMessageResponse.elements()) {
-                    LOG(INFO) << element.DebugString();
-                }
-                LOG(INFO) << "------> last key:" << scanMessageResponse.elements(scanMessageResponse.elements_size()-1).key();
+                if (!scanMessageResponse.end())
+                    ASSERT_EQ(scanMessageResponse.elements().size(), 10);
                 scanMessageRequest.set_peername(scanMessageResponse.peername());
                 scanMessageRequest.set_start(scanMessageResponse.elements(scanMessageResponse.elements_size()-1).key());
                 end = scanMessageResponse.end();
@@ -52,7 +50,8 @@ protected:
         auto err = cluster->scan(scanMessageRequest, scanMessageResponse);
         if (err) LOG(ERROR) << err.what();
         ASSERT_EQ((err == false), true);
-        LOG(INFO) << scanMessageResponse.DebugString();
+        ASSERT_EQ(scanMessageResponse.elements().size(), 10);
+        // LOG(INFO) << scanMessageResponse.DebugString();
     }
 private:
     std::shared_ptr<chakra::client::ChakraCluster> cluster;

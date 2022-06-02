@@ -23,7 +23,7 @@ protected:
         proto::peer::ClusterState clusterState;
         auto err = client->state(clusterState);
         EXPECT_TRUE((err==false));
-        LOG(INFO) << "cluster state: " << clusterState.DebugString();
+        // LOG(INFO) << "cluster state: " << clusterState.DebugString();
     }
 
 private:

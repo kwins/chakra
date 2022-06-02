@@ -3,51 +3,48 @@
 //
 
 #include "packet.h"
-#include <glog/logging.h>
 
 void chakra::net::Packet::serialize(const ::google::protobuf::Message& msg, proto::types::Type type, Buffer* buffer) {
-    size_t bodySize = msg.ByteSizeLong();
-    uint64_t packSize = HEAD_LEN + FLAG_LEN + TYPE_LEN + bodySize;
-    buffer->maybeRealloc(packSize);
+    size_t bodysize = msg.ByteSizeLong();
+    uint64_t packsize = headLength() + bodysize;
+    buffer->maybeRealloc(packsize);
 
-    append<uint64_t>(buffer->data, buffer->len, packSize);
-    buffer->len += sizeof(uint64_t);
-    buffer->free -= sizeof(uint64_t);
+    auto apl = append<uint64_t>(buffer->data, buffer->len, packsize);
+    buffer->len += apl;
+    buffer->free -= apl;
 
-    append<uint32_t>(buffer->data, buffer->len, (uint32_t)0);
-    buffer->len += sizeof(uint32_t);
-    buffer->free -= sizeof(uint32_t);
+    apl = append<uint32_t>(buffer->data, buffer->len, (uint32_t)0);
+    buffer->len += apl;
+    buffer->free -= apl;
 
-    append<uint32_t>(buffer->data, buffer->len, (uint32_t)type);
-    buffer->len += sizeof(uint32_t);
-    buffer->free -= sizeof(uint32_t);
+    apl = append<uint32_t>(buffer->data, buffer->len, (uint32_t)type);
+    buffer->len += apl;
+    buffer->free -= apl;
 
-    msg.SerializeToArray(&buffer->data[buffer->len], bodySize);
-    buffer->len += bodySize;
-    buffer->free -= bodySize;
+    msg.SerializeToArray(&buffer->data[buffer->len], bodysize);
+    buffer->len += bodysize;
+    buffer->free -= bodysize;
 }
 
-chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t srcLen, google::protobuf::Message &msg, proto::types::Type type) {
-    proto::types::Type reqtype;
-    if ((reqtype = chakra::net::Packet::getType(src, srcLen)) != type) {
-        return  error::Error("pack type not match(data type: " + std::to_string(reqtype) + ", need type: " + std::to_string(type) + ")");
+chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t sl, google::protobuf::Message &msg, proto::types::Type msgtype) {
+    auto packsize = read<uint64_t>(src, sl, 0);
+    if (packsize < headLength()){
+        return error::Error("packet head size too small");
     }
 
-    auto packSize = read<uint64_t>(src, srcLen, 0);
-    if (packSize < (HEAD_LEN + FLAG_LEN + TYPE_LEN)){
-        return error::Error("pack head size too small");
+    proto::types::Type reqtype = chakra::net::Packet::type(src, sl);
+    if (reqtype != msgtype) {
+        return  error::Error("packet type not match (data type: " + std::to_string(reqtype) + ", need type: " + std::to_string(msgtype) + ")");
     }
 
-    uint64_t bodyLen = packSize - HEAD_LEN - FLAG_LEN - TYPE_LEN;
+    uint64_t bodyLen = packsize - headLength();
     auto ok = msg.ParseFromArray(&src[BODY_IDX], bodyLen);
     if (!ok){
         return error::Error("message parse error");
     }
     return error::Error();
 }
-
-uint64_t chakra::net::Packet::getSize(char *src, size_t len) { return read<uint64_t>(src, len, HEAD_IDX); }
-
-uint32_t chakra::net::Packet::getFlag(char *src, size_t len) { return read<uint32_t>(src, len, FLAG_IDX); }
-
-proto::types::Type chakra::net::Packet::getType(char *src, size_t len) { return (proto::types::Type) read<uint32_t>(src, len, TYPE_IDX); }
+size_t chakra::net::Packet::headLength() { return HEAD_LEN + FLAG_LEN + TYPE_LEN; }
+uint64_t chakra::net::Packet::size(char *src, size_t sl) { return read<uint64_t>(src, sl, HEAD_IDX); }
+uint32_t chakra::net::Packet::flag(char *src, size_t sl) { return read<uint32_t>(src, sl, FLAG_IDX); }
+proto::types::Type chakra::net::Packet::type(char *src, size_t sl) { return (proto::types::Type) read<uint32_t>(src, sl, TYPE_IDX); }

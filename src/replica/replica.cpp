@@ -263,14 +263,14 @@ void chakra::replica::Replicate::Link::startReplicateRecvMsg() {
 
 void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int event) {
     try {
-        conn->receive([this](char *req, size_t reqLen) {
+        conn->receive([this](char *req, size_t rl) {
 
-            proto::types::Type msgType = chakra::net::Packet::getType(req, reqLen);
+            proto::types::Type msgType = chakra::net::Packet::type(req, rl);
             DLOG(INFO) << "-- [replication] received message type "
                     << proto::types::Type_Name(msgType) << ":" << msgType
                     << " FROM " << (getPeerName().empty() ? conn->remoteAddr() : getPeerName());
             auto cmdsptr = cmds::CommandPool::get()->fetch(msgType);
-            cmdsptr->execute(req, reqLen, this);
+            cmdsptr->execute(req, rl, this);
             return error::Error();
         });
     } catch (const error::ConnectClosedError& e1) {

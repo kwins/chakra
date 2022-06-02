@@ -104,6 +104,7 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
         // delete readed data from buffer
         // move to head if remain some data in buffer
         // drop it if process fail
+        // TODO: 在这里根据 type 构造不同的 protobuf 对象，传入 process
         auto err = process(buffer->data, packSize);
         // DLOG(INFO) << "[connect:" << remoteAddr() << "] package has been processed and it's size is " << packSize 
         //            << " and read size is " << readn << " and buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;

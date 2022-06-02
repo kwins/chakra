@@ -29,7 +29,7 @@ protected:
         setMessageRequest.set_type(proto::element::ElementType::FLOAT);
         setMessageRequest.set_f( set_value);
         setMessageRequest.set_ttl(200);
-        LOG(INFO) << "set request: " << setMessageRequest.DebugString();
+        // LOG(INFO) << "set request: " << setMessageRequest.DebugString();
         proto::client::SetMessageResponse setMessageResponse;
         auto err = cluster->set(setMessageRequest, setMessageResponse);
         if (err) LOG(ERROR) << err.what();
@@ -56,7 +56,7 @@ protected:
         err = cluster->get(getMessageRequest, getMessageResponse, true);
         if (err) LOG(ERROR) << err.what();
         ASSERT_EQ((err == false), true);
-        LOG(INFO) << getMessageResponse.DebugString();
+        // LOG(INFO) << getMessageResponse.DebugString();
         ASSERT_EQ(getMessageResponse.data().f(), 3);
     }
 
