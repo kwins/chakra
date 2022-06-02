@@ -21,6 +21,7 @@ file(GLOB_RECURSE REPLICA_SRC ${CMAKE_SOURCE_DIR}/src/replica/*.cpp)
 file(GLOB_RECURSE ERROR_SRC ${CMAKE_SOURCE_DIR}/src/error/*.cpp)
 file(GLOB_RECURSE CLI_SRC ${CMAKE_SOURCE_DIR}/src/cli/interface/*.cpp)
 file(GLOB_RECURSE TEST_SRC ${CMAKE_SOURCE_DIR}/src/unittest/*.cpp)
+file(GLOB_RECURSE BM_SRC ${CMAKE_SOURCE_DIR}/src/benchmark/*.cpp)
 
 set(LIBS libev.a libinterface.a libprotobuf.a libgtest.a librocksdb.a libglog.a libgflags.a libz.a liblz4.a)
 set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a liblz4.a)
@@ -75,13 +76,13 @@ target_link_libraries(chakra-cli ${CLI_LIBS} ${LINUX_LINKS})
 
 
 # ut
-add_executable(ut src/unittest/ut_main.cpp
+add_executable(ut
+        ${TEST_SRC}
         ${UTILS_SRC}
         ${CLIENT_SRC}
         ${NET_SRC}
         ${DATABASE_SRC}
         ${ERROR_SRC}
-        ${TEST_SRC}
         )
 add_dependencies(ut interface ev protobuf rocksdb glog gflags gbenchmark gtest zlib lz4)
 target_include_directories(ut SYSTEM PRIVATE
@@ -94,5 +95,26 @@ target_link_directories(ut PRIVATE
         ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
         )
 target_link_libraries(ut ${TEST_LIB} ${LINUX_LINKS})
+
+# ut
+add_executable(bm 
+        ${BM_SRC}
+        ${UTILS_SRC}
+        ${CLIENT_SRC}
+        ${NET_SRC}
+        ${DATABASE_SRC}
+        ${ERROR_SRC}
+        )
+add_dependencies(bm interface ev protobuf rocksdb glog gflags gbenchmark gtest zlib lz4)
+target_include_directories(bm SYSTEM PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/unittest
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/include
+        )
+target_link_directories(bm PRIVATE
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib
+        ${CMAKE_SOURCE_DIR}/build/depends/Install/lib64
+        )
+target_link_libraries(bm ${TEST_LIB} ${LINUX_LINKS})
 
 
