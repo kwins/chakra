@@ -45,10 +45,6 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
             iter->Next();
         }
-
-        // if (deltaMessageResponse.seqs_size() == 0) { /* 无增量数据 */
-
-        // }
     }
     DLOG(INFO) << "[replication] delta pull response: " << deltaMessageResponse.DebugString();
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
