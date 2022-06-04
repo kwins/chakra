@@ -16,7 +16,7 @@ void chakra::cmds::CommandClusterFail::execute(char *req, size_t len, void *data
     if (err) return;
     DLOG(INFO) << "[cluster] fail message request: " << failMessage.DebugString();
     auto clsptr = cluster::Cluster::get();
-    auto sender = cluster::Cluster::get()->getPeer(failMessage.sender().name());
+    auto sender = clsptr->getPeer(failMessage.sender().name());
     if (sender && !sender->isHandShake()) {
         // 更新纪元
         if (sender->getEpoch() < failMessage.sender().config_epoch()) {
