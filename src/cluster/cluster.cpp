@@ -136,7 +136,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         it++;
     }
     // 向一个随机节点发送 gossip 信息
-    if (!(iteraion % 10)){
+    if (!(iteraion % 10)) {
         std::shared_ptr<Peer> minPingPeer = nullptr;
         std::vector<std::string> times;
         for (int i = 0; i < 5; ++i) {
