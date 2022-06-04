@@ -111,8 +111,10 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
         if (timeout) {
             link->close();
             LOG(WARNING)<< "[replication] close and delete timeout connect " << link->getPeerName();
-            delete link;
-            link = nullptr;
+            if (link != nullptr) {
+                delete link;
+                link = nullptr;
+            }
         }
         return timeout;
     });
@@ -209,8 +211,10 @@ void chakra::replica::Replicate::stop() {
 
     negativeLinks.remove_if([](chakra::replica::Replicate::Link* link){
         link->close();
-        delete link;
-        link = nullptr;
+        if (link != nullptr) {
+            delete link;
+            link = nullptr;
+        }
         return true;
     });
 }
@@ -631,4 +635,4 @@ void chakra::replica::Replicate::Link::ReplicateDB::close() {
     }
 }
 
-chakra::replica::Replicate::Link::ReplicateDB::~ReplicateDB() { if (bulkiter != nullptr) delete bulkiter; }
+chakra::replica::Replicate::Link::ReplicateDB::~ReplicateDB() { if (bulkiter != nullptr) { delete bulkiter; bulkiter = nullptr; } }

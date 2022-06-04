@@ -190,6 +190,10 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
         });
         connectBack(conn);
         return error::Error();
+    } catch (const error::ClientNotEnogthError& err) {
+        return err; /* drop connect */
+    } catch (const error::ConnectClosedError& err) {
+        return err; /* drop connect */
     } catch (const error::Error& err) {
         connectBack(conn);
         return err;
@@ -199,7 +203,7 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
 std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
     std::lock_guard lock(mutex);
     if (conns.size() == 0 && connUsingNumber >= options.maxConns) {
-        throw error::Error("too many client");
+        throw error::ClientNotEnogthError("too many clients");
     }
     
     if (conns.size() == 0) { //  新建一个链接

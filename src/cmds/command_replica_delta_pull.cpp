@@ -29,6 +29,7 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     if (err) {
         fillError(deltaMessageResponse.mutable_error(), 1, err.what());
     } else {
+        DLOG(INFO) << "[replication] delta pull request: " << deltaMessageRequest.DebugString();
         int bytes = 0;
         uint64_t seq = 0;
         while (iter->Valid()) {
@@ -44,6 +45,11 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
             iter->Next();
         }
+
+        // if (deltaMessageResponse.seqs_size() == 0) { /* 无增量数据 */
+
+        // }
     }
+    DLOG(INFO) << "[replication] delta pull response: " << deltaMessageResponse.DebugString();
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
 }

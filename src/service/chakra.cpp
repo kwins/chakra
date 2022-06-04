@@ -21,10 +21,11 @@
 
 DECLARE_int32(server_tcp_backlog);
 DECLARE_double(server_cron_interval_sec);
+DECLARE_int32(server_workers);
 
 chakra::serv::Chakra::Chakra() {
     DLOG(INFO) << "[chakra] start";
-    workNum = sysconf(_SC_NPROCESSORS_CONF) * 2 * 2 - 1;
+    workNum = FLAGS_server_workers - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
         workers[i] = new chakra::serv::Chakra::Worker();
@@ -207,7 +208,9 @@ void chakra::serv::Chakra::stop() {
 
 chakra::serv::Chakra::~Chakra() {
     for(auto worker : workers){
-        delete worker;
+        if (worker != nullptr) {
+            delete worker;
+        }
     }
 }
 
@@ -283,8 +286,10 @@ void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
     watcher.stop();
     if (!worker->links.empty()){
         for (auto link : worker->links) {
-            delete link;
-            link = nullptr;
+            if (link != nullptr) {
+                delete link;
+                link = nullptr;
+            }
         }  
     }
     watcher.loop.break_loop(ev::ALL);

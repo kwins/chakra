@@ -70,7 +70,7 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
     // DLOG(INFO) << "####[connect:" << remoteAddr() << "] start receive data while buffer len " << buffer->len << " free " << buffer->free << " size " << buffer->size;
     do { /* read as many messages as possible */
         buffer->maybeRealloc();
-        ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->free);
+        ssize_t readn = ::read(fd(), &buffer->data[buffer->len], buffer->bfree);
         if (readn == 0) {
             throw error::ConnectClosedError("connect closed");
         } else if (readn < 0) {
@@ -83,7 +83,7 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
             }
         } else {
             buffer->len += readn;
-            buffer->free -= readn;
+            buffer->bfree -= readn;
             buffer->data[buffer->len] = '\0';
         }
 
@@ -318,9 +318,9 @@ void chakra::net::Connect::close() {
 
 chakra::net::Connect::~Connect() {
     close();
-    if (sar != nullptr) free(sar);
-    if (wbuffer != nullptr) delete wbuffer;
-    if (rbuffer != nullptr) delete rbuffer;
+    if (sar != nullptr) { free(sar); sar =nullptr;}
+    if (wbuffer != nullptr) { delete wbuffer; wbuffer = nullptr; } 
+    if (rbuffer != nullptr) { delete rbuffer; rbuffer = nullptr; }
 }
 
 void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexcept {

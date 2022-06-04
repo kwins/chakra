@@ -159,8 +159,10 @@ std::string chakra::cluster::Peer::desc() {
 
 chakra::cluster::Peer::~Peer() {
     linkFree();
-    delete link;
-    link = nullptr;
+    if (link != nullptr) {
+       delete link;
+        link = nullptr;     
+    }
 }
 
 long chakra::cluster::Peer::getRetryLinkTime() const { return retryLinkTime; }

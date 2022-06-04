@@ -5,13 +5,31 @@
 #ifndef CHAKRA_FLAGS_CPP
 #define CHAKRA_FLAGS_CPP
 
+#include <cstdint>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include "utils/file_helper.h"
 
 DEFINE_int32(server_port, 7290, "chakra server listen port");                                       /* NOLINT */
 DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                                /* NOLINT */
+DEFINE_int32(server_workers, sysconf(_SC_NPROCESSORS_CONF) , "chakra server workers");   
+static bool validServerWorkers(const char* flagname, int32_t value){
+    if (value <= 0) return false;
+    LOG(INFO) << "The number of processors configured is " <<  sysconf(_SC_NPROCESSORS_CONF);
+    LOG(INFO) << "The number of processors currently online (available) is " << sysconf(_SC_NPROCESSORS_ONLN);
+    LOG(INFO) << "The pagesize: " << sysconf(_SC_PAGESIZE);  
+    LOG(INFO) << "The number of pages: " << sysconf(_SC_PHYS_PAGES);  
+    LOG(INFO) << "The number of available pages: " << sysconf(_SC_AVPHYS_PAGES); 
+    LOG(INFO) << "The memory size: " <<  (long long)sysconf(_SC_PAGESIZE) * (long long)sysconf(_SC_PHYS_PAGES) / (1024 * 1024) << " MB";
+    LOG(INFO) << "The number of files max opened:: " << sysconf(_SC_OPEN_MAX);
+    LOG(INFO) << "The number of ticks per second: " << sysconf(_SC_CLK_TCK);  
+    LOG(INFO) << "The max length of host name: " << sysconf(_SC_HOST_NAME_MAX); 
+    LOG(INFO) << "The max length of login name: " << sysconf(_SC_LOGIN_NAME_MAX); 
+    return true;
+}
+DEFINE_validator(server_workers, validServerWorkers);    
 DEFINE_double(server_cron_interval_sec, 1.0, "chakra server cron interval sec");                    /* NOLINT */
+
 
 DEFINE_string(replica_dir, "data", "replica dir");                                                  /* NOLINT */
 static bool validReplicaDir(const char* flagname, const std::string& value){
