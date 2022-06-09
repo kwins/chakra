@@ -13,16 +13,16 @@
 
 namespace chakra::bm {
 
-class ClientSetBM : public benchmark::Fixture {
+class ClientClusterSetBM : public benchmark::Fixture {
 public:
     void SetUp(const benchmark::State& state) {
-        chakra::client::Chakra::Options opts;
+        chakra::client::ChakraCluster::Options opts;
         opts.ip = "127.0.0.1";
         opts.maxConns = 100;
         opts.maxIdleConns = 10;
         try {
-            client = std::make_shared<chakra::client::Chakra>(opts);
-            // LOG(INFO) << "create client";
+            cluster = std::make_shared<chakra::client::ChakraCluster>(opts);
+            // LOG(INFO) << "create cluster";
         } catch (const error::Error& err) {
             LOG(ERROR) << "create client error" << err.what();
             return;
@@ -30,14 +30,14 @@ public:
     }
 
     void TearDown(const ::benchmark::State& state) {
-        client->close();
-        // LOG(INFO) << "close client";
+        cluster->close();
+        // LOG(INFO) << "close cluster";
     }
 
-    std::shared_ptr<chakra::client::Chakra> client;
+    std::shared_ptr<chakra::client::ChakraCluster> cluster;
 };
 
-BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(ClientClusterSetBM, case0)(benchmark::State& state) {
     proto::client::SetMessageResponse response;
     proto::client::SetMessageRequest request;
     request.set_db_name("db1");
@@ -46,14 +46,14 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     int64_t i = 0;
     int64_t spends = 0;
     for (auto _  : state) {
-        request.set_key("bmcs2_key_" + std::to_string(i));
-        request.set_s("bmcs2_value_" + std::to_string(i));
-        auto err = client->set(request, response);
+        request.set_key("bm4_key_" + std::to_string(i));
+        request.set_s("bm4_value_" + std::to_string(i));
+        auto err = cluster->set(request, response);
         if (err) LOG(ERROR) << err.what();
         i++;
     }
 }
 
-BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(300000)->Range(1, 100);
+BENCHMARK_REGISTER_F(ClientClusterSetBM, case0)->Iterations(300000)->Range(1, 100);
 
 }

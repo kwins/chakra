@@ -14,6 +14,7 @@ public:
     static std::string genRandomID(size_t len = 40);
     static long getNowSec();
     static long getNowMillSec();
+    static uint64_t getNowMicroSec();
     static int32_t sport();
     static int32_t cport();
     static int32_t rport();

@@ -20,6 +20,12 @@
 #include "packet.h"
 
 DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");  /* NOLINT */
+static bool validConnectBufferSize(const char* flagname, int64_t value){
+    if (value <= 0) return false;
+    LOG(INFO) << "[connect] new buffer size is " << value;
+    return true;
+}
+DEFINE_validator(connect_buff_size, validConnectBufferSize);
 
 chakra::net::Connect::Connect(chakra::net::Connect::Options options) {
     opts = std::move(options);
@@ -44,7 +50,9 @@ void chakra::net::Connect::send(Buffer* buffer) {
     size_t nextlen = size;
     ssize_t sended = 0;
     while (true) {
-        ssize_t writed = ::send(fd(), &buffer->data[sended], nextlen, MSG_NOSIGNAL);
+        // linux下当服务器连接断开，客户端还发数据的时候，因为连接失败发送出错，
+        // 不仅send()的返回值会有反映，而且还会像系统发送一个异常消息，如果不作处理，系统会出 BrokePipe，程序会退出。
+        ssize_t writed = ::write(fd(), &buffer->data[sended], nextlen);
         if (writed == 0) {
             throw error::ConnectClosedError("connect closed");;
         } else if (writed < 0) {
@@ -74,8 +82,10 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
         if (readn == 0) {
             throw error::ConnectClosedError("connect closed");
         } else if (readn < 0) {
+            // EWOULDBLOCK 表示发送时套接字发送缓冲区已满，或接收时套接字接收缓冲区为空
             if (((errno == EWOULDBLOCK && !opts.block)) || errno == EINTR) {
                 /* Try again later */
+                DLOG(INFO) << "[connect] try read again with errno " << errno;
             } else if (errno == ETIMEDOUT && opts.block) {
                 throw error::ConnectReadError(strerror(errno));
             } else {
@@ -89,7 +99,10 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
 
         auto packSize = buffer->read<uint64_t>(0);
         if (packSize > 0 && buffer->len >= packSize) break;
-        LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize  << " buffer len is " << buffer->len;
+        LOG_IF(INFO, readn > 0) << "[connect] recv pack not enough, pack size is " << packSize  
+                     << " buffer len is " << buffer->len 
+                     << " buffer free is " << buffer->bfree
+                     << " read size " << readn;
     } while (true);
 
     int processed = 0;

@@ -24,7 +24,7 @@ DECLARE_double(server_cron_interval_sec);
 DECLARE_int32(server_workers);
 
 chakra::serv::Chakra::Chakra() {
-    DLOG(INFO) << "[chakra] start";
+    LOG(INFO) << "[chakra] init";
     workNum = FLAGS_server_workers - 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
@@ -63,7 +63,7 @@ chakra::serv::Chakra::Chakra() {
     chakra::replica::Replicate::get();
     // sig
     initLibev();
-    DLOG(INFO) << "[chakra] end";
+    LOG(INFO) << "[chakra] init end";
 }
 
 // Chakra
@@ -182,7 +182,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
 
 void chakra::serv::Chakra::startUp() const {
     LOG(INFO) << "[chakra] start works " << workNum;
-    LOG(INFO) << "[chakra] start and listen on :" << utils::Basic::sport() << " success.";
+    LOG(INFO) << "[chakra] listen on " << utils::Basic::sport();
     ev::get_default_loop().loop();
 }
 
@@ -204,6 +204,7 @@ void chakra::serv::Chakra::stop() {
     chakra::replica::Replicate::get()->stop();
     chakra::database::FamilyDB::get()->stop();
     ev::get_default_loop().break_loop(ev::ALL);
+    LOG(INFO) << "[server] stop";
 }
 
 chakra::serv::Chakra::~Chakra() {

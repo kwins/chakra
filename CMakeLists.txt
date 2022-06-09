@@ -4,7 +4,7 @@ include(cmake/misc.cmake)
 
 project(chakra)
 add_compile_options(-g -std=c++17)
-# add_compile_options(-DNDEBUG)
+add_compile_options(-DNDEBUG)
 
 set_property(DIRECTORY PROPERTY EP_BASE ${CMAKE_CURRENT_BINARY_DIR}/depends)
 

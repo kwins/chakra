@@ -205,7 +205,6 @@ std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
     if (conns.size() == 0 && connUsingNumber >= options.maxConns) {
         throw error::ClientNotEnogthError("too many clients");
     }
-    
     if (conns.size() == 0) { //  新建一个链接
         chakra::net::Connect::Options connOptions;
         connOptions.host = options.ip;
