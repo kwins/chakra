@@ -11,19 +11,19 @@ void chakra::net::Packet::serialize(const ::google::protobuf::Message& msg, prot
 
     auto apl = append<uint64_t>(buffer->data, buffer->len, packsize);
     buffer->len += apl;
-    buffer->free -= apl;
+    buffer->bfree -= apl;
 
     apl = append<uint32_t>(buffer->data, buffer->len, (uint32_t)0);
     buffer->len += apl;
-    buffer->free -= apl;
+    buffer->bfree -= apl;
 
     apl = append<uint32_t>(buffer->data, buffer->len, (uint32_t)type);
     buffer->len += apl;
-    buffer->free -= apl;
+    buffer->bfree -= apl;
 
     msg.SerializeToArray(&buffer->data[buffer->len], bodysize);
     buffer->len += bodysize;
-    buffer->free -= bodysize;
+    buffer->bfree -= bodysize;
 }
 
 chakra::error::Error chakra::net::Packet::deSerialize(char *src, size_t sl, google::protobuf::Message &msg, proto::types::Type msgtype) {

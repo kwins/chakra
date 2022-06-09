@@ -37,6 +37,7 @@ public:                                                                         
 DEFINE_ERROR(File, true)
 DEFINE_ERROR(ConnectClosed, true)
 DEFINE_ERROR(ConnectRead, true)
+DEFINE_ERROR(ClientNotEnogth, true)
 
 }
 

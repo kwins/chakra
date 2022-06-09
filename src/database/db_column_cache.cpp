@@ -3,25 +3,25 @@
 #include <error/err.h>
 #include <memory>
 #include <chrono>
+#include <mutex>
 #include <type_traits>
 
 chakra::database::ColumnDBLRUCache::ColumnDBLRUCache(size_t capacity):capacity_bytes(capacity), used_bytes(0) {}
 
 std::shared_ptr<proto::element::Element> chakra::database::ColumnDBLRUCache::get(const std::string &key) {
-    std::shared_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto it = table.find(key);
     if (it == table.end()) {
         return nullptr;
-    } else {
-        list.splice(list.begin(), list, it->second); // 头插入
-        return (*it->second);
     }
+    list.splice(list.begin(), list, it->second); // 头插入
+    return (*it->second);
 }
 
 std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDBLRUCache::mget(const std::vector<std::string>& keys) {
+    std::lock_guard<std::mutex> lck(mutex);
     std::vector<std::shared_ptr<proto::element::Element>> result;
     result.resize(keys.size());
-    std::shared_lock<std::shared_mutex> lck(mutex);
     for(int i = 0; i < keys.size(); i++) {
         auto it = table.find(keys.at(i));
         if (it == table.end()) {
@@ -35,7 +35,7 @@ std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDB
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::string& value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
         element = std::make_shared<proto::element::Element>();
@@ -55,13 +55,13 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<pro
     element->set_type(::proto::element::ElementType::STRING);
     element->set_s(value);
     
-    set(key, element);
+    setNL(key, element);
 
     return cb(element);
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
         element = std::make_shared<proto::element::Element>();
@@ -81,13 +81,13 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::set(std::shared_ptr<pro
     element->set_type(::proto::element::ElementType::FLOAT);
     element->set_f(value);
     
-    set(key, element);
+    setNL(key, element);
 
     return cb(element);
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<std::string>& values, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
         element = std::make_shared<proto::element::Element>();
@@ -109,13 +109,13 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
         element->mutable_ss()->add_value(v);
     }
     
-    set(key, element);
+    setNL(key, element);
 
     return cb(element);
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<proto::element::Element> element, const std::string& key, const std::vector<float>& values, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
         element = std::make_shared<proto::element::Element>();
@@ -137,13 +137,13 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::push(std::shared_ptr<pr
         element->mutable_ff()->add_value(v);
     }
     
-    set(key, element);
+    setNL(key, element);
 
     return cb(element);
 }
 
 chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl, Callback cb) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto nowms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (!element) {
         element = std::make_shared<proto::element::Element>();
@@ -163,45 +163,55 @@ chakra::error::Error chakra::database::ColumnDBLRUCache::incr(std::shared_ptr<pr
     
     element->set_f(element->f() + value);
 
-    set(key, element);
+    setNL(key, element);
 
     cb(element);
     return error::Error();
 }
 
 void chakra::database::ColumnDBLRUCache::set(const std::string& key, std::shared_ptr<proto::element::Element> element) {
-    // 头插入
+    std::lock_guard<std::mutex> lck(mutex);
+    setNL(key, element);
+}
+
+void chakra::database::ColumnDBLRUCache::setNL(const std::string& key, std::shared_ptr<proto::element::Element> element) {
+    if (table.count(key) > 0) /* 删除老元素 */
+        list.erase(table[key]);
+
     list.push_front(element);
-    // 记录新的位置
-    table[key] = list.begin();
-    used_bytes += membytes(key, element);
+    table[key] = list.begin(); /*  直接覆盖 */
+    used_bytes += membytes(element);
     // 超出容量
     if (used_bytes > capacity_bytes) {
-        auto last = list.end();
-        last--; //  last one
-        table.erase((*last)->key());
+        auto& back = list.back();
+        used_bytes -= membytes(back);
+        table.erase(list.back()->key());
         list.pop_back();
-        used_bytes -= membytes((*last)->key(), (*last));
     }
 }
 
 void chakra::database::ColumnDBLRUCache::erase(const std::string& key) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
+    eraseNL(key);
+}
+
+void chakra::database::ColumnDBLRUCache::eraseNL(const std::string& key) {
     auto it = table.find(key);
-    if (it == table.end()) return;
-    used_bytes -= membytes(key, (*it->second));
-    table.erase(it);
+    if (it == table.end()) 
+        return;
+    used_bytes -= membytes((*it->second));
     list.erase(it->second);
+    table.erase(it);
 }
 
 bool chakra::database::ColumnDBLRUCache::exist(const std::string& key) {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     auto it = table.find(key);
     return it != table.end();
 }
 
 void chakra::database::ColumnDBLRUCache::refresh() {
-    std::unique_lock<std::shared_mutex> lck(mutex);
+    std::lock_guard<std::mutex> lck(mutex);
     list.clear();
     table.clear();
 }
@@ -209,8 +219,8 @@ void chakra::database::ColumnDBLRUCache::refresh() {
 int64_t chakra::database::ColumnDBLRUCache::size() const { return list.size(); }
 float chakra::database::ColumnDBLRUCache::useage() { return (float)used_bytes / (float)capacity_bytes; }
 
-size_t chakra::database::ColumnDBLRUCache::membytes(const std::string& key, const std::shared_ptr<proto::element::Element>& element) {
-    return (sizeof(element) + element->ByteSizeLong() + sizeof(key) + key.size());
+size_t chakra::database::ColumnDBLRUCache::membytes(const std::shared_ptr<proto::element::Element>& element) {
+    return (sizeof(element) + element->ByteSizeLong() + sizeof(element->key()) + element->key().size());
 }
 
 chakra::database::ColumnDBLRUCache::Callback chakra::database::ColumnDBLRUCache::defaultCB = [](std::shared_ptr<proto::element::Element>)->chakra::error::Error{ return error::Error(); };

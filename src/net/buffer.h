@@ -10,7 +10,7 @@ namespace chakra::net {
 struct Buffer {
     char* data;
     size_t size;
-    size_t free;
+    size_t bfree;
     size_t len;
 
     Buffer(size_t n);

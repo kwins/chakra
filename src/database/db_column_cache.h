@@ -11,7 +11,6 @@
 #include <list>
 #include <cstddef>
 #include <stdexcept>
-#include <shared_mutex>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -39,6 +38,7 @@ public:
     error::Error incr(std::shared_ptr<proto::element::Element> element, const std::string& key, float value, int64_t ttl = 0, Callback f = defaultCB);
     
     void set(const std::string& key, std::shared_ptr<proto::element::Element> element);
+    void setNL(const std::string& key, std::shared_ptr<proto::element::Element> element);
 
     void erase(const std::string& key);
     bool exist(const std::string& key);
@@ -47,8 +47,10 @@ public:
     int64_t size() const;
 
 private:    
-    size_t membytes(const std::string& key, const std::shared_ptr<proto::element::Element>& element);
-    mutable std::shared_mutex mutex;
+    size_t membytes(const std::shared_ptr<proto::element::Element>& element);
+    void eraseNL(const std::string& key);
+
+    std::mutex mutex;
     std::list<KEY_VALUE_PAIR> list;
     std::unordered_map<std::string, KEY_VALUE_PAIR_ITERATOR> table;
     size_t capacity_bytes;

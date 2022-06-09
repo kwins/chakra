@@ -37,7 +37,7 @@ DECLARE_int64(replica_bulk_batch_bytes);
 DECLARE_int64(replica_last_try_resync_timeout_ms);
 
 chakra::replica::Replicate::Replicate() {
-    DLOG(INFO) << "[replication] init";
+    LOG(INFO) << "[replication] init";
     loadLastStateDB(); // 加载配置数据
     auto err = net::Network::tpcListen(utils::Basic::rport(), FLAGS_server_tcp_backlog, sfd);
     if (err) {
@@ -49,7 +49,8 @@ chakra::replica::Replicate::Replicate() {
     replicaio.set(ev::get_default_loop());
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
-    LOG(INFO) << "[replication] init success listen on " << utils::Basic::rport();
+    LOG(INFO) << "[replication] init end";
+    LOG(INFO) << "[replication] listen on " << utils::Basic::rport();
 }
 
 void chakra::replica::Replicate::startReplicaCron() {
@@ -111,8 +112,10 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
         if (timeout) {
             link->close();
             LOG(WARNING)<< "[replication] close and delete timeout connect " << link->getPeerName();
-            delete link;
-            link = nullptr;
+            if (link != nullptr) {
+                delete link;
+                link = nullptr;
+            }
         }
         return timeout;
     });
@@ -209,10 +212,13 @@ void chakra::replica::Replicate::stop() {
 
     negativeLinks.remove_if([](chakra::replica::Replicate::Link* link){
         link->close();
-        delete link;
-        link = nullptr;
+        if (link != nullptr) {
+            delete link;
+            link = nullptr;
+        }
         return true;
     });
+    LOG(INFO) << "[replication] stop";
 }
 
 const std::string chakra::replica::Replicate::REPLICA_FILE_NAME = "replicas.json";
@@ -631,4 +637,4 @@ void chakra::replica::Replicate::Link::ReplicateDB::close() {
     }
 }
 
-chakra::replica::Replicate::Link::ReplicateDB::~ReplicateDB() { if (bulkiter != nullptr) delete bulkiter; }
+chakra::replica::Replicate::Link::ReplicateDB::~ReplicateDB() { if (bulkiter != nullptr) { delete bulkiter; bulkiter = nullptr; } }

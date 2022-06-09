@@ -24,6 +24,7 @@ DECLARE_double(cluster_cron_interval_sec);
 DECLARE_int32(server_tcp_backlog);
 
 chakra::cluster::Cluster::Cluster() {
+    LOG(INFO) << "[cluster] init";
     state = STATE_FAIL;
     cronLoops = 0;
     seed = std::make_shared<std::default_random_engine>(time(nullptr));
@@ -31,7 +32,8 @@ chakra::cluster::Cluster::Cluster() {
     startEv();
     updateClusterState();
     dumpMyselfDBs();
-    LOG(INFO) << "[cluster] listen on " << utils::Basic::cport() << " success";
+    LOG(INFO) << "[cluster] init end";
+    LOG(INFO) << "[cluster] listen on " << utils::Basic::cport();
 }
 
 void chakra::cluster::Cluster::loadPeers() {
@@ -136,7 +138,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         it++;
     }
     // 向一个随机节点发送 gossip 信息
-    if (!(iteraion % 10)){
+    if (!(iteraion % 10)) {
         std::shared_ptr<Peer> minPingPeer = nullptr;
         std::vector<std::string> times;
         for (int i = 0; i < 5; ++i) {
@@ -252,6 +254,7 @@ void chakra::cluster::Cluster::stop() {
         peers.clear();
     if (myself)
         myself = nullptr;
+    LOG(INFO) << "[cluster] stop";
 }
 
 void chakra::cluster::Cluster::addPeer(const std::string &ip, int port) {
