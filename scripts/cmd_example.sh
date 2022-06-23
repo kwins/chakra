@@ -10,4 +10,5 @@
 docker run -dit --restart unless-stopped --name wangzk_chakra1 -v /data/devimagespace/wangzk_chakra1:/workspace -v /data/src:/data/src -v /data/sdks:/sdks --network host hub.bilibili.co/compile/chakra:v1.0.0 bash
 docker run -dit --restart unless-stopped --name wangzk_chakra2 -v /data/devimagespace/wangzk_chakra2:/workspace -v /data/src:/data/src -v /data/sdks:/sdks --network host hub.bilibili.co/compile/chakra:v1.0.0 bash
 docker run -dit --restart unless-stopped --name wangzk_chakra3 -v /data/devimagespace/wangzk_chakra3:/workspace -v /data/src:/data/src -v /data/sdks:/sdks --network host hub.bilibili.co/compile/chakra:v1.0.0 bash
+docker run -dit --restart unless-stopped --name wangzk_chakra4 -v /data/devimagespace/wangzk_chakra4:/workspace -v /data/src:/data/src -v /data/sdks:/sdks --network host hub.bilibili.co/compile/chakra:v1.0.0 bash
 nohup ./chakra --flagfile=./config/chakra.conf > a.log 2>&1 &

@@ -197,7 +197,8 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
     } catch (const error::ConnectClosedError& err) {
         return err; /* drop connect */
     } catch (const error::Error& err) {
-        connectBack(conn);
+        LOG(INFO) << "execute cmd error: " << err.what();
+        // connectBack(conn);
         return err;
     }
 }
@@ -205,8 +206,9 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
 std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
     std::lock_guard lock(mutex);
     if (conns.size() == 0 && connUsingNumber >= options.maxConns) {
-        throw error::ClientNotEnogthError("too many clients");
+        throw error::ClientNotEnogthError("too many clients(" + std::to_string(connUsingNumber) + ":" + std::to_string(options.maxConns) + ")");
     }
+
     if (conns.size() == 0) { //  新建一个链接
         chakra::net::Connect::Options connOptions;
         connOptions.host = options.ip;
@@ -235,7 +237,10 @@ void chakra::client::Chakra::connectBack(std::shared_ptr<net::Connect> conn) {
 std::string chakra::client::Chakra::peerName() const { return options.name; }
 void chakra::client::Chakra::close() {
     std::lock_guard lock(mutex);
-    for (auto& conn : conns) {
-        if (conn) conn->close();
+    for (int i = 0; i < conns.size(); i++){
+        auto& conn = conns.front();
+        conns.pop_front();
+        connUsingNumber++;
+        conn->close();
     }
 }

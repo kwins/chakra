@@ -156,9 +156,9 @@ chakra::error::Error chakra::net::Connect::connect() {
     memcpy(sar, (sockaddr*)&addr, sizeof(struct sockaddr));
 
     if ((clientFd = ::socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+        LOG(INFO) << "1";
         return error::Error(strerror(errno));
     }
-    FD = clientFd;
 
     retry:
     if (::connect(clientFd, (sockaddr*) &addr, sizeof(addr)) < 0) {
@@ -181,8 +181,9 @@ chakra::error::Error chakra::net::Connect::connect() {
         }
         return error::Error(strerror(errno));
     }
-    
+
     next:
+    FD = clientFd;
     auto err = setBlock(false);
     if (err)
         return err;
@@ -225,6 +226,7 @@ chakra::error::Error chakra::net::Connect::setConnectTimeout() {
     if (setsockopt(fd(), SOL_SOCKET, SO_SNDTIMEO, &writev, sizeof(writev))){
         return error::Error(strerror(errno));
     }
+
     return error::Error();
 }
 

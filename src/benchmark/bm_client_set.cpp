@@ -10,32 +10,40 @@
 #include <string>
 #include <glog/logging.h>
 #include <utils/basic.h>
+#include <vector>
 
 namespace chakra::bm {
 
 class ClientSetBM : public benchmark::Fixture {
 public:
+    ClientSetBM() { clients.resize(threads); }
+
+    // 多线程共用一个对象，但是每个线程都会执行 SetUp 和 TearDown 函数。
     void SetUp(const benchmark::State& state) {
         chakra::client::Chakra::Options opts;
-        opts.ip = "127.0.0.1";
-        opts.maxConns = 100;
-        opts.maxIdleConns = 10;
+        opts.ip = "10.210.16.240";
+        opts.maxConns = 10;
+        opts.maxIdleConns = 3;
         try {
-            client = std::make_shared<chakra::client::Chakra>(opts);
+            clients[state.thread_index()] = std::make_shared<chakra::client::Chakra>(opts);
             // LOG(INFO) << "create client";
         } catch (const error::Error& err) {
-            LOG(ERROR) << "create client error" << err.what();
+            LOG(ERROR) << "create client error " << err.what();
             return;
         }
     }
 
     void TearDown(const ::benchmark::State& state) {
-        client->close();
+        clients[state.thread_index()]->close();
         // LOG(INFO) << "close client";
     }
 
-    std::shared_ptr<chakra::client::Chakra> client;
+    std::vector<std::shared_ptr<chakra::client::Chakra>> clients;
+
+    static int threads;
 };
+
+int ClientSetBM::threads = 1000;
 
 BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     proto::client::SetMessageResponse response;
@@ -46,14 +54,14 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     int64_t i = 0;
     int64_t spends = 0;
     for (auto _  : state) {
-        request.set_key("bmcs2_key_" + std::to_string(i));
-        request.set_s("bmcs2_value_" + std::to_string(i));
-        auto err = client->set(request, response);
+        request.set_key("bmcs5_key_" + std::to_string(i));
+        request.set_s("bmcs5_value_" + std::to_string(i));
+        auto err = clients[state.thread_index()]->set(request, response);
         if (err) LOG(ERROR) << err.what();
         i++;
     }
 }
 
-BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(300000)->Range(1, 100);
-
+// BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->RangeMultiplier(4)->ThreadRange(ClientSetBM::minThreads, ClientSetBM::maxThreads);
+BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->Threads(ClientSetBM::threads);
 }
