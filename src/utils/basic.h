@@ -15,6 +15,7 @@ public:
     static long getNowSec();
     static long getNowMillSec();
     static uint64_t getNowMicroSec();
+    static std::string getLocalIP();
     static int32_t sport();
     static int32_t cport();
     static int32_t rport();

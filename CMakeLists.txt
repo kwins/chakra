@@ -28,7 +28,7 @@ set(CLI_LIBS libev.a libinterface.a libprotobuf.a libglog.a libgflags.a  libz.a 
 set(TEST_LIB  libev.a libinterface.a libprotobuf.a libbenchmark_main.a libbenchmark.a libgtest.a librocksdb.a libglog.a libgflags.a  libz.a liblz4.a)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL Linux)
-    set(LINUX_LINKS pthread rt atomic gomp m gfortran profiler dl)
+    set(LINUX_LINKS pthread)
 endif()
 
 # chakra

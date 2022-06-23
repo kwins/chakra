@@ -5,10 +5,16 @@
 #include "basic.h"
 
 #include <chrono>
+#include <cstring>
 #include <gflags/gflags_declare.h>
 #include <random>
 #include <algorithm>
 #include <gflags/gflags.h>
+#include <unistd.h>/* gethostname */
+#include <netdb.h> /* struct hostent */
+#include <arpa/inet.h> /* inet_ntop */
+#include <glog/logging.h>
+#include "error/err.h"
 
 DECLARE_int32(server_port);
 
@@ -42,6 +48,18 @@ long chakra::utils::Basic::getNowMillSec() {
 uint64_t chakra::utils::Basic::getNowMicroSec() {
     auto now = std::chrono::system_clock::now();
     return std::chrono::time_point_cast<std::chrono::microseconds>(now).time_since_epoch().count();
+}
+
+std::string chakra::utils::Basic::getLocalIP() {
+	char name[256];
+	gethostname(name, sizeof(name));	
+	struct hostent* host = gethostbyname(name);
+	char ip[32];
+	const char* ret = inet_ntop(host->h_addrtype, host->h_addr_list[0], ip, sizeof(ip));
+	if (ret == nullptr) {
+		throw error::Error(strerror(errno));
+	}
+	return ip;
 }
 
 int32_t chakra::utils::Basic::sport() { return FLAGS_server_port; }

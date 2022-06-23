@@ -54,6 +54,6 @@ BENCHMARK_DEFINE_F(ClientClusterSetBM, case0)(benchmark::State& state) {
     }
 }
 
-BENCHMARK_REGISTER_F(ClientClusterSetBM, case0)->Iterations(300000)->Range(1, 100);
+BENCHMARK_REGISTER_F(ClientClusterSetBM, case0)->Iterations(500000)->Range(1, 100);
 
 }

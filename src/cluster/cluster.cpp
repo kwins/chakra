@@ -64,7 +64,7 @@ void chakra::cluster::Cluster::loadPeers() {
         }
     } catch (const error::FileError& err) {
         myself = std::make_shared<Peer>(); // 第一次初始化
-        myself->setIp("127.0.0.1");
+        myself->setIp(utils::Basic::getLocalIP());
         myself->setPort(utils::Basic::cport());
         myself->setName(utils::Basic::genRandomID());
         myself->setFlag(Peer::FLAG_MYSELF);

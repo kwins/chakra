@@ -28,5 +28,11 @@ TEST(Utils, case0) {
     ASSERT_EQ((rferr == false), false);
 }
 
+TEST(Utils, case1) {
+    std::string ip = chakra::utils::Basic::getLocalIP();
+    ASSERT_NE(ip, "");
+    LOG(INFO) << "ip=" << ip;
+}
+
 }
 #endif //CHAKRA_UT_UTILS_H
