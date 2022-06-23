@@ -22,7 +22,6 @@
 DEFINE_int64(connect_buff_size, 16384, "connect recv max buff size of message, default is 16384");  /* NOLINT */
 static bool validConnectBufferSize(const char* flagname, int64_t value){
     if (value <= 0) return false;
-    LOG(INFO) << "[connect] new buffer size is " << value;
     return true;
 }
 DEFINE_validator(connect_buff_size, validConnectBufferSize);

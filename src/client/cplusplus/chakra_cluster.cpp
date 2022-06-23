@@ -16,11 +16,8 @@
 chakra::client::ChakraCluster::ChakraCluster(Options opts) : options(std::move(opts))
                                                         , index(0), exitTH(false) {
     auto err = connectCluster();
-    if (err) { 
-        LOG(ERROR) << "[chakra] connect cluster error " << err.what();
-        throw err; 
-    }
-    
+    if (err) throw err;
+
     th = std::make_shared<std::thread>([this] () {
         while (!exitTH.load()) {
             std::unique_lock<std::mutex> lck(mutex);
@@ -30,9 +27,10 @@ chakra::client::ChakraCluster::ChakraCluster(Options opts) : options(std::move(o
             if (ok && exitTH.load()) {
                 break;
             }
+            
             if (clusterChanged()) {
                 auto err = connectCluster();
-                if (err) LOG(ERROR) << "Update cluster client error when cluster changed:" << err.what();
+                if (err) LOG(ERROR) << err.what();
             }
         }
     });

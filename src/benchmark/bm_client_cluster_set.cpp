@@ -17,7 +17,7 @@ class ClientClusterSetBM : public benchmark::Fixture {
 public:
     void SetUp(const benchmark::State& state) {
         chakra::client::ChakraCluster::Options opts;
-        opts.ip = "127.0.0.1";
+        opts.ip = "10.210.16.240";
         opts.maxConns = 100;
         opts.maxIdleConns = 10;
         try {
