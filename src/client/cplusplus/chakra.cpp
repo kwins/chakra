@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 #include <google/protobuf/map.h>
 #include <memory>
+#include <string>
 #include <types.pb.h>
 
 chakra::client::Chakra::Chakra(Options opts) : options(opts), connUsingNumber(0) {
@@ -23,8 +24,9 @@ chakra::client::Chakra::Chakra(Options opts) : options(opts), connUsingNumber(0)
     for (int i = 0; i < options.maxIdleConns; i++) {
         auto conn = std::make_shared<net::Connect>(connOptions);
         auto err = conn->connect();
-        if (err)
-            throw err;
+        if (err) {
+            throw error::Error("connect host (" + connOptions.host + ":" + std::to_string(connOptions.port) + ") error " + err.what());
+        }
         conns.push_back(conn);
     }
 }

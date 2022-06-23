@@ -173,8 +173,8 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
                 pdb.second.name(), it.second->getIp(), it.second->getReplicatePort()); /* 复制新的副本 */
             
             replicaptr->dumpReplicateStates(); /* 更新状态 */
-            LOG(INFO) << "[replication] new duplicate online in this node (" 
-                      << pdb.second.name() << "#" << it.second->getIp() << ":" << it.second->getReplicatePort();
+            LOG(INFO) << "[replication] new copy online in this node (" 
+                      << pdb.second.name() << "#" << it.second->getIp() << ":" << it.second->getReplicatePort() << ")";
         }
     }
     startServCron();

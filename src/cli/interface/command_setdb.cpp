@@ -11,4 +11,5 @@ void chakra::cli::CommandSetDB::execute(std::shared_ptr<chakra::client::ChakraCl
     }
     auto err = cluster->setdb(FLAGS_setdb_nodename, FLAGS_setdb_name, FLAGS_setdb_cached);
     if (err) LOG(ERROR) << err.what();
+    else LOG(INFO) << "setdb " << FLAGS_setdb_name << " to " << FLAGS_setdb_nodename << " success";
 }

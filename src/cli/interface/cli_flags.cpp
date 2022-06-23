@@ -43,9 +43,8 @@ DEFINE_string(meet_ip, "", "meet ip");
 DEFINE_int32(meet_port, 7290, "meet port");
 
 // set command
-DEFINE_string(set_db, "", "set db");
-DEFINE_string(set_key, "", "set key");
-DEFINE_string(set_value, "", "set value");
+DEFINE_string(set_keys, "", "set keys");
+DEFINE_string(set_values, "", "set values");
 DEFINE_int64(set_ttl, 0, "set ttl ms"); // ms
 
 // setdb command
