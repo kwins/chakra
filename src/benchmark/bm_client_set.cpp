@@ -43,7 +43,7 @@ public:
     static int threads;
 };
 
-int ClientSetBM::threads = 1000;
+int ClientSetBM::threads = 4;
 
 BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     proto::client::SetMessageResponse response;
@@ -62,6 +62,5 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     }
 }
 
-// BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->RangeMultiplier(4)->ThreadRange(ClientSetBM::minThreads, ClientSetBM::maxThreads);
 BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->Threads(ClientSetBM::threads);
 }

@@ -160,7 +160,7 @@ std::string chakra::cluster::Peer::desc() {
 chakra::cluster::Peer::~Peer() {
     linkFree();
     if (link != nullptr) {
-       delete link;
+        delete link;
         link = nullptr;     
     }
 }

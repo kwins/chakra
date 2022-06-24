@@ -324,9 +324,10 @@ size_t chakra::net::Connect::sendBufferLength() { return wbuffer->len; }
 size_t chakra::net::Connect::receiveBufferLength() { return rbuffer->len; }
 
 void chakra::net::Connect::close() {
-    if (FD == -1) return;
-    ::close(FD);
-    FD = -1;
+    if (FD > 0) {
+        ::close(FD);
+        FD = -1;
+    }
     state = State::CLOSE;
 }
 

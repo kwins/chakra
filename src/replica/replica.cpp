@@ -4,6 +4,7 @@
 
 #include "replica.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <ev++.h>
 #include <exception>
@@ -13,6 +14,7 @@
 #include <glog/logging.h>
 #include <netinet/in.h>
 #include <gflags/gflags.h>
+#include <vector>
 
 #include "net/network.h"
 #include "utils/file_helper.h"
@@ -74,6 +76,10 @@ void chakra::replica::Replicate::loadLastStateDB() {
             link->setPeerName(replica.peer_name());
             positiveLinks.emplace(link->getPeerName(), link);
             for (auto db : replica.replicas()) {
+                if (db.db_name().empty()) {
+                    LOG(ERROR) << "[replication] load empty db";
+                    exit(-1);
+                }
                 auto replicateDB = std::make_shared<chakra::replica::Replicate::Link::ReplicateDB>();
                 replicateDB->name = db.db_name();
                 replicateDB->deltaSeq = db.delta_seq();
@@ -107,20 +113,22 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
         dumpReplicateStates();
 
     // server side
-    negativeLinks.remove_if([](chakra::replica::Replicate::Link* link) {
-        auto timeout = link->isTimeout();
-        if (timeout) {
-            link->close();
-            LOG(WARNING)<< "[replication] close and delete timeout connect " << link->getPeerName();
-            if (link != nullptr) {
-                delete link;
-                link = nullptr;
-            }
+    negativeLinkLoop();
+    
+    startReplicaCron();
+}
+
+void chakra::replica::Replicate::negativeLinkLoop() {
+    negativeLinks.remove_if([](Link* l){
+        auto timeout = l->isTimeout();
+        if (!timeout) {
+            l->heartbeat();
+        } else {
+            LOG(WARNING)<< "[replication] close and delete timeout connect " << l->getPeerName();
+            delete l; l = nullptr;
         }
         return timeout;
     });
-
-    startReplicaCron();
 }
 
 bool chakra::replica::Replicate::replicatedDB(const std::string& peername, const std::string &dbname) {
@@ -442,7 +450,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
     {
         if (nowMillSec - getLastInteractionMs() > FLAGS_replica_timeout_ms) {
             LOG(WARNING) << "[replication] handshake timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
-                         << " ms, no data nor PONG received from " << getPeerName();
+                         << " ms, no PONG received from " << getPeerName();
             close();
         } else {
             handshake();
@@ -453,7 +461,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
     {
         if (nowMillSec - getLastInteractionMs() > FLAGS_replica_timeout_ms) {
             LOG(WARNING) << "[replication] connect timeout " << (nowMillSec - getLastInteractionMs() - FLAGS_replica_timeout_ms) 
-                         << " ms, no data nor PONG received from " << getPeerName();
+                         << " ms, no DATA nor HEADBEAT received from " << getPeerName();
             close();
         } else {
             heartbeat();
@@ -516,7 +524,7 @@ void chakra::replica::Replicate::Link::close() {
     }
     if (conn)
         conn->close();
-    setState(chakra::replica::Replicate::Link::State::CONNECT);
+    setState(State::CONNECT);
 }
 
 bool chakra::replica::Replicate::Link::isTimeout() const {
