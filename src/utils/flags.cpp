@@ -42,11 +42,11 @@ static bool validReplicaDir(const char* flagname, const std::string& value){
     return true;
 }
 DEFINE_validator(replica_dir, validReplicaDir);                                                 /* NOLINT */
-DEFINE_int32(replica_timeout_ms, 10000, "replicas timeout ms");                                 /* NOLINT */
+DEFINE_int32(replica_timeout_ms, 15000, "replicas timeout ms");                                 /* NOLINT */
 DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");         /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                               /* NOLINT */
 DEFINE_int64(replica_last_try_resync_timeout_ms, 1000, "last try resync timeout");              /* NOLINT */
-DEFINE_double(replica_delta_pull_interval_sec, 0.2, "replica pull db dalta interval sec");      /* NOLINT */
+DEFINE_double(replica_delta_pull_interval_sec, 0.1, "replica pull db dalta interval sec");      /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 1024 * 8, "replica delta batch size");                  /* NOLINT */
 DEFINE_double(replica_bulk_send_interval_sec, 0.2, "replica send db bulk interval sec");        /* NOLINT */
 DEFINE_int64(replica_bulk_batch_bytes, 1024 * 16, "replica bulk batch size");                   /* NOLINT */
@@ -74,9 +74,9 @@ static bool validClusterDir(const char* flagname, const std::string& value){
     return true;
 }
 DEFINE_validator(cluster_dir, validClusterDir);                                                 /* NOLINT */
-DEFINE_int32(cluster_handshake_timeout_ms, 10000, "cluster handshake timeout ms");              /* NOLINT */
-DEFINE_int32(cluster_peer_timeout_ms, 10000, "cluster peer timeout ms");                        /* NOLINT */
-DEFINE_int32(cluster_peer_link_retry_timeout_ms, 10000, "cluster peer link retry timeout ms");  /* NOLINT */
+DEFINE_int32(cluster_handshake_timeout_ms, 15000, "cluster handshake timeout ms");              /* NOLINT */
+DEFINE_int32(cluster_peer_timeout_ms, 15000, "cluster peer timeout ms");                        /* NOLINT */
+DEFINE_int32(cluster_peer_link_retry_timeout_ms, 15000, "cluster peer link retry timeout ms");  /* NOLINT */
 DEFINE_double(cluster_cron_interval_sec, 0.5, "cluster cron interval sec");                     /* NOLINT */
 
 #endif //CHAKRA_FLAGS_CPP
