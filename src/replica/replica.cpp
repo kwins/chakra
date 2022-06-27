@@ -114,7 +114,7 @@ void chakra::replica::Replicate::onReplicaCron(ev::timer &watcher, int event) {
 
     // server side
     negativeLinkLoop();
-    
+
     startReplicaCron();
 }
 

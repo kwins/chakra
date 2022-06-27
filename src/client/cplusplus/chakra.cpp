@@ -244,3 +244,4 @@ void chakra::client::Chakra::close() {
         conn->close();
     }
 }
+chakra::client::Chakra::~Chakra() { close(); }

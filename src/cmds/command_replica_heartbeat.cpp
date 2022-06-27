@@ -9,4 +9,5 @@
 void chakra::cmds::CommandReplicaHeartbeat::execute(char *req, size_t len, void *data) {
     auto link = static_cast<replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
+    LOG(INFO) << "heartbeat recv from " << link->getPeerName() << "(" << link->getIp() << ":" << link->getPort() << ") current " << link->getLastInteractionMs();
 }

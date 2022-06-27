@@ -56,6 +56,7 @@ public:
     error::Error incr(const proto::client::IncrMessageRequest& request, proto::client::IncrMessageResponse& response);
     error::Error mincr(const proto::client::MIncrMessageRequest& request, proto::client::MIncrMessageResponse& response);
     void close();
+    ~Chakra();
 private:
     Options options;
     std::shared_ptr<net::Connect> connnectGet();
