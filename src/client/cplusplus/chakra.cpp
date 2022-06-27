@@ -192,14 +192,9 @@ chakra::error::Error chakra::client::Chakra::executeCmd(const google::protobuf::
         });
         connectBack(conn);
         return error::Error();
-    } catch (const error::ClientNotEnogthError& err) {
-        return err; /* drop connect */
-    } catch (const error::ConnectClosedError& err) {
-        return err; /* drop connect */
     } catch (const error::Error& err) {
-        LOG(INFO) << "execute cmd error: " << err.what();
-        // connectBack(conn);
-        return err;
+        connectBack(conn, true);
+        return err; /* drop connect */
     }
 }
 
@@ -228,9 +223,11 @@ std::shared_ptr<chakra::net::Connect> chakra::client::Chakra::connnectGet() {
     return conn;
 }
 
-void chakra::client::Chakra::connectBack(std::shared_ptr<net::Connect> conn) {
+void chakra::client::Chakra::connectBack(std::shared_ptr<net::Connect> conn, bool drop) {
     std::lock_guard lock(mutex);
-    conns.push_back(conn);
+    if (!drop) {
+       conns.push_back(conn); 
+    }
     connUsingNumber--;
 }
 

@@ -60,7 +60,7 @@ public:
 private:
     Options options;
     std::shared_ptr<net::Connect> connnectGet();
-    void connectBack(std::shared_ptr<net::Connect> conn);
+    void connectBack(std::shared_ptr<net::Connect> conn, bool drop = false);
     error::Error executeCmd(const ::google::protobuf::Message& msg, proto::types::Type type, ::google::protobuf::Message& reply);
     std::deque<std::shared_ptr<net::Connect>> conns;
     int connUsingNumber = 0;
