@@ -11,6 +11,7 @@
 #include <rocksdb/types.h>
 
 void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data) {
+    auto st = utils::Basic::getNowMillSec();
     auto link = static_cast<chakra::replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
 
@@ -55,4 +56,5 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     }
     DLOG(INFO) << "[replication] delta pull response: " << deltaMessageResponse.DebugString();
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
+    LOG(INFO) << "[replication] delta pull spends " << (utils::Basic::getNowMillSec() - st) << "ms";
 }

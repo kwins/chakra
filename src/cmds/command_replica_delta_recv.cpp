@@ -10,6 +10,7 @@
 #include "utils/basic.h"
 
 void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, void *data) {
+    auto st = utils::Basic::getNowMillSec();
     proto::replica::DeltaMessageResponse deltaMessageResponse;
     auto link = static_cast<replica::Replicate::Link*>(data);
     link->setLastInteractionMs(utils::Basic::getNowMillSec());
@@ -34,4 +35,5 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
         }
     }
     link->startPullDelta(deltaMessageResponse.db_name()); // next pull delta
+    LOG(INFO) << "[replication] delta recv spends " << (utils::Basic::getNowMillSec() - st) << "ms";
 }
