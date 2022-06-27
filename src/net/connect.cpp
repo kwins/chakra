@@ -98,7 +98,7 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
 
         auto packSize = buffer->read<uint64_t>(0);
         if (packSize > 0 && buffer->len >= packSize) break;
-        LOG_IF(INFO, readn > 0) << "[connect] recv pack not enough, pack size is " << packSize  
+        DLOG_IF(INFO, readn > 0) << "[connect] recv pack not enough, pack size is " << packSize  
                      << " buffer len is " << buffer->len 
                      << " buffer free is " << buffer->bfree
                      << " read size " << readn;
@@ -108,7 +108,7 @@ void chakra::net::Connect::receive(Buffer* buffer, const std::function<error::Er
     do { /* process as many messages as possible */
         auto packSize = buffer->read<uint64_t>(0);
         if ((packSize == 0) || (packSize > 0 && buffer->len < packSize)) { /* it means that no data or not enough for a complete package in buffer */
-            LOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << buffer->len;
+            DLOG(WARNING) << "[connect] recv pack not enough, pack size is " << packSize << " buffer len is " << buffer->len;
             return;
         }
 
