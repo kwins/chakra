@@ -31,8 +31,8 @@ void chakra::cmds::CommandClientMGet::execute(char *req, size_t len, void *data)
         for(auto& db : result) {
             auto& elements = (*mGetMessageResponse.mutable_datas())[db.first];
             for (int i = 0; i < db.second.size(); i++) {
-                auto& element = (*elements.mutable_value())[db.second[i]->key()];
-                if (db.second[i]) { // 只能 copy，不能 move
+                auto& element = (*elements.mutable_value())[dbkeys.at(db.first).at(i)];
+                if (db.second[i]) {
                     element.CopyFrom(*db.second[i]);
                 } else { // 结果为空，只设置key
                     element.set_key(dbkeys.at(db.first).at(i));

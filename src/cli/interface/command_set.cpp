@@ -22,7 +22,7 @@ void chakra::cli::CommandSet::execute(std::shared_ptr<chakra::client::ChakraClus
         return;   
     }
 
-    proto::client::MSetMessageRequest mSetRequest;
+    proto::client::MSetMessageRequest request;
     for (int i = 0; i < dbkeys.size(); i++) {
         auto dbk = stringSplit(dbkeys[i], ':');
         if (dbk.size() != 2) {
@@ -31,7 +31,7 @@ void chakra::cli::CommandSet::execute(std::shared_ptr<chakra::client::ChakraClus
         }
         auto& value = trim(values[i]);
 
-        auto subReq = mSetRequest.mutable_datas()->Add();
+        auto subReq = request.mutable_datas()->Add();
         subReq->set_db_name(dbk[0]);
         subReq->set_key(dbk[1]);
         subReq->set_ttl(FLAGS_set_ttl);
@@ -39,16 +39,14 @@ void chakra::cli::CommandSet::execute(std::shared_ptr<chakra::client::ChakraClus
         subReq->set_s(value);
     }
 
-    if (mSetRequest.datas_size() == 0) {
+    if (request.datas_size() == 0) {
         LOG(INFO) << "empty set data";
         return;
     }
 
+    LOG(INFO) << "request: " << request.DebugString();
     proto::client::MSetMessageResponse response;
-    auto err = cluster->mset(mSetRequest, response);
-    if (err) {
-        LOG(ERROR) << err.what();
-    } else {
-        LOG(INFO) << response.DebugString();
-    }
+    auto err = cluster->mset(request, response);
+    if (err) LOG(ERROR) << err.what();
+    else LOG(INFO) << "response: " << response.DebugString();
 }

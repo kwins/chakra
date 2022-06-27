@@ -15,12 +15,13 @@ void chakra::cli::CommandGet::execute(std::shared_ptr<chakra::client::ChakraClus
         return;
     }
 
-    proto::client::GetMessageRequest getMessageRequest;
-    getMessageRequest.set_db_name(dbkeys[0]);
-    getMessageRequest.set_key(dbkeys[1]);
+    proto::client::GetMessageRequest request;
+    request.set_db_name(dbkeys[0]);
+    request.set_key(dbkeys[1]);
 
-    proto::client::GetMessageResponse getMessageResponse;
-    auto err = cluster->get(getMessageRequest, getMessageResponse);
+    LOG(INFO) << "request: " << request.DebugString();
+    proto::client::GetMessageResponse response;
+    auto err = cluster->get(request, response);
     if (err) LOG(ERROR) << err.what();
-    else LOG(INFO) << getMessageResponse.DebugString();
+    else LOG(INFO) << "response: " << response.DebugString();
 }

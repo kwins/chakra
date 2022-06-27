@@ -10,9 +10,9 @@ chakra::net::Buffer::Buffer(size_t n) : size(n), len(0), bfree(n) {
 
 chakra::net::Buffer::~Buffer() { if (data != nullptr) { ::free(data); data = nullptr; }}
 void chakra::net::Buffer::maybeRealloc(size_t added) {
-    if (bfree < added || (bfree == 0 && len == size)) { /* buffer not enough or full */
-        LOG(INFO) << "[buffer] realloc because add size" << added 
-                  << " current len " << len << " bfree " << bfree << " size " << size;
+    if (bfree < added || (bfree == 0 && len >= size)) { /* buffer not enough or full */
+        LOG_IF(INFO, bfree < added) << "[buffer] realloc because add size great than bfree.";
+        LOG_IF(INFO, bfree == 0 && len >= size) << "[buffer] realloc because no more buffer to cache.";
         size_t rsize = 0;
         if (added > size) {
             rsize = size * 2 + added;

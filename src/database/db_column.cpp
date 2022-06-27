@@ -97,7 +97,7 @@ std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDB
     std::vector<std::shared_ptr<proto::element::Element>> result;
     result.resize(keys.size());
     for (int i = 0; i < keys.size(); i++) {
-        result[i] = get(keys.at(i));
+        result[i] = get(keys.at(i)); // result[i] may be nullptr
     }
     return result;
 }
