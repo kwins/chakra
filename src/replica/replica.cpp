@@ -214,19 +214,19 @@ std::unordered_map<std::string, std::vector<chakra::replica::Replicate::Link*>> 
 
 void chakra::replica::Replicate::stop() {
     if (sfd != -1) ::close(sfd);
-
     replicaio.stop();
     cronIO.stop();
-
-    negativeLinks.remove_if([](chakra::replica::Replicate::Link* link){
-        link->close();
-        if (link != nullptr) {
-            delete link;
-            link = nullptr;
-        }
-        return true;
-    });
+    dumpReplicateStates();
+    clearNegativeLinks();
     LOG(INFO) << "[replication] stop";
+}
+
+void chakra::replica::Replicate::clearNegativeLinks() {
+    for(auto nLink : negativeLinks) {
+        nLink->close();
+        delete nLink; nLink = nullptr;
+    }
+    negativeLinks.clear();
 }
 
 const std::string chakra::replica::Replicate::REPLICA_FILE_NAME = "replicas.json";

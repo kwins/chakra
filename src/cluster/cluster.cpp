@@ -248,6 +248,7 @@ void chakra::cluster::Cluster::onAccept(ev::io &watcher, int event) {
 void chakra::cluster::Cluster::stop() {
     if (sfd != -1) ::close(sfd);
     dumpPeers();
+    dumpMyselfDBs();
     acceptIO.stop();
     cronIO.stop();
     if (!peers.empty())

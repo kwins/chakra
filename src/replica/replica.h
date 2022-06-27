@@ -149,6 +149,7 @@ public:
     void onReplicaCron(ev::timer& watcher, int event);
     void dumpReplicateStates();
     void negativeLinkLoop();
+    void clearNegativeLinks();
     
     // 获取state状态下，所有db以及db对应的所有连接
     // 用于检查新副本复制是否已经完成　
