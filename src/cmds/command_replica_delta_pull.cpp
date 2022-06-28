@@ -56,5 +56,4 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     }
     DLOG(INFO) << "[replication] delta pull response: " << deltaMessageResponse.DebugString();
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
-    LOG(INFO) << "[replication] delta pull spends " << (utils::Basic::getNowMillSec() - st) << "ms";
 }
