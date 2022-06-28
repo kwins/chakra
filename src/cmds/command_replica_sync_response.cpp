@@ -31,6 +31,7 @@ void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, vo
             LOG(INFO) << "[replication] accepted a FULL db(" << syncMessageResponse.db_name() << ") sync FROM " << link->getPeerName();
             replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING;
             replicateDB->lastTransferMs = utils::Basic::getNowMillSec();
+            replicateDB->startTransferMs = utils::Basic::getNowMillSec();
             /* 因为需要全量同步，在还没有同步完成前，不更新deltaSeq，因为可能在同步过程中服务挂了，再次重启时使用deltaSeq的值为错误的 */
             /* 这里不更新的目标是，当服务同步过程中挂了，则下次重启再次全量同步 */
             break;

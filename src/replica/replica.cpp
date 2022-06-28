@@ -148,9 +148,9 @@ void chakra::replica::Replicate::dumpReplicateStates() {
 
     auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
     if (err) {
-        LOG(ERROR) << "[replication] flush links state error " << err.what();
+        LOG(ERROR) << "[replication] flush state error " << err.what();
     } else {
-        DLOG(INFO) << "[replication] flush links state to file " << tofile << " success.";
+        DLOG(INFO) << "[replication] flush state to file " << tofile << " success.";
     }
 }
 

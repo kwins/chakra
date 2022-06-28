@@ -45,16 +45,13 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             if (!bulkMessage.end()) return;
 
             // 全量同步结束
-            if (replicateDB->itsize == bulkMessage.count()) {
-                replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
-                replicateDB->deltaSeq = bulkMessage.seq();
-                replica::Replicate::get()->dumpReplicateStates();
-                replicateDB->startPullDelta(); // 触发 pull delta
-                LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
-                          << link->getPeerName() << " success(" << bulkMessage.count() << ") and start pull delta.";
-            } else {
-                replicateDB->reset();
-            }
+            replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
+            replicateDB->deltaSeq = bulkMessage.seq();
+            replica::Replicate::get()->dumpReplicateStates();
+            replicateDB->startPullDelta(); // 触发 pull delta
+            LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
+                      << link->getPeerName() << "success and spend " << (utils::Basic::getNowMillSec() - replicateDB->startTransferMs) << "ms to receive"
+                      << replicateDB->itsize << " count and start pull delta.";
         }
     }
 }

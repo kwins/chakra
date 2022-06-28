@@ -58,7 +58,9 @@ public:
             ~ReplicateDB();
 
             std::string name;                                   /* DB name */
-            long lastTransferMs = 0;
+            long startTransferMs = 0;                           /* 开始传输全量数据时间 */
+            long lastTransferMs = 0;                            /* 最后一次传输全量数据时间 */
+            size_t transferNum = 0;                             /* 全量传输个数 */
             long lastTryReSyncMs = 0;                           /* 客户端上次发起同步请求时间 */
             State state = State::REPLICA_INIT;                  /* 复制状态 */
             rocksdb::SequenceNumber deltaSeq = 0;               /* 增量同步使用 */
