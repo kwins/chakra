@@ -253,7 +253,6 @@ chakra::replica::Replicate::Link::Link(const NegativeOptions& options) : chakra:
         setIp(addr.substr(0, pos));
         setPort(std::stoi(addr.substr(pos + 1, addr.size())));
     }
-    startReplicateRecvMsg();
     setState(chakra::replica::Replicate::Link::State::CONNECTING);
 }
 
@@ -325,6 +324,7 @@ void chakra::replica::Replicate::Link::reconnect() {
     } else {
         setState(chakra::replica::Replicate::Link::State::CONNECTING);
         setLastInteractionMs(utils::Basic::getNowMillSec());
+        startReplicateRecvMsg();
         LOG(INFO) << "[replication] retry connect to (" << conn->remoteAddr()<< ") success.";
     }
 }
@@ -344,7 +344,6 @@ void chakra::replica::Replicate::Link::handshake() {
 
     asyncSendMsg(ping, proto::types::R_PING);
     setLastInteractionMs(utils::Basic::getNowMillSec());
-    startReplicateRecvMsg();
     LOG(ERROR) << "[replication] handshake to (" << ip << ":" << port << ")"
                 << " and send ping success, start waiting for pong message.";
 }
