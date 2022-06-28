@@ -27,6 +27,8 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
 
     auto& dbptr = database::FamilyDB::get();
     rocksdb::SequenceNumber lastSeq;
+    int bytes = 0;
+
     err = dbptr->getLastSeqNumber(deltaMessageRequest.db_name(), lastSeq);
     if (err) { /* 当没有更新的时候，这里直接使用 GetUpdateSince 会相当耗费 CPU(rocksdb) */
         fillError(deltaMessageResponse.mutable_error(), 1, err.what());
@@ -37,7 +39,6 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             fillError(deltaMessageResponse.mutable_error(), 1, err.what());
         } else {
             DLOG(INFO) << "[replication] delta pull request: " << deltaMessageRequest.DebugString();
-            int bytes = 0;
             uint64_t seq = 0;
             while (iter->Valid()) {
                 auto batch = iter->GetBatch();
@@ -54,6 +55,9 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
         }
     }
-    DLOG(INFO) << "[replication] delta pull response: " << deltaMessageResponse.DebugString();
+    LOG(INFO) << "[replication] peer " << link->getPeerName() 
+               << " pull from myself spend " << (utils::Basic::getNowMillSec() - st) << "ms "
+               << bytes << " bytes"
+               << deltaMessageResponse.seqs_size() << " messages.";
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
 }
