@@ -46,12 +46,12 @@ DEFINE_int32(replica_timeout_ms, 15000, "replicas timeout ms");                 
 DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");                                 /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                                                       /* NOLINT */
 DEFINE_int64(replica_last_try_resync_timeout_ms, 1000, "last try resync timeout");                                      /* NOLINT */
-DEFINE_double(replica_delta_pull_interval_sec, 0.0, "replica pull db dalta interval sec, default is right now");        /* NOLINT */
+DEFINE_double(replica_delta_pull_interval_sec, 0.01, "replica pull db dalta interval sec");                             /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 1024 * 1024 * 4, "replica delta batch size");                                   /* NOLINT */
-DEFINE_double(replica_bulk_send_interval_sec, 0.0, "replica send db bulk interval sec, default is right now");          /* NOLINT */
+DEFINE_double(replica_bulk_send_interval_sec, 0.01, "replica send db bulk interval sec");                               /* NOLINT */
 DEFINE_int64(replica_bulk_batch_bytes, 1024 * 1024 * 4, "replica bulk batch size");                                     /* NOLINT */
 
-DEFINE_string(db_dir, "data", "rocksdb save dir");                                              /* NOLINT */
+DEFINE_string(db_dir, "data", "rocksdb save dir");                                                      /* NOLINT */
 static bool validDbDir(const char* flagname, const std::string& value){
     if (value.empty()) return false;
     auto err = chakra::utils::FileHelper::mkdir(value);
