@@ -370,7 +370,8 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     if (replicateDB->second->state != Link::State::REPLICA_INIT) return;
     /* 防止发送重同步次数过多，最终会以最后一次为准 */
     if (utils::Basic::getNowMillSec() - replicateDB->second->lastTryReSyncMs < FLAGS_replica_last_try_resync_timeout_ms) return;
-
+    replicateDB->second->lastTryReSyncMs = utils::Basic::getNowMillSec();
+    
     proto::replica::SyncMessageRequest syncMessageRequest;
     syncMessageRequest.set_db_name(name);
     syncMessageRequest.set_seq(replicateDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始

@@ -3,13 +3,15 @@
 //
 
 #include "command_replica_delta_pull.h"
+#include <glog/logging.h>
+#include <rocksdb/types.h>
+#include <gflags/gflags_declare.h>
+
 #include "replica.pb.h"
 #include "database/db_family.h"
 #include "net/packet.h"
 #include "replica/replica.h"
 #include "utils/basic.h"
-#include <glog/logging.h>
-#include <rocksdb/types.h>
 
 DECLARE_int32(replica_timeout_ms);
 

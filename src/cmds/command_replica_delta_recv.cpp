@@ -3,13 +3,14 @@
 //
 
 #include "command_replica_delta_recv.h"
+#include <gflags/gflags_declare.h>
+#include <glog/logging.h>
+
 #include "replica.pb.h"
 #include "database/db_family.h"
 #include "net/packet.h"
 #include "replica/replica.h"
 #include "utils/basic.h"
-#include <gflags/gflags_declare.h>
-#include <glog/logging.h>
 
 DECLARE_int32(replica_timeout_ms);
 
