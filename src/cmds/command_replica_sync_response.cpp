@@ -38,10 +38,11 @@ void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, vo
         }
         case proto::types::R_PARTSYNC:
         {
-            LOG(INFO) << "[replication] accepted a PART db(" << syncMessageResponse.db_name() << ") sync FROM " << link->getPeerName();
+            LOG(INFO) << "[replication] accepted a PART db (" << syncMessageResponse.db_name() << ":" << syncMessageResponse.seq() << ") sync FROM " << link->getPeerName();
             replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
             replicateDB->deltaSeq = syncMessageResponse.seq();
             replica::Replicate::get()->dumpReplicateStates();
+            LOG(INFO) << "[replication] start pull db (" << syncMessageResponse.db_name() << ") delta FROM " << link->getPeerName();
             link->startPullDelta(syncMessageResponse.db_name()); // 触发一次 pull delta
             break;
         }
