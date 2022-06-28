@@ -8,6 +8,10 @@
 #include "net/packet.h"
 #include "replica/replica.h"
 #include "utils/basic.h"
+#include <gflags/gflags_declare.h>
+#include <glog/logging.h>
+
+DECLARE_int32(replica_timeout_ms);
 
 void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, void *data) {
     auto st = utils::Basic::getNowMillSec();
@@ -35,8 +39,9 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
         }
     }
 
-    DLOG(INFO) << "[replication] receive delta from " << link->getPeerName() << "(" << link->getIp() << ":" << link->getPort() << ")"
-               << " spend " << (utils::Basic::getNowMillSec() - st) << "ms "
-               << deltaMessageResponse.seqs_size() << " batch messages.";
+    LOG_IF(WARNING, (utils::Basic::getNowMillSec() - st) > FLAGS_replica_timeout_ms/2) 
+                << "[replication] receive delta from " << link->getPeerName()
+                << " spend " << (utils::Basic::getNowMillSec() - st) << "ms "
+                << deltaMessageResponse.seqs_size() << " batch messages.";
     link->startPullDelta(deltaMessageResponse.db_name()); // next pull delta
 }

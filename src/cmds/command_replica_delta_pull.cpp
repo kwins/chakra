@@ -8,7 +8,10 @@
 #include "net/packet.h"
 #include "replica/replica.h"
 #include "utils/basic.h"
+#include <glog/logging.h>
 #include <rocksdb/types.h>
+
+DECLARE_int32(replica_timeout_ms);
 
 void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, void *data) {
     auto st = utils::Basic::getNowMillSec();
@@ -55,9 +58,10 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
         }
     }
-    DLOG(INFO) << "[replication] peer " << link->getPeerName() << "(" << link->getIp() << ":" << link->getPort() << ")"
-               << " pull from myself spend " << (utils::Basic::getNowMillSec() - st) << "ms "
-               << bytes << " bytes "
-               << deltaMessageResponse.seqs_size() << " messages.";
+    LOG_IF(WARNING, (utils::Basic::getNowMillSec() - st) > FLAGS_replica_timeout_ms/2) 
+                << "[replication] peer " << link->getPeerName()
+                << " pull from myself spend " << (utils::Basic::getNowMillSec() - st) << "ms "
+                << bytes << " bytes "
+                << deltaMessageResponse.seqs_size() << " messages.";
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
 }

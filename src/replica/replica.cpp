@@ -375,7 +375,7 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     syncMessageRequest.set_db_name(name);
     syncMessageRequest.set_seq(replicateDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始
 
-    LOG(INFO) << "[replication] try a partial sync request " << syncMessageRequest.DebugString();
+    LOG(INFO) << "[replication] try a partial sync request " << syncMessageRequest.DebugString() << " to " << getPeerName();
     asyncSendMsg(syncMessageRequest, proto::types::R_SYNC_REQUEST);
 }
 
@@ -622,7 +622,7 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
         transferTimes++;
         link->asyncSendMsg(bulkMessage, proto::types::R_BULK);
         if (bulkMessage.end())
-            LOG(INFO) << "[replication] send full db to " << name << " success with " 
+            LOG(INFO) << "[replication] send full db " << name << " to " << link->getPeerName() << " success with " 
                       << itsize << " kv and " << transferTimes << " times.";
     }
 }
