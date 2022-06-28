@@ -42,6 +42,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             }
 
             replicateDB->itsize += bulkMessage.kvs_size();
+            replicateDB->transferTimes++;
             if (!bulkMessage.end()) return;
 
             // 全量同步结束
@@ -50,7 +51,8 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             replica::Replicate::get()->dumpReplicateStates();
             replicateDB->startPullDelta(); // 触发 pull delta
             LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
-                      << link->getPeerName() << " success and spend " << (utils::Basic::getNowMillSec() - replicateDB->startTransferMs) << "ms to receive "
+                      << link->getPeerName() << " success and spend " << (utils::Basic::getNowMillSec() - replicateDB->startTransferMs) << "ms " 
+                      << replicateDB->transferTimes << " times to receive "
                       << replicateDB->itsize << " kv and now start pull delta.";
         }
     }

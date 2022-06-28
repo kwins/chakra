@@ -616,13 +616,14 @@ void chakra::replica::Replicate::Link::ReplicateDB::onSendBulk(ev::timer& watche
         bulkiter = nullptr;
         auto dbptr = chakra::database::FamilyDB::get();
         dbptr->releaseSnapshot(name, snapshot);
-        LOG(INFO) << "[replication] send bulk message to " << name << " finished(" << itsize << ") and stop transfor event.";
     }
     
     if (size > 0 || bulkMessage.end()) { /* 可能出现某个DB为空，此时size=0 */
+        transferTimes++;
         link->asyncSendMsg(bulkMessage, proto::types::R_BULK);
-        DLOG(INFO) << "[replication] send bulk message to " << name 
-                   << " data (size:" << size << " num:" << num << " end:" << bulkMessage.end() << ")";
+        if (bulkMessage.end())
+            LOG(INFO) << "[replication] send full db to " << name << " success with " 
+                      << itsize << " kv and " << transferTimes << " times.";
     }
 }
 
