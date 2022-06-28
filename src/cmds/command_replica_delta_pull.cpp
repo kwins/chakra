@@ -55,7 +55,7 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
             }
         }
     }
-    LOG(INFO) << "[replication] peer " << link->getPeerName() 
+    LOG(INFO) << "[replication] peer " << link->getPeerName() << "(" << link->getIp() << ":" << link->getPort() << ")"
                << " pull from myself spend " << (utils::Basic::getNowMillSec() - st) << "ms "
                << bytes << " bytes "
                << deltaMessageResponse.seqs_size() << " messages.";
