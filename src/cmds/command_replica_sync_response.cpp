@@ -28,7 +28,7 @@ void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, vo
         switch (syncMessageResponse.psync_type()) {
         case proto::types::R_FULLSYNC:
         {
-            LOG(INFO) << "[replication] accepted a FULL db(" << syncMessageResponse.db_name() << ") sync FROM " << link->getPeerName();
+            LOG(INFO) << "[replication] accepted a FULL db (" << syncMessageResponse.db_name() << ") sync FROM " << link->getPeerName();
             replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING;
             replicateDB->lastTransferMs = utils::Basic::getNowMillSec();
             replicateDB->startTransferMs = utils::Basic::getNowMillSec();

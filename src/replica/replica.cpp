@@ -307,7 +307,6 @@ void chakra::replica::Replicate::Link::onReplicateWriteMsg(ev::io& watcher, int 
     DLOG(INFO) << "[chakra] on replicate write data len " << conn->sendBufferLength();
     try {
         conn->sendBuffer();
-    } catch (const error::ConnectClosedError& err) {
     } catch (const std::exception& err) {
         LOG(ERROR) << err.what();
     }
@@ -371,7 +370,7 @@ void chakra::replica::Replicate::Link::tryPartialReSync(const std::string& name)
     /* 防止发送重同步次数过多，最终会以最后一次为准 */
     if (utils::Basic::getNowMillSec() - replicateDB->second->lastTryReSyncMs < FLAGS_replica_last_try_resync_timeout_ms) return;
     replicateDB->second->lastTryReSyncMs = utils::Basic::getNowMillSec();
-    
+
     proto::replica::SyncMessageRequest syncMessageRequest;
     syncMessageRequest.set_db_name(name);
     syncMessageRequest.set_seq(replicateDB->second->deltaSeq); // 不是第一次同步，尝试从上次结束的地方开始
@@ -436,7 +435,7 @@ chakra::error::Error chakra::replica::Replicate::Link::snapshotDB(const std::str
 
         /* 开始周期性的发送全量数据，直到发送完成 */
         startSendBulk(dbname);
-        LOG(INFO) << "[replication] snapshot db " << dbname << " success and start send bulk seq " << lastSeq;
+        LOG(INFO) << "[replication] snapshot db " << dbname << " success and start send bulk with seq " << lastSeq;
         return error::Error();
     } catch (const std::exception& err) {
         LOG(ERROR) << "[replication] snapshot db " << dbname << " error " << err.what();
