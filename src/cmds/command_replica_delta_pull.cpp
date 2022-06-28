@@ -57,7 +57,7 @@ void chakra::cmds::CommandReplicaDeltaPull::execute(char *req, size_t reqLen, vo
     }
     LOG(INFO) << "[replication] peer " << link->getPeerName() 
                << " pull from myself spend " << (utils::Basic::getNowMillSec() - st) << "ms "
-               << bytes << " bytes"
+               << bytes << " bytes "
                << deltaMessageResponse.seqs_size() << " messages.";
     link->asyncSendMsg(deltaMessageResponse, proto::types::R_DELTA_RESPONSE);
 }

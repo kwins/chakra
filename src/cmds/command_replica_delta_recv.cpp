@@ -34,5 +34,9 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
             }
         }
     }
+
+    LOG(INFO) << "[replication] receive delta from " << link->getPeerName() 
+               << " spend " << (utils::Basic::getNowMillSec() - st) << "ms "
+               << deltaMessageResponse.seqs_size() << " batch messages.";
     link->startPullDelta(deltaMessageResponse.db_name()); // next pull delta
 }
