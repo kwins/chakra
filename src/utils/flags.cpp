@@ -13,7 +13,7 @@
 DEFINE_int32(server_port, 7290, "chakra server listen port");                                       /* NOLINT */
 DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                                /* NOLINT */
 DEFINE_int32(server_workers, sysconf(_SC_NPROCESSORS_CONF) , "chakra server workers");   
-static bool validServerWorkers(const char* flagname, int32_t value){
+static bool validServerWorkers(const char* flagname, int32_t value) {
     if (value <= 0) return false;
     LOG(INFO) << "The number of processors configured is " <<  sysconf(_SC_NPROCESSORS_CONF);
     LOG(INFO) << "The number of processors currently online (available) is " << sysconf(_SC_NPROCESSORS_ONLN);
@@ -32,7 +32,7 @@ DEFINE_double(server_cron_interval_sec, 1.0, "chakra server cron interval sec");
 
 
 DEFINE_string(replica_dir, "data", "replica dir");                                                  /* NOLINT */
-static bool validReplicaDir(const char* flagname, const std::string& value){
+static bool validReplicaDir(const char* flagname, const std::string& value) {
     if (value.empty()) return false;
     auto err = chakra::utils::FileHelper::mkdir(value);
     if (err){
@@ -46,28 +46,28 @@ DEFINE_int32(replica_timeout_ms, 15000, "replicas timeout ms");                 
 DEFINE_double(replica_cron_interval_sec, 1.0, "replica cron interval sec, use double");                                 /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                                                       /* NOLINT */
 DEFINE_int64(replica_last_try_resync_timeout_ms, 1000, "last try resync timeout");                                      /* NOLINT */
-DEFINE_double(replica_delta_pull_interval_sec, 0.01, "replica pull db dalta interval sec");                             /* NOLINT */
+DEFINE_double(replica_delta_pull_interval_sec, 0.02, "replica pull db dalta interval sec");                             /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 1024 * 1024 * 4, "replica delta batch size");                                   /* NOLINT */
-DEFINE_double(replica_bulk_send_interval_sec, 0.01, "replica send db bulk interval sec");                               /* NOLINT */
+DEFINE_double(replica_bulk_send_interval_sec, 0.02, "replica send db bulk interval sec");                               /* NOLINT */
 DEFINE_int64(replica_bulk_batch_bytes, 1024 * 1024 * 4, "replica bulk batch size");                                     /* NOLINT */
 
-DEFINE_string(db_dir, "data", "rocksdb save dir");                                                      /* NOLINT */
-static bool validDbDir(const char* flagname, const std::string& value){
+DEFINE_string(db_dir, "data", "rocksdb save dir");                                                                      /* NOLINT */
+static bool validDbDir(const char* flagname, const std::string& value) {
     if (value.empty()) return false;
     auto err = chakra::utils::FileHelper::mkdir(value);
     if (err) return false;
     return true;
 }
-DEFINE_validator(db_dir, validDbDir);                                                                   /* NOLINT */
-DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                                           /* NOLINT */
-DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                                             /* NOLINT */
-DEFINE_int32(db_cache_shard_size, sysconf(_SC_NPROCESSORS_CONF), "rocksdb cached shard size");    /* NOLINT */
-DEFINE_int64(db_default_cache_bytes, 1024 * 1024 * 100, "rocksdb cached default cache size");           /* NOLINT */
-DEFINE_int64(db_wal_ttl_seconds, 86400, "rocksdb wal log ttl seconds");                                 /* NOLINT */
+DEFINE_validator(db_dir, validDbDir);                                                                                   /* NOLINT */
+DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                                                           /* NOLINT */
+DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                                                             /* NOLINT */
+DEFINE_int32(db_cache_shard_size, sysconf(_SC_NPROCESSORS_CONF), "rocksdb cached shard size");                     /* NOLINT */
+DEFINE_int64(db_default_cache_bytes, 1024 * 1024 * 200, "rocksdb cached default cache size default 200MB");             /* NOLINT */
+DEFINE_int64(db_wal_ttl_seconds, 86400 * 5, "rocksdb wal log ttl seconds default 5 days");                              /* NOLINT */
 
 
 DEFINE_string(cluster_dir, "data", "cluster dir");                                              /* NOLINT */
-static bool validClusterDir(const char* flagname, const std::string& value){
+static bool validClusterDir(const char* flagname, const std::string& value) {
     if (value.empty()) return false;
     auto err = chakra::utils::FileHelper::mkdir(value);
     if (err) return false;

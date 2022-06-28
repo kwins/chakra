@@ -65,5 +65,6 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     }
 }
 
-BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->ThreadRange(8, ClientSetBM::threads)->UseRealTime();
+// BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->ThreadRange(8, ClientSetBM::threads)->UseRealTime();
+BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->Threads(ClientSetBM::threads)->UseRealTime();
 }
