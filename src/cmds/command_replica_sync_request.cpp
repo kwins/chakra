@@ -21,7 +21,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
     } else if (syncMessageRequest.db_name().empty()) {
         fillError(syncMessageResponse.mutable_error(), 1, "db name empty");
     } else {
-        LOG(INFO) << "[replication] sync request: " << syncMessageRequest.DebugString();
+        LOG(INFO) << "[replication] sync request: " << syncMessageRequest.DebugString() << " from " << link->getPeerName();
         syncMessageResponse.set_db_name(syncMessageRequest.db_name());
         syncMessageResponse.set_seq(syncMessageRequest.seq());
         if (syncMessageRequest.seq() > 0) { /* 增量同步, 如果请求的 seq 已经过期，则需要全量同步 */
@@ -44,7 +44,7 @@ void chakra::cmds::CommandReplicaSyncRequest::execute(char *req, size_t reqLen, 
         }
     }
     
-    LOG(INFO) << "[replication] sync response: " << syncMessageResponse.DebugString();
+    LOG(INFO) << "[replication] sync response: " << syncMessageResponse.DebugString() << " to " << link->getPeerName();
     link->asyncSendMsg(syncMessageResponse, proto::types::R_SYNC_RESPONSE);
 }
 
