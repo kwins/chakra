@@ -95,7 +95,7 @@ public:
         void onReplicateWriteMsg(ev::io& watcher, int event);
 
         void handshake();
-        void heartbeat();
+        void heartbeat(bool positive);
         void reconnect();
 
         void tryPartialReSync(const std::string& name);
@@ -112,7 +112,7 @@ public:
         void replicaEvent(const std::string& name);
         void replicateLinkEvent();
 
-        void replicateState(proto::replica::ReplicaStates& rs);
+        void replicateState(proto::replica::LinkReplicaState& rs);
         void setReplicateDB(std::shared_ptr<ReplicateDB> relicateDB);
         std::shared_ptr<ReplicateDB> getReplicateDB(const std::string& name);
         const std::unordered_map<std::string, std::shared_ptr<ReplicateDB>>& getReplicas();

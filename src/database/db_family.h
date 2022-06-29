@@ -9,6 +9,7 @@
 #include <element.pb.h>
 #include <error/err.h>
 #include <memory>
+#include <replica.pb.h>
 #include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
@@ -50,6 +51,7 @@ public:
     void dropDB(const std::string& name);
     error::Error restoreDB(const std::string& name);
     RestoreDB getLastRestoreDB();
+    std::vector<proto::replica::DBSeq> dbSeqs();
     error::Error getUpdateSince(const std::string& name, rocksdb::SequenceNumber seq, std::unique_ptr<rocksdb::TransactionLogIterator>* iter);
     // 获取 db 的一个快照
     const rocksdb::Snapshot* snapshot(const std::string& name);

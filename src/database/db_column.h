@@ -5,6 +5,7 @@
 #ifndef CHAKRA_DB_BUCKET_H
 #define CHAKRA_DB_BUCKET_H
 #include <memory>
+#include <replica.pb.h>
 #include <rocksdb/cache.h>
 #include <rocksdb/db.h>
 #include <vector>

@@ -81,7 +81,12 @@ message DeltaMessageResponse {
   repeated Sequence seqs = 3;
 }
 
-message HeartBeatMessage {
-  int64 heartbeat_ms = 1;
+message DBSeq { /* 记录当前节点的某个DB最新的wal seq */
+  string db_name = 1;
   uint64 seq = 2;
+}
+
+message HeartBeatMessage {
+  repeated DBSeq seqs = 1;
+  bool positive = 2; /* postive true means replicator */
 }

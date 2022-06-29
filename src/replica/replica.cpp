@@ -122,7 +122,7 @@ void chakra::replica::Replicate::negativeLinkLoop() {
     negativeLinks.remove_if([](Link* l){
         auto timeout = l->isTimeout();
         if (!timeout) {
-            l->heartbeat();
+            l->heartbeat(false);
         } else {
             LOG(WARNING)<< "[replication] close and delete timeout connect " << l->getPeerName();
             delete l; l = nullptr;
@@ -142,8 +142,9 @@ void chakra::replica::Replicate::dumpReplicateStates() {
 
     std::string tofile = FLAGS_replica_dir + "/" + REPLICA_FILE_NAME;
     proto::replica::ReplicaStates replicaState;
-    for(auto link : positiveLinks){
-        link.second->replicateState(replicaState);
+    for(auto lit : positiveLinks){
+        auto state = replicaState.mutable_link_replicas()->Add();
+        lit.second->replicateState(*state);
     }
 
     auto err = chakra::utils::FileHelper::saveFile(replicaState, tofile);
@@ -256,13 +257,12 @@ chakra::replica::Replicate::Link::Link(const NegativeOptions& options) : chakra:
     setState(chakra::replica::Replicate::Link::State::CONNECTING);
 }
 
-void chakra::replica::Replicate::Link::replicateState(proto::replica::ReplicaStates& rs){
-    auto linkReplicateState = rs.mutable_link_replicas()->Add();
-    linkReplicateState->set_peer_name(getPeerName());
-    linkReplicateState->set_ip(getIp());
-    linkReplicateState->set_port(getPort());
+void chakra::replica::Replicate::Link::replicateState(proto::replica::LinkReplicaState& rs){
+    rs.set_peer_name(getPeerName());
+    rs.set_ip(getIp());
+    rs.set_port(getPort());
     for (auto & db : replicas){
-        auto replicaMeta = linkReplicateState->mutable_replicas()->Add();
+        auto replicaMeta = rs.mutable_replicas()->Add();
         replicaMeta->set_db_name(db.second->name);
         replicaMeta->set_delta_seq(db.second->deltaSeq);
     }
@@ -329,11 +329,18 @@ void chakra::replica::Replicate::Link::reconnect() {
     }
 }
 
-void chakra::replica::Replicate::Link::heartbeat() {
+void chakra::replica::Replicate::Link::heartbeat(bool positive) {
     if (state != chakra::replica::Replicate::Link::State::CONNECTED) return;
 
+    auto dbptr = chakra::database::FamilyDB::get();
+    auto seqs = dbptr->dbSeqs();
+
     proto::replica::HeartBeatMessage heart;
-    heart.set_heartbeat_ms(utils::Basic::getNowMillSec());
+    heart.set_positive(positive);
+    for (auto& seq : seqs) {
+        auto addSeq = heart.mutable_seqs()->Add();
+        addSeq->CopyFrom(seq);
+    }
     asyncSendMsg(heart, proto::types::R_HEARTBEAT);
 }
 
@@ -463,7 +470,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
                          << " ms, no DATA nor HEADBEAT received from " << getPeerName();
             close();
         } else {
-            heartbeat();
+            heartbeat(true);
         }
         break;
     }

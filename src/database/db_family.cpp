@@ -10,6 +10,7 @@
 #include <fstream>
 #include <rocksdb/iterator.h>
 #include <rocksdb/snapshot.h>
+#include <vector>
 #include <zlib.h>
 #include "utils/file_helper.h"
 #include <gflags/gflags.h>
@@ -202,8 +203,19 @@ chakra::error::Error chakra::database::FamilyDB::restoreDB(const std::string &na
 
 chakra::database::FamilyDB::RestoreDB chakra::database::FamilyDB::getLastRestoreDB() { return lastRestore; }
 
-chakra::error::Error
-chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::SequenceNumber &seq) {
+std::vector<proto::replica::DBSeq> chakra::database::FamilyDB::dbSeqs() {
+    std::vector<proto::replica::DBSeq> seqs;
+    int pos = index.load();
+    for(auto& it : columnDBs[pos]){
+        proto::replica::DBSeq seq;
+        seq.set_db_name(it.first);
+        seq.set_seq(it.second->getLastSeqNumber());
+        seqs.push_back(seq);
+    }
+    return seqs;
+}
+
+chakra::error::Error chakra::database::FamilyDB::getLastSeqNumber(const std::string &name, rocksdb::SequenceNumber &seq) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()){

@@ -48,6 +48,7 @@ DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");               
 DEFINE_int64(replica_last_try_resync_timeout_ms, 1000, "last try resync timeout");                                      /* NOLINT */
 DEFINE_double(replica_delta_pull_interval_sec, 0.02, "replica pull db dalta interval sec");                             /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 1024 * 1024 * 4, "replica delta batch size");                                   /* NOLINT */
+DEFINE_int64(replica_delta_delay_num, 1000, "replica delta delay num");                                                 /* NOLINT */
 DEFINE_double(replica_bulk_send_interval_sec, 0.02, "replica send db bulk interval sec");                               /* NOLINT */
 DEFINE_int64(replica_bulk_batch_bytes, 1024 * 1024 * 4, "replica bulk batch size");                                     /* NOLINT */
 
