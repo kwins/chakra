@@ -24,7 +24,11 @@ void chakra::cmds::CommandReplicaSyncResponse::execute(char *req, size_t len, vo
             LOG(ERROR) << "[replication] sync response db " << syncMessageResponse.db_name() << " not found in server.";
             return;
         }
-
+        if (replicateDB->state != replica::Replicate::Link::State::REPLICA_INIT) {
+            LOG(WARNING) << "[replication] state is " << (int)replicateDB->state << " not REPLICA_INIT";
+            return;
+        }
+        
         switch (syncMessageResponse.psync_type()) {
         case proto::types::R_FULLSYNC:
         {
