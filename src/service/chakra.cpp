@@ -244,16 +244,19 @@ void chakra::serv::Chakra::Link::onClientWrite(ev::io& watcher, int event) {
     try {
         conn->sendBuffer();
     } catch (const error::ConnectClosedError& err) {
-    } catch (const std::exception& err) {
+        DLOG(ERROR) << err.what();
+    }  catch (const std::exception& err) {
         LOG(ERROR) << err.what();
     }
-    wio.stop();
+    if (wio.is_active())
+        wio.stop();
 }
 
 void chakra::serv::Chakra::Link::asyncSendMsg(const ::google::protobuf::Message& msg, proto::types::Type type) {
     DLOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to work id " << workID;
     conn->writeBuffer(msg, type);
     auto worker = chakra::serv::Chakra::get()->getWorker(workID);
+    if (wio.is_active()) return;
     wio.set<chakra::serv::Chakra::Link, &chakra::serv::Chakra::Link::onClientWrite>(this);
     wio.set(worker->loop);
     wio.start(conn->fd(), ev::WRITE);

@@ -297,6 +297,8 @@ void chakra::replica::Replicate::Link::onReplicateRecvMsg(ev::io& watcher, int e
 void chakra::replica::Replicate::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
     DLOG(INFO) << "[chakra] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
     conn->writeBuffer(msg, type);
+    
+    if (wio.is_active()) return;
     wio.set<chakra::replica::Replicate::Link, &chakra::replica::Replicate::Link::onReplicateWriteMsg>(this);
     wio.set(ev::get_default_loop());
     wio.start(conn->fd(), ev::WRITE);
@@ -306,10 +308,13 @@ void chakra::replica::Replicate::Link::onReplicateWriteMsg(ev::io& watcher, int 
     DLOG(INFO) << "[chakra] on replicate write data len " << conn->sendBufferLength();
     try {
         conn->sendBuffer();
-    } catch (const std::exception& err) {
+    } catch (const error::ConnectClosedError& err) {
+        DLOG(ERROR) << err.what();
+    }  catch (const std::exception& err) {
         LOG(ERROR) << err.what();
     }
-    wio.stop();
+    if (wio.is_active())
+        wio.stop();
 }
 
 const std::unordered_map<std::string, std::shared_ptr<chakra::replica::Replicate::Link::ReplicateDB>>& 

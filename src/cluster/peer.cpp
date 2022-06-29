@@ -199,6 +199,7 @@ void chakra::cluster::Peer::Link::onPeerRead(ev::io &watcher, int event) {
 void chakra::cluster::Peer::Link::asyncSendMsg(::google::protobuf::Message& msg, proto::types::Type type) {
     DLOG(INFO) << "[cluster] async send message type " << proto::types::Type_Name(type) << ":" << type << " to default loop";
     conn->writeBuffer(msg, type);
+    if (wio.is_active()) return;
     wio.set<chakra::cluster::Peer::Link, &chakra::cluster::Peer::Link::onPeerWrite>(this);
     wio.set(ev::get_default_loop());
     wio.start(conn->fd(), ev::WRITE);
@@ -209,10 +210,12 @@ void chakra::cluster::Peer::Link::onPeerWrite(ev::io& watcher, int event) {
     try {
         conn->sendBuffer();
     } catch (const error::ConnectClosedError& err) {
+        DLOG(ERROR) << err.what();
     } catch (const std::exception& err) {
         LOG(ERROR) << err.what();
     }
-    wio.stop();
+    if (wio.is_active())
+        wio.stop();
 }
 
 void chakra::cluster::Peer::Link::onReadError() {
