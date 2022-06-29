@@ -9,6 +9,7 @@
 #include <memory>
 #include <rocksdb/cache.h>
 #include <rocksdb/iterator.h>
+#include <rocksdb/options.h>
 #include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
@@ -162,14 +163,6 @@ float chakra::database::ColumnDB::cacheUsage() {
     return used / (float)cache.size();
 }
 
-chakra::error::Error chakra::database::ColumnDB::rocksWriteBulk(rocksdb::WriteBatch& batch) {
-    auto s = batch.Iterate(this);
-    if (!s.ok()){
-        return error::Error(s.ToString());
-    }
-    return error::Error();
-}
-
 size_t chakra::database::ColumnDB::size() {
     size_t num = 0;
     for(auto & shard : cache){
@@ -238,6 +231,19 @@ rocksdb::SequenceNumber chakra::database::ColumnDB::getLastSeqNumber() {
     return self->GetLatestSequenceNumber();
 }
 
+chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys) {
+    auto s = full->Write(rocksdb::WriteOptions(), &batch);
+    if (!s.ok()) {
+        return error::Error(s.ToString());
+    }
+    for (auto& key : batchKeys) { // 淘汰缓存，下次read重新加载
+        unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
+        cache[hashed % FLAGS_db_cache_shard_size]->erase(key);
+    }
+    return error::Error();
+}
+
+void chakra::database::ColumnDB::cacheClear() { cache.clear(); }
 chakra::database::ColumnDB::~ColumnDB() {
     if (self) {
         self->Close();
@@ -245,20 +251,4 @@ chakra::database::ColumnDB::~ColumnDB() {
     if (full) {
         full->Close();
     }
-}
-
-void chakra::database::ColumnDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
-    auto s = full->Put(rocksdb::WriteOptions(), key, value);
-    if (!s.ok()) LOG(ERROR) << "[columndb] delta put error " << s.ToString();
-    // 淘汰缓存，下次read重新加载
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());
-}
-
-void chakra::database::ColumnDB::Delete(const rocksdb::Slice &key) {
-    auto s = full->Delete(rocksdb::WriteOptions(), key);
-    if (!s.ok()) LOG(ERROR) << "[columndb] delta del error " << s.ToString();    
-    // 淘汰缓存，下次read重新加载
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());
 }

@@ -42,7 +42,7 @@ public:
 
     void erase(const std::string& key);
     bool exist(const std::string& key);
-    void refresh();
+    void clear();
     float useage();
     int64_t size() const;
 

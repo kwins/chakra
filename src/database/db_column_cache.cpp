@@ -210,7 +210,7 @@ bool chakra::database::ColumnDBLRUCache::exist(const std::string& key) {
     return it != table.end();
 }
 
-void chakra::database::ColumnDBLRUCache::refresh() {
+void chakra::database::ColumnDBLRUCache::clear() {
     std::lock_guard<std::mutex> lck(mutex);
     list.clear();
     table.clear();
