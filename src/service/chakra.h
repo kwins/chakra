@@ -69,7 +69,6 @@ private:
 
     ev::sig sigint;
     ev::sig sigterm;
-    ev::sig sigkill;
     ev::timer cronIO;
     ev::io acceptIO;
     int sfd = -1;

@@ -92,9 +92,6 @@ void chakra::serv::Chakra::initLibev() {
     sigterm.set<&chakra::serv::Chakra::onSignal>(this);
     sigterm.set(ev::get_default_loop());
     sigterm.start(SIGTERM);
-    sigkill.set<&chakra::serv::Chakra::onSignal>(this);
-    sigkill.set(ev::get_default_loop());
-    sigkill.start(SIGKILL);
 
     startServCron();
 }
