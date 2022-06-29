@@ -19,7 +19,7 @@
 #include <gflags/gflags.h>
 #include "packet.h"
 
-DEFINE_int64(connect_buff_size, 1024*1024*4, "connect recv max buff size of message, default is 4MB");  /* NOLINT */
+DEFINE_int64(connect_buff_size, 1024*1024*16, "connect recv max buff size of message, default is 16MB");  /* NOLINT */
 static bool validConnectBufferSize(const char* flagname, int64_t value){
     if (value <= 0) return false;
     return true;
