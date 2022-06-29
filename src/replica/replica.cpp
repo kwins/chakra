@@ -36,7 +36,6 @@ DECLARE_double(replica_delta_pull_interval_sec);
 DECLARE_double(replica_bulk_send_interval_sec);
 DECLARE_int64(replica_delta_batch_bytes);
 DECLARE_int64(replica_bulk_batch_bytes);
-DECLARE_int64(replica_last_try_resync_timeout_ms);
 
 chakra::replica::Replicate::Replicate() {
     LOG(INFO) << "[replication] init";
