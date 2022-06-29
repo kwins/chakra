@@ -576,7 +576,7 @@ void chakra::replica::Replicate::Link::ReplicateDB::onPullDelta(ev::timer& watch
     deltaMessageRequest.set_seq(deltaSeq);
     deltaMessageRequest.set_size(FLAGS_replica_delta_batch_bytes);
     link->asyncSendMsg(deltaMessageRequest, proto::types::R_DELTA_REQUEST);
-    DLOG(INFO) << "[replication] send delta message to  " << link->getPeerName() 
+    DLOG(INFO) << "[replication] pull delta message from  " << link->getPeerName() 
                     << " success " << deltaMessageRequest.DebugString();
 }
 
