@@ -28,7 +28,7 @@ void chakra::cmds::CommandReplicaHeartbeat::execute(char *req, size_t len, void 
         for (auto& seq : heart.seqs()) { /* 主节点 */
             for (auto& state : rs.replicas()) { /* 当前节点 */
                 LOG_IF(WARNING, seq.db_name() == state.db_name() && seq.seq() - state.delta_seq() > FLAGS_replica_delta_delay_num)
-                                << "[replication] replicating db " << seq.db_name() 
+                                << "[replication] replicating db " << seq.db_name()  << " from " << link->getPeerName()
                                 << " delay " << (seq.seq() - state.delta_seq()) << " sequence number, "
                                 << " default is " << FLAGS_replica_delta_delay_num;
             }

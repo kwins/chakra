@@ -122,7 +122,7 @@ void chakra::replica::Replicate::negativeLinkLoop() {
     negativeLinks.remove_if([](Link* l){
         auto timeout = l->isTimeout();
         if (!timeout) {
-            l->heartbeat(false);
+            l->heartbeat(true);
         } else {
             LOG(WARNING)<< "[replication] close and delete timeout connect " << l->getPeerName();
             delete l; l = nullptr;
@@ -475,7 +475,7 @@ void chakra::replica::Replicate::Link::replicateLinkEvent() {
                          << " ms, no DATA nor HEADBEAT received from " << getPeerName();
             close();
         } else {
-            heartbeat(true);
+            heartbeat(false);
         }
         break;
     }
