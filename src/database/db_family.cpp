@@ -100,7 +100,6 @@ std::shared_ptr<proto::element::Element> chakra::database::FamilyDB::get(const s
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        LOG(INFO) << "[familydb]:" << name << " not found";
         return nullptr;
     }
     return it->second->get(key);
