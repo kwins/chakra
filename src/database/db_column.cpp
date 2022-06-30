@@ -232,7 +232,7 @@ rocksdb::SequenceNumber chakra::database::ColumnDB::getLastSeqNumber() {
     return self->GetLatestSequenceNumber();
 }
 
-chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys) {
+chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch &batch, std::set<std::string> batchKeys) {
     auto s1 = utils::Basic::getNowMillSec();
     auto s = full->Write(rocksdb::WriteOptions(), &batch);
     if (!s.ok()) {
@@ -242,6 +242,7 @@ chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch 
     for (auto& key : batchKeys) { // 淘汰缓存，下次read重新加载
         unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
         caches[hashed % FLAGS_db_cache_shard_size]->erase(key);
+        LOG(INFO) << "del cache key:" << key;
     }
     auto s3 = utils::Basic::getNowMillSec();
     LOG_IF(INFO, (s2 - s1 > 2000) || (s3 - s2 > 2000)) << "[familydb] write batch spend step1:" << (s2 - s1) << " step2:" << (s3 - s2);

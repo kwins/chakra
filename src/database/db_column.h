@@ -9,6 +9,7 @@
 #include <rocksdb/cache.h>
 #include <rocksdb/db.h>
 #include <vector>
+#include <set>
 #include "error/err.h"
 #include "utils/nocopy.h"
 #include "peer.pb.h"
@@ -41,7 +42,7 @@ public:
     void cacheClear();
     
     // 增量或者全量数据同步时采用 batch write
-    error::Error writeBatch(rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys);
+    error::Error writeBatch(rocksdb::WriteBatch &batch, std::set<std::string> batchKeys);
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
     error::Error restoreDB();
     RestoreDB getLastRestoreDB();
