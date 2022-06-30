@@ -172,14 +172,13 @@ void chakra::database::FamilyDB::erase(const std::string& name, const std::strin
     it->second->erase(key);
 }
 
-chakra::error::Error chakra::database::FamilyDB::writeBatch(const std::string& name, rocksdb::WriteBatch &batch, 
-        const std::unordered_map<size_t, std::set<std::string>>& batchKeys) {
+chakra::error::Error chakra::database::FamilyDB::writeBatch(const std::string& name, rocksdb::WriteBatch &batch, const std::set<std::string>& keys) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
         return dbnf(name);
     }
-    return it->second->writeBatch(batch, batchKeys);
+    return it->second->writeBatch(batch, keys);
 }
 
 size_t chakra::database::FamilyDB::dbSize(const std::string &name) {

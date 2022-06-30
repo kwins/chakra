@@ -4,6 +4,7 @@
 #include <memory>
 #include <chrono>
 #include <mutex>
+#include <string_view>
 #include <type_traits>
 
 chakra::database::ColumnDBLRUCache::ColumnDBLRUCache(size_t capacity):capacity_bytes(capacity), used_bytes(0) {}

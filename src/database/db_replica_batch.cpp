@@ -10,7 +10,7 @@ DECLARE_int32(db_cache_shard_size);
 namespace chakra::database {
 
 rocksdb::WriteBatch& ReplicaBatchHandler::GetBatch() { return batch; }
-const std::unordered_map<size_t, std::set<std::string>>& ReplicaBatchHandler::GetHashedKeys() { return hashedKeys; }
+const std::set<std::string>& ReplicaBatchHandler::GetKeys() { return keys; }
 
 error::Error ReplicaBatchHandler::Put(const std::string& data) {
     rocksdb::WriteBatch sub(data);
@@ -21,22 +21,14 @@ error::Error ReplicaBatchHandler::Put(const std::string& data) {
 
 void ReplicaBatchHandler::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
     auto s = batch.Put(key, value);
-    if (!s.ok()) { 
-        LOG(ERROR) << s.ToString();
-    } else {
-        size_t hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-        hashedKeys[hashed % FLAGS_db_cache_shard_size].emplace(key.ToString());
-    }
+    if (!s.ok()) LOG(ERROR) << s.ToString();
+    else keys.emplace(key.ToString());
 }
 
 void ReplicaBatchHandler::Delete(const rocksdb::Slice &key) {
     auto s = batch.Delete(key);
-    if (!s.ok()) { 
-        LOG(ERROR) << s.ToString();
-    } else {
-        size_t hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-        hashedKeys[hashed % FLAGS_db_cache_shard_size].emplace(key.ToString());
-    }
+    if (!s.ok()) LOG(ERROR) << s.ToString();
+    else keys.emplace(key.ToString());
 }
 
 }

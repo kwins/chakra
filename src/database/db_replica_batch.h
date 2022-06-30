@@ -12,14 +12,14 @@ namespace chakra::database {
 class ReplicaBatchHandler : public rocksdb::WriteBatch::Handler {
 public:
     rocksdb::WriteBatch& GetBatch();
-    const std::unordered_map<size_t, std::set<std::string>>& GetHashedKeys();
+    const std::set<std::string>& GetKeys();
     error::Error Put(const std::string& data);
     
 private:
     void Put(const rocksdb::Slice &key, const rocksdb::Slice &value) override;
     void Delete(const rocksdb::Slice &key) override;
     rocksdb::WriteBatch batch;
-    std::unordered_map<size_t, std::set<std::string>> hashedKeys;
+    std::set<std::string> keys;
 };
 
 }
