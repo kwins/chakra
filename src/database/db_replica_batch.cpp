@@ -1,5 +1,6 @@
 #include "db_replica_batch.h"
 #include <error/err.h>
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <rocksdb/write_batch_base.h>
 #include <zlib.h>
