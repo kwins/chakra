@@ -60,7 +60,7 @@ private:
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
     std::shared_ptr<rocksdb::DB> full = nullptr;                     // 全量
-    std::vector<std::shared_ptr<ColumnDBLRUCache>>  cache;
+    std::vector<std::shared_ptr<ColumnDBLRUCache>>  caches;
 };
 
 }
