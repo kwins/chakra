@@ -49,6 +49,7 @@ public:
 int ClientSetBM::threads = 1000;
 
 BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
+    auto s1 = utils::Basic::getNowMillSec();
     proto::client::SetMessageResponse response;
     proto::client::SetMessageRequest request;
     request.set_db_name("db1");
@@ -63,6 +64,8 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
         if (err) LOG(ERROR) << err.what();
         i++;
     }
+    auto s2 = utils::Basic::getNowMillSec();
+    LOG(INFO) << "thread:" << state.thread_index() << " spends:" << (s2 - s1) << "ms";
 }
 
 // BENCHMARK_REGISTER_F(ClientSetBM, case0)->Iterations(100000)->ThreadRange(8, ClientSetBM::threads)->UseRealTime();
