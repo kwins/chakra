@@ -52,7 +52,7 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             replica::Replicate::get()->dumpReplicateStates();
             replicateDB->startPullDelta(); // 触发 pull delta
 
-            LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
+            LOG(INFO) << "[replication] receive full db " << bulkMessage.db_name() << " from " 
                       << link->getPeerName() << " success and spend " << (utils::Basic::getNowMillSec() - replicateDB->startTransferMs) << "ms " 
                       << replicateDB->transferTimes << " times to receive "
                       << replicateDB->itsize << " kv and now start pull delta.";
