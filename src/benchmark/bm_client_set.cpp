@@ -54,7 +54,7 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     request.set_db_name("db1");
     request.set_type(::proto::element::ElementType::STRING);
     request.set_ttl(2000);
-    int64_t i = 0;
+    int64_t i = 400001;
     int64_t spends = 0;
     for (auto _  : state) {
         request.set_key("bmcs5_key_" + std::to_string(i));
