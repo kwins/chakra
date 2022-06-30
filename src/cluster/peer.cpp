@@ -86,12 +86,7 @@ void chakra::cluster::Peer::sendMsg(google::protobuf::Message & msg, proto::type
     link->asyncSendMsg(msg, type);
 }
 
-void chakra::cluster::Peer::linkFree() {
-    if (link) {
-        link->close();
-    }
-}
-
+void chakra::cluster::Peer::linkFree() { if (link) link->close(); }
 void chakra::cluster::Peer::addFailReport(const std::shared_ptr<Peer>& sender) {
     auto it = failReports.find(sender->getName());
     if (it != failReports.end()){
