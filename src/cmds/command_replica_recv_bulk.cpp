@@ -25,15 +25,15 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
         } else if (replicateDB->state != chakra::replica::Replicate::Link::State::REPLICA_TRANSFORING) {
             LOG(ERROR) << "[replication] state not REPLICA_TRANSFORING";
         } else {
+            auto dbptr = chakra::database::FamilyDB::get();
             link->setLastInteractionMs(utils::Basic::getNowMillSec());
             replicateDB->lastTransferMs = link->getLastInteractionMs();
             if (bulkMessage.kvs_size() > 0) {
-                auto dbptr = chakra::database::FamilyDB::get();
                 rocksdb::WriteBatch batch;
                 for(auto& it : bulkMessage.kvs()) {
                     batch.Put(it.key(), it.value());
                 }
-                err = dbptr->rocksWriteBulk(bulkMessage.db_name(), batch);
+                err = dbptr->writeBatch(bulkMessage.db_name(), batch, {});
                 if (err) {
                     LOG(ERROR) << err.what();
                     replicateDB->reset();
@@ -46,11 +46,13 @@ void chakra::cmds::CommandReplicaRecvBulk::execute(char *req, size_t reqLen, voi
             if (!bulkMessage.end()) return;
 
             // 全量同步结束
+            dbptr->cacheClear(bulkMessage.db_name()); /* 清空缓存 */
             replicateDB->state = chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED;
             replicateDB->deltaSeq = bulkMessage.seq();
             replica::Replicate::get()->dumpReplicateStates();
             replicateDB->startPullDelta(); // 触发 pull delta
-            LOG(INFO) << "[replication] sync full db " << bulkMessage.db_name() << " from " 
+
+            LOG(INFO) << "[replication] receive full db " << bulkMessage.db_name() << " from " 
                       << link->getPeerName() << " success and spend " << (utils::Basic::getNowMillSec() - replicateDB->startTransferMs) << "ms " 
                       << replicateDB->transferTimes << " times to receive "
                       << replicateDB->itsize << " kv and now start pull delta.";

@@ -11,6 +11,7 @@
 #include "net/packet.h"
 #include "replica/replica.h"
 #include "utils/basic.h"
+#include "database/db_replica_batch.h"
 
 DECLARE_int32(replica_timeout_ms);
 
@@ -27,15 +28,20 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
         LOG(ERROR) << "[replication] delta message response error " << deltaMessageResponse.error().errmsg();
     } else {
         DLOG(INFO) << "[replication] receive delta response " << deltaMessageResponse.DebugString();
-        auto dbptr = database::FamilyDB::get();
-        for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
-            auto& seq = deltaMessageResponse.seqs(i);
-            rocksdb::WriteBatch batch(seq.data());
-            err = dbptr->rocksWriteBulk(deltaMessageResponse.db_name(), batch);
-            if (!err) {
-                link->setRocksSeq(deltaMessageResponse.db_name(), seq.seq());
+        if (deltaMessageResponse.seqs_size() > 0) {
+            auto dbptr = database::FamilyDB::get();
+            database::ReplicaBatchHandler batchHandler;
+
+            for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
+                auto& seq = deltaMessageResponse.seqs(i);
+                batchHandler.Put(seq.data());
+            }
+
+            err = dbptr->writeBatch(deltaMessageResponse.db_name(), batchHandler.GetBatch(), batchHandler.GetKeys());
+            if (err) {
+                LOG(ERROR) << "[replication]" << err.what();
             } else {
-                LOG(ERROR) << "[replication] receive delta error " << err.what();
+                link->setRocksSeq(deltaMessageResponse.db_name(), deltaMessageResponse.seqs(deltaMessageResponse.seqs_size()-1).seq());
             }
         }
     }

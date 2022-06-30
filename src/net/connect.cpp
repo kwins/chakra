@@ -4,6 +4,7 @@
 
 #include "connect.h"
 
+#include <array>
 #include <cerrno>
 #include <arpa/inet.h>
 #include <cstddef>
@@ -342,4 +343,6 @@ void chakra::net::swap(chakra::net::Connect &lc, chakra::net::Connect &rc) noexc
     std::swap(lc.sar, rc.sar);
     std::swap(lc.state, rc.state);
     std::swap(lc.lastActive, rc.lastActive);
+    std::swap(lc.wbuffer, rc.wbuffer);
+    std::swap(lc.rbuffer, rc.rbuffer);
 }

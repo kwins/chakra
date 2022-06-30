@@ -43,7 +43,7 @@ public:
     error::Error incr(const std::string& name, const std::string& key, float value, int64_t ttl = 0);
     
     void erase(const std::string& name, const std::string& key);
-
+    void cacheClear(const std::string& name);
     bool servedDB(const std::string& name);
     error::Error getMetaDB(const std::string& name,proto::peer::MetaDB& meta);
     void addDB(const std::string& name, size_t cached);
@@ -59,9 +59,7 @@ public:
     rocksdb::Iterator* iterator(const std::string &name, const rocksdb::ReadOptions& readOptions);
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
-
-    // 同步时写入全量 RocksDB 中
-    error::Error rocksWriteBulk(const std::string& name, rocksdb::WriteBatch& batch);
+    error::Error writeBatch(const std::string& name, rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys);
     void stop();
 
 private:

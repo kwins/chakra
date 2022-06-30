@@ -173,13 +173,13 @@ void chakra::database::FamilyDB::erase(const std::string& name, const std::strin
     it->second->erase(key);
 }
 
-chakra::error::Error chakra::database::FamilyDB::rocksWriteBulk(const std::string& name, rocksdb::WriteBatch &batch) {
+chakra::error::Error chakra::database::FamilyDB::writeBatch(const std::string& name, rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
-    if (it == columnDBs[pos].end()){
+    if (it == columnDBs[pos].end()) {
         return dbnf(name);
     }
-    return it->second->rocksWriteBulk(batch);
+    return it->second->writeBatch(batch, batchKeys);
 }
 
 size_t chakra::database::FamilyDB::dbSize(const std::string &name) {
@@ -262,6 +262,15 @@ rocksdb::Iterator* chakra::database::FamilyDB::iterator(const std::string &name,
         throw dbnf(name);
     }
     return it->second->iterator(readOptions);
+}
+
+void chakra::database::FamilyDB::cacheClear(const std::string& name) {
+    int pos = index.load();
+    auto it = columnDBs[pos].find(name);
+    if (it == columnDBs[pos].end()){
+        return;
+    }
+    it->second->cacheClear();
 }
 
 void chakra::database::FamilyDB::stop() {

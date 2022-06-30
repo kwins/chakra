@@ -16,7 +16,7 @@
 
 namespace chakra::database {
 
-class ColumnDB : public rocksdb::WriteBatch::Handler {
+class ColumnDB {
 public:
     struct RestoreDB {
         rocksdb::SequenceNumber seq;
@@ -38,10 +38,10 @@ public:
 
     void erase(const std::string& key);
     float cacheUsage();
-
-    // 增量同步过来的数据，需要写入到全量的rocksdb中，并清除缓存
-    error::Error rocksWriteBulk(rocksdb::WriteBatch &batch);
-
+    void cacheClear();
+    
+    // 增量或者全量数据同步时采用 batch write
+    error::Error writeBatch(rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys);
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
     error::Error restoreDB();
     RestoreDB getLastRestoreDB();
@@ -53,18 +53,14 @@ public:
     rocksdb::Iterator* iterator(const rocksdb::ReadOptions& readOptions);
     rocksdb::SequenceNumber getLastSeqNumber();
 
-    ~ColumnDB() override;
+    ~ColumnDB();
 
 private:
-    // implement rocksdb WriteBatch Handler interface
-    void Put(const rocksdb::Slice &key, const rocksdb::Slice &value) override;
-    void Delete(const rocksdb::Slice &key) override;
-
     proto::peer::MetaDB metaDB;
     RestoreDB lastRestore;
     std::shared_ptr<rocksdb::DB> self = nullptr;                      // 节点写增量
     std::shared_ptr<rocksdb::DB> full = nullptr;                     // 全量
-    std::vector<std::shared_ptr<ColumnDBLRUCache>>  cache;
+    std::vector<std::shared_ptr<ColumnDBLRUCache>>  caches;
 };
 
 }

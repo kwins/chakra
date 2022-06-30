@@ -9,8 +9,10 @@
 #include <memory>
 #include <rocksdb/cache.h>
 #include <rocksdb/iterator.h>
+#include <rocksdb/options.h>
 #include <rocksdb/snapshot.h>
 #include <string>
+#include <utils/basic.h>
 #include <vector>
 #include <zlib.h>
 #include <rocksdb/db.h>
@@ -44,13 +46,13 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     }
     full = std::shared_ptr<rocksdb::DB>(db);
 
-    cache.resize(FLAGS_db_cache_shard_size);
+    caches.resize(FLAGS_db_cache_shard_size);
     int capacity = meta.cached() / FLAGS_db_cache_shard_size;
     if (capacity <= FLAGS_db_default_cache_bytes) {
         capacity = FLAGS_db_default_cache_bytes; // 缓存最小分片
     }
     for (int i = 0; i < FLAGS_db_cache_shard_size; i++) {
-        cache[i] = std::make_shared<ColumnDBLRUCache>(capacity);
+        caches[i] = std::make_shared<ColumnDBLRUCache>(capacity);
     }
 
     // 加载一些热数据
@@ -62,8 +64,8 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
             continue;
         }
         unsigned long hashed = ::crc32(0L, (unsigned char*)element->key().data(), element->key().size());
-        cache[hashed % cache.size()]->set(element->key(), element);
-        if (cache[hashed % cache.size()]->useage() > 0.5) {
+        caches[hashed % caches.size()]->set(element->key(), element);
+        if (caches[hashed % caches.size()]->useage() > 0.5) {
             break;
         }
     }
@@ -78,14 +80,14 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
 std::shared_ptr<proto::element::Element> chakra::database::ColumnDB::get(const std::string &key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
     int i = hashed % FLAGS_db_cache_shard_size;
-    auto element = cache[i]->get(key);
+    auto element = caches[i]->get(key);
     if (!element) {
         std::string oriVal;
         auto s = full->Get(rocksdb::ReadOptions(), key, &oriVal);
         if (s.ok()) {
             element = std::make_shared<proto::element::Element>();
             element->ParseFromArray(oriVal.data(), oriVal.size());
-            cache[i]->set(element->key(), element);
+            caches[i]->set(element->key(), element);
         } else if (!s.IsNotFound()) {
             LOG(ERROR) << s.ToString();
         }
@@ -104,7 +106,7 @@ std::vector<std::shared_ptr<proto::element::Element>> chakra::database::ColumnDB
 
 chakra::error::Error chakra::database::ColumnDB::set(const std::string& key, const std::string& value, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return cache[hashed % FLAGS_db_cache_shard_size]->set(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
+    return caches[hashed % FLAGS_db_cache_shard_size]->set(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
         if (!s.ok()) return error::Error(s.ToString());
         return error::Error();
@@ -113,7 +115,7 @@ chakra::error::Error chakra::database::ColumnDB::set(const std::string& key, con
 
 chakra::error::Error chakra::database::ColumnDB::set(const std::string& key, float value, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return cache[hashed % FLAGS_db_cache_shard_size]->set(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
+    return caches[hashed % FLAGS_db_cache_shard_size]->set(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
         if (!s.ok()) return error::Error(s.ToString());
         return error::Error();
@@ -122,7 +124,7 @@ chakra::error::Error chakra::database::ColumnDB::set(const std::string& key, flo
 
 chakra::error::Error chakra::database::ColumnDB::push(const std::string& key, const std::vector<std::string>& values, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return cache[hashed % FLAGS_db_cache_shard_size]->push(get(key), key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
+    return caches[hashed % FLAGS_db_cache_shard_size]->push(get(key), key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
         if (!s.ok()) return error::Error(s.ToString());
         return error::Error();
@@ -131,7 +133,7 @@ chakra::error::Error chakra::database::ColumnDB::push(const std::string& key, co
 
 chakra::error::Error chakra::database::ColumnDB::push(const std::string& key, const std::vector<float>& values, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return cache[hashed % FLAGS_db_cache_shard_size]->push(get(key), key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
+    return caches[hashed % FLAGS_db_cache_shard_size]->push(get(key), key, values, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
         if (!s.ok()) return error::Error(s.ToString());
         return error::Error();
@@ -140,7 +142,7 @@ chakra::error::Error chakra::database::ColumnDB::push(const std::string& key, co
 
 chakra::error::Error chakra::database::ColumnDB::incr(const std::string& key, float value, int64_t ttl) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    return cache[hashed % FLAGS_db_cache_shard_size]->incr(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
+    return caches[hashed % FLAGS_db_cache_shard_size]->incr(get(key), key, value, ttl, [this](std::shared_ptr<proto::element::Element> element){
         auto s = self->Put(rocksdb::WriteOptions(), element->key() , element->SerializeAsString());
         if (!s.ok()) return error::Error(s.ToString());
         return error::Error();
@@ -149,30 +151,22 @@ chakra::error::Error chakra::database::ColumnDB::incr(const std::string& key, fl
 
 void chakra::database::ColumnDB::erase(const std::string& key) {
     unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->erase(key);
+    caches[hashed % FLAGS_db_cache_shard_size]->erase(key);
     auto s = self->Delete(rocksdb::WriteOptions(), key);
     if (!s.ok()) LOG(ERROR) << "db del error " << s.ToString();
 }
 
 float chakra::database::ColumnDB::cacheUsage() {
     float used = 0.0;
-    for(int i = 0; i < cache.size(); i++) {
-        used += cache[i]->useage();
+    for(int i = 0; i < caches.size(); i++) {
+        used += caches[i]->useage();
     }
-    return used / (float)cache.size();
-}
-
-chakra::error::Error chakra::database::ColumnDB::rocksWriteBulk(rocksdb::WriteBatch& batch) {
-    auto s = batch.Iterate(this);
-    if (!s.ok()){
-        return error::Error(s.ToString());
-    }
-    return error::Error();
+    return used / (float)caches.size();
 }
 
 size_t chakra::database::ColumnDB::size() {
     size_t num = 0;
-    for(auto & shard : cache){
+    for(auto & shard : caches){
         num += shard->size();
     }
     return num;
@@ -238,6 +232,28 @@ rocksdb::SequenceNumber chakra::database::ColumnDB::getLastSeqNumber() {
     return self->GetLatestSequenceNumber();
 }
 
+chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys) {
+    auto s1 = utils::Basic::getNowMillSec();
+    auto s = full->Write(rocksdb::WriteOptions(), &batch);
+    if (!s.ok()) {
+        return error::Error(s.ToString());
+    }
+    auto s2 = utils::Basic::getNowMillSec();
+    for (auto& key : batchKeys) { // 淘汰缓存，下次read重新加载
+        unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
+        caches[hashed % FLAGS_db_cache_shard_size]->erase(key);
+    }
+    auto s3 = utils::Basic::getNowMillSec();
+    LOG_IF(INFO, (s2 - s1 > 2000) || (s3 - s2 > 2000)) << "[familydb] write batch spend step1:" << (s2 - s1) << " step2:" << (s3 - s2);
+    return error::Error();
+}
+
+void chakra::database::ColumnDB::cacheClear() { 
+    for (auto& c : caches) {
+        c->clear();
+    }
+}
+
 chakra::database::ColumnDB::~ColumnDB() {
     if (self) {
         self->Close();
@@ -245,20 +261,4 @@ chakra::database::ColumnDB::~ColumnDB() {
     if (full) {
         full->Close();
     }
-}
-
-void chakra::database::ColumnDB::Put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
-    auto s = full->Put(rocksdb::WriteOptions(), key, value);
-    if (!s.ok()) LOG(ERROR) << "[columndb] delta put error " << s.ToString();
-    // 淘汰缓存，下次read重新加载
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());
-}
-
-void chakra::database::ColumnDB::Delete(const rocksdb::Slice &key) {
-    auto s = full->Delete(rocksdb::WriteOptions(), key);
-    if (!s.ok()) LOG(ERROR) << "[columndb] delta del error " << s.ToString();    
-    // 淘汰缓存，下次read重新加载
-    unsigned long hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-    cache[hashed % FLAGS_db_cache_shard_size]->erase(key.ToString());
 }
