@@ -60,7 +60,7 @@ public:
     rocksdb::Iterator* iterator(const std::string &name, const rocksdb::ReadOptions& readOptions);
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
-    error::Error writeBatch(const std::string& name, rocksdb::WriteBatch &batch, std::set<std::string> batchKeys);
+    error::Error writeBatch(const std::string& name, rocksdb::WriteBatch &batch, const std::unordered_map<size_t, std::set<std::string>>& batchKeys);
     void stop();
 
 private:

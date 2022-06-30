@@ -8,6 +8,7 @@
 #include <replica.pb.h>
 #include <rocksdb/cache.h>
 #include <rocksdb/db.h>
+#include <unordered_map>
 #include <vector>
 #include <set>
 #include "error/err.h"
@@ -42,7 +43,7 @@ public:
     void cacheClear();
     
     // 增量或者全量数据同步时采用 batch write
-    error::Error writeBatch(rocksdb::WriteBatch &batch, std::set<std::string> batchKeys);
+    error::Error writeBatch(rocksdb::WriteBatch &batch, const std::unordered_map<size_t, std::set<std::string>>& batchKeys);
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
     error::Error restoreDB();
     RestoreDB getLastRestoreDB();

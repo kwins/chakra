@@ -195,6 +195,13 @@ void chakra::database::ColumnDBLRUCache::erase(const std::string& key) {
     eraseNL(key);
 }
 
+void chakra::database::ColumnDBLRUCache::erase(const std::set<std::string>& keys) {
+    std::lock_guard<std::mutex> lck(mutex);
+    for (auto& k : keys) {
+        eraseNL(k);
+    }
+}
+
 void chakra::database::ColumnDBLRUCache::eraseNL(const std::string& key) {
     auto it = table.find(key);
     if (it == table.end()) 

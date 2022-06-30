@@ -36,7 +36,7 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
                 batchHandler.Put(seq.data());
             }
 
-            err = dbptr->writeBatch(deltaMessageResponse.db_name(), batchHandler.GetBatch(), batchHandler.GetKeys());
+            err = dbptr->writeBatch(deltaMessageResponse.db_name(), batchHandler.GetBatch(), batchHandler.GetHashedKeys());
             if (err) {
                 LOG(ERROR) << "[replication]" << err.what();
             } else {
