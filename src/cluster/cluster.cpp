@@ -158,11 +158,6 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
             DLOG(INFO) << "[cluster] find min pong peer " << minPingPeer->getName() << ":" << minPingPeer->getLastPongRecv() << ", Try to send PING.";
             sendPingOrMeet(minPingPeer, proto::types::P_PING);
         }
-
-        /* 定时一段时间保存集群信息 */
-        updateClusterState();
-        dumpPeers();
-        dumpMyselfDBs();
     }
 
     // 遍历所有节点，检查是否需要将某个节点标记为下线

@@ -25,7 +25,7 @@ DECLARE_int32(server_workers);
 
 chakra::serv::Chakra::Chakra() {
     LOG(INFO) << "[chakra] init";
-    assignWorkers();
+    assignCPU();
     for (int i = 0; i < workNum; ++i) {
         std::thread([this, i]{
             workerStartUp(i);
@@ -37,7 +37,6 @@ chakra::serv::Chakra::Chakra() {
         cond.wait(lck2);
     }
 
-    // 初始化
     chakra::cluster::Cluster::get(); /* 集群先启动 */
     chakra::database::FamilyDB::get(); /* db 依赖集群数据 */
     chakra::replica::Replicate::get();
@@ -52,7 +51,7 @@ std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
     return chakraptr;
 }
 
-void chakra::serv::Chakra::assignWorkers() {
+void chakra::serv::Chakra::assignCPU() {
     switch (FLAGS_server_workers) {
     case 1: // 1c
         workNum = 1;
@@ -150,8 +149,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
     因为要获取多个节点的写数据，所以当有新副本加入集群，
     需要检查是否已经完成历史数据Merge，并且开始增量复制。
     当所有的副本节点历史数据都已Merge完成，历史数据保持一致后，
-    更新集群信息，通知集群新的副本上线。
-    */
+    更新集群信息，通知集群新的副本上线。*/
     auto replicatings = replicaptr->dbTransferedLinks();
     for(auto& it : replicatings) {
         auto peers = clusptr->getPeers(it.first);
@@ -179,7 +177,7 @@ void chakra::serv::Chakra::onServCron(ev::timer &watcher, int event) {
             if (pdb.second.state() != proto::peer::MetaDB_State_ONLINE) continue; /* 过滤非 online 状态的DB */
 
             if (replicaptr->replicatedDB(it.second->getName(), pdb.second.name())) continue; /* 过滤已经复制过的DB */
-            
+
             replicaptr->setReplicateDB(it.second->getName(), 
                 pdb.second.name(), it.second->getIp(), it.second->getReplicatePort()); /* 复制新的副本 */
             
