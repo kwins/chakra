@@ -59,6 +59,7 @@ public:
     static void onSignal(ev::sig&, int);
     void startUp() const;
     void replicaStartUp();
+    void workerStartUp(int i);
     Worker* getWorker(int id);
     void stop();
     ~Chakra();
