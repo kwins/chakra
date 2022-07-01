@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <mutex>
+#include <set>
 #include <thread>
 #include <vector>
 #include "element.pb.h"
@@ -41,6 +42,7 @@ public:
     void setNL(const std::string& key, std::shared_ptr<proto::element::Element> element);
 
     void erase(const std::string& key);
+    void erase(const std::set<std::string>& key);
     bool exist(const std::string& key);
     void clear();
     float useage();

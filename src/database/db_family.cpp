@@ -100,7 +100,6 @@ std::shared_ptr<proto::element::Element> chakra::database::FamilyDB::get(const s
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
-        LOG(INFO) << "[familydb]:" << name << " not found";
         return nullptr;
     }
     return it->second->get(key);
@@ -173,13 +172,13 @@ void chakra::database::FamilyDB::erase(const std::string& name, const std::strin
     it->second->erase(key);
 }
 
-chakra::error::Error chakra::database::FamilyDB::writeBatch(const std::string& name, rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys) {
+chakra::error::Error chakra::database::FamilyDB::writeBatch(const std::string& name, rocksdb::WriteBatch &batch, const std::set<std::string>& keys) {
     int pos = index.load();
     auto it = columnDBs[pos].find(name);
     if (it == columnDBs[pos].end()) {
         return dbnf(name);
     }
-    return it->second->writeBatch(batch, batchKeys);
+    return it->second->writeBatch(batch, keys);
 }
 
 size_t chakra::database::FamilyDB::dbSize(const std::string &name) {

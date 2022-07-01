@@ -31,7 +31,6 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
         if (deltaMessageResponse.seqs_size() > 0) {
             auto dbptr = database::FamilyDB::get();
             database::ReplicaBatchHandler batchHandler;
-
             for (int i = 0; i < deltaMessageResponse.seqs_size(); ++i) {
                 auto& seq = deltaMessageResponse.seqs(i);
                 batchHandler.Put(seq.data());

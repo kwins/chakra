@@ -4,6 +4,7 @@
 #include <memory>
 #include <chrono>
 #include <mutex>
+#include <string_view>
 #include <type_traits>
 
 chakra::database::ColumnDBLRUCache::ColumnDBLRUCache(size_t capacity):capacity_bytes(capacity), used_bytes(0) {}
@@ -193,6 +194,13 @@ void chakra::database::ColumnDBLRUCache::setNL(const std::string& key, std::shar
 void chakra::database::ColumnDBLRUCache::erase(const std::string& key) {
     std::lock_guard<std::mutex> lck(mutex);
     eraseNL(key);
+}
+
+void chakra::database::ColumnDBLRUCache::erase(const std::set<std::string>& keys) {
+    std::lock_guard<std::mutex> lck(mutex);
+    for (auto& k : keys) {
+        eraseNL(k);
+    }
 }
 
 void chakra::database::ColumnDBLRUCache::eraseNL(const std::string& key) {

@@ -13,6 +13,7 @@
 #include <rocksdb/snapshot.h>
 #include <string>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include "db_column.h"
 #include "utils/nocopy.h"
@@ -59,7 +60,7 @@ public:
     rocksdb::Iterator* iterator(const std::string &name, const rocksdb::ReadOptions& readOptions);
     error::Error getLastSeqNumber(const std::string& name, rocksdb::SequenceNumber& seq);
     size_t dbSize(const std::string& name);
-    error::Error writeBatch(const std::string& name, rocksdb::WriteBatch &batch, std::vector<std::string> batchKeys);
+    error::Error writeBatch(const std::string& name, rocksdb::WriteBatch &batch, const std::set<std::string>& keys);
     void stop();
 
 private:

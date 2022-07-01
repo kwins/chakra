@@ -53,6 +53,7 @@ DEFINE_string(setdb_nodename, "", "setdb command node name"); // node name
 DEFINE_int64(setdb_cached, 0, "setdb command db cache size"); // db cached
 
 // get command
+DEFINE_bool(hashed, false, "get and mget key use hash");
 DEFINE_string(get_key, "", "get command key name"); // key name
 
 // mget command

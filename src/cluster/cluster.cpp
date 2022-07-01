@@ -185,7 +185,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
             // TODO: use other way fix this fail reason
             LOG(INFO) << "[cluster] NOTE peer "
                          << peer->getName()
-                         << " connect ok, but always not received pong since " << peer->getLastPongRecv()
+                         << " connect ok, but always not received pong since " << peer->getLastPingSend()
                          << ", try free link and reconnect(" << (nowMillSec - peer->getLastPingSend()) << "ms)";
             peer->linkFree(); // 下次重连
         }
@@ -196,7 +196,7 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
         // （因为一部分节点可能一直没有被随机中）
         if (peer->connected()
                 && peer->getLastPingSend() == 0 /* 没发送PING */
-                && (nowMillSec - peer->getLastPongRecv()) > FLAGS_cluster_peer_timeout_ms/2){
+                && (nowMillSec - peer->getLastPongRecv()) > FLAGS_cluster_peer_timeout_ms/2) {
             sendPingOrMeet(peer, proto::types::P_PING);
             DLOG(INFO) << "[cluster] peer " << peer->getName()
                          << " connect ok, but not send PING for a long time " << peer->getLastPongRecv()

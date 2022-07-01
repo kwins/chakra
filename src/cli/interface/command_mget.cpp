@@ -7,6 +7,7 @@
 
 DECLARE_string(mget_keys);
 DECLARE_int64(mget_split_n);
+DECLARE_bool(hashed);
 
 void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraCluster> cluster) {
     if (FLAGS_mget_keys.empty()) {
@@ -29,7 +30,7 @@ void chakra::cli::CommandMGet::execute(std::shared_ptr<chakra::client::ChakraClu
 
     LOG(INFO) << "request: " << request.DebugString();
     proto::client::MGetMessageResponse response;
-    auto err = cluster->mget(request, response, FLAGS_mget_split_n);
+    auto err = cluster->mget(request, response, FLAGS_mget_split_n, FLAGS_hashed);
     if (err) LOG(ERROR) << err.what();
     else LOG(INFO) << "response: " << response.DebugString();
 }
