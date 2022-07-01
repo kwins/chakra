@@ -47,16 +47,24 @@ chakra::replica::Replicate::Replicate() {
     }
 
     replicaio.set<chakra::replica::Replicate, &chakra::replica::Replicate::onAccept>(this);
-    replicaio.set(ev::get_default_loop());
+    replicaio.set(replicaLoop);
     replicaio.start(sfd, ev::READ);
     startReplicaCron();
     LOG(INFO) << "[replication] init end";
+}
+
+void chakra::replica::Replicate::startUp() {
+    stopAsnyc.set<&chakra::replica::Replicate::onStopAsync>(this);
+    stopAsnyc.set(replicaLoop);
+    stopAsnyc.start();
+
     LOG(INFO) << "[replication] listen on " << utils::Basic::rport();
+    replicaLoop.loop();
 }
 
 void chakra::replica::Replicate::startReplicaCron() {
     cronIO.set<chakra::replica::Replicate, &chakra::replica::Replicate::onReplicaCron>(this);
-    cronIO.set(ev::get_default_loop());
+    cronIO.set(replicaLoop);
     cronIO.start(FLAGS_replica_cron_interval_sec);
 }
 
@@ -212,6 +220,14 @@ std::unordered_map<std::string, std::vector<chakra::replica::Replicate::Link*>> 
     return dbLinks(chakra::replica::Replicate::Link::State::REPLICA_TRANSFORED);
 }
 
+void chakra::replica::Replicate::notifyStop() { stopAsnyc.send(); }
+void chakra::replica::Replicate::onStopAsync(ev::async &watcher, int events) {
+    auto replica = static_cast<chakra::replica::Replicate*>(watcher.data);
+    watcher.stop();
+    if (replica != nullptr) replica->stop();
+    replicaLoop.break_loop(ev::ALL);   
+}
+
 void chakra::replica::Replicate::stop() {
     if (sfd != -1) ::close(sfd);
     replicaio.stop();
@@ -269,7 +285,7 @@ void chakra::replica::Replicate::Link::replicateState(proto::replica::LinkReplic
 
 void chakra::replica::Replicate::Link::startReplicateRecvMsg() {
     rio.set<chakra::replica::Replicate::Link, &chakra::replica::Replicate::Link::onReplicateRecvMsg>(this);
-    rio.set(ev::get_default_loop());
+    rio.set(replicaLoop);
     rio.start(conn->fd(), ev::READ);
 }
 
@@ -299,7 +315,7 @@ void chakra::replica::Replicate::Link::asyncSendMsg(::google::protobuf::Message&
     
     if (wio.is_active()) return;
     wio.set<chakra::replica::Replicate::Link, &chakra::replica::Replicate::Link::onReplicateWriteMsg>(this);
-    wio.set(ev::get_default_loop());
+    wio.set(replicaLoop);
     wio.start(conn->fd(), ev::WRITE);
 }
 
@@ -569,7 +585,7 @@ void chakra::replica::Replicate::Link::setPort(int p) { port = p; }
 // ------------------------ Replicate::Link::ReplicateDB ------------------------
 void chakra::replica::Replicate::Link::ReplicateDB::startPullDelta() {
     deltaIO.set<chakra::replica::Replicate::Link::ReplicateDB, &chakra::replica::Replicate::Link::ReplicateDB::onPullDelta>(this);
-    deltaIO.set(ev::get_default_loop());
+    deltaIO.set(replicaLoop);
     deltaIO.start(FLAGS_replica_delta_pull_interval_sec);
 }
 
@@ -588,7 +604,7 @@ void chakra::replica::Replicate::Link::ReplicateDB::onPullDelta(ev::timer& watch
 
 void chakra::replica::Replicate::Link::ReplicateDB::startSendBulk() {
     transferIO.set<chakra::replica::Replicate::Link::ReplicateDB, &chakra::replica::Replicate::Link::ReplicateDB::onSendBulk>(this);
-    transferIO.set(ev::get_default_loop());
+    transferIO.set(replicaLoop);
     transferIO.start(FLAGS_replica_bulk_send_interval_sec);
 }
 

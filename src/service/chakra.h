@@ -36,6 +36,7 @@ public:
 
     struct Worker {
         void startUp(int id);
+        void notifyStop();
         void stop();
         ~Worker();
 
@@ -57,12 +58,14 @@ public:
     void onServCron(ev::timer& watcher, int event);
     static void onSignal(ev::sig&, int);
     void startUp() const;
+    void replicaStartUp();
     Worker* getWorker(int id);
     void stop();
     ~Chakra();
 
 private:
     void initLibev();
+    void assignCPU();
     std::vector<Worker*> workers = {};
     long connNums = 0;
     std::unordered_map<std::string, rocksdb::Iterator*> scanLists;
@@ -74,6 +77,7 @@ private:
     int sfd = -1;
 
     long workNum = 0;
+    size_t threads = 0;
     int successWorkers = 0;
     int exitSuccessWorkers = 0;
     std::mutex mutex = {};

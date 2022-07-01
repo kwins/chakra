@@ -26,6 +26,7 @@
 #include "replica.pb.h"
 
 namespace chakra::replica {
+static ev::dynamic_loop replicaLoop{};
 
 class Replicate : public utils::UnCopyable {
 public:
@@ -129,7 +130,7 @@ public:
         int getPort() const;
         void setPort(int p);
         
-    private:  
+    private:
         std::string ip;
         int port = 0;
         long lastInteractionMs = 0;
@@ -142,7 +143,9 @@ public:
 
 public:
     Replicate();
+    void startUp();
     void onAccept(ev::io& watcher, int event);
+    static void onStopAsync(ev::async &watcher, int events);
     static std::shared_ptr<Replicate> get();
     // 检查当前节点是否已经复制了节点为 peername DB为 dbname的数据
     bool replicatedDB(const std::string& peername, const std::string &dbname);
@@ -157,6 +160,7 @@ public:
     // 用于检查新副本复制是否已经完成　
     std::unordered_map<std::string, std::vector<Link*>> dbLinks(chakra::replica::Replicate::Link::State state);
     std::unordered_map<std::string, std::vector<Link*>> dbTransferedLinks();
+    void notifyStop();
     void stop();
 
 private:
@@ -165,6 +169,7 @@ private:
     ev::io replicaio;
     ev::timer cronIO;
     ev::timer transferIO;
+    ev::async stopAsnyc{};
     int sfd = -1;
     std::unordered_map<std::string, Link*> positiveLinks; // key=peername
     std::list<Link*> negativeLinks;
