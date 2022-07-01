@@ -25,30 +25,10 @@ DECLARE_int32(server_workers);
 
 chakra::serv::Chakra::Chakra() {
     LOG(INFO) << "[chakra] init";
-    workNum = FLAGS_server_workers > 1 ? FLAGS_server_workers - 1 : 1;
-    workers.reserve(workNum);
+    assignWorkers();
     for (int i = 0; i < workNum; ++i) {
-        workers[i] = new chakra::serv::Chakra::Worker();
         std::thread([this, i]{
-            std::unique_lock<std::mutex> lck(mutex);
-            this->successWorkers++;
-            lck.unlock();
-            workers[i]->workID = i;
-            workers[i]->async.set<&chakra::serv::Chakra::Worker::onAsync>(workers[i]);
-            workers[i]->async.set(workers[i]->loop);
-            workers[i]->async.start();
-            workers[i]->stopAsnyc.set<&chakra::serv::Chakra::Worker::onStopAsync>(workers[i]);
-            workers[i]->stopAsnyc.set(workers[i]->loop);
-            workers[i]->stopAsnyc.start();
-
-            this->cond.notify_one();
-            this->workers[i]->startUp(i); // loop in here until server stop
-
-            std::unique_lock<std::mutex> lck1(mutex);
-            this->exitSuccessWorkers++;
-            lck1.unlock();
-            this->cond.notify_one();
-
+            workerStartUp(i);
         }).detach();
     }
 
@@ -70,6 +50,40 @@ chakra::serv::Chakra::Chakra() {
 std::shared_ptr<chakra::serv::Chakra> chakra::serv::Chakra::get() {
     static auto chakraptr = std::make_shared<chakra::serv::Chakra>();
     return chakraptr;
+}
+
+void chakra::serv::Chakra::assignWorkers() {
+    switch (FLAGS_server_workers) {
+    case 1: // 1c
+        workNum = 1;
+        break;
+    default: // > 1c
+        workNum = FLAGS_server_workers - 1;
+        break;
+    }
+    workers.reserve(workNum);
+}
+
+void chakra::serv::Chakra::workerStartUp(int i) {
+    workers[i] = new chakra::serv::Chakra::Worker();
+    std::unique_lock<std::mutex> lck(mutex);
+    this->successWorkers++;
+    lck.unlock();
+    workers[i]->workID = i;
+    workers[i]->async.set<&chakra::serv::Chakra::Worker::onAsync>(workers[i]);
+    workers[i]->async.set(workers[i]->loop);
+    workers[i]->async.start();
+    workers[i]->stopAsnyc.set<&chakra::serv::Chakra::Worker::onStopAsync>(workers[i]);
+    workers[i]->stopAsnyc.set(workers[i]->loop);
+    workers[i]->stopAsnyc.start();
+
+    this->cond.notify_one();
+    this->workers[i]->startUp(i); // loop in here until server stop
+
+    std::unique_lock<std::mutex> lck1(mutex);
+    this->exitSuccessWorkers++;
+    lck1.unlock();
+    this->cond.notify_one();
 }
 
 chakra::serv::Chakra::Worker* chakra::serv::Chakra::getWorker(int id) { return workers[id]; }
@@ -190,7 +204,7 @@ void chakra::serv::Chakra::stop() {
     cronIO.stop();
     exitSuccessWorkers = 0;
     for (int i = 0; i < workNum; ++i)
-        workers[i]->stop();
+        workers[i]->notifyStop();
 
     std::unique_lock<std::mutex> lck(mutex);
     while (exitSuccessWorkers < workNum){
@@ -282,21 +296,19 @@ void chakra::serv::Chakra::Worker::onAsync(ev::async &watcher, int event) {
     }
 }
 
+void chakra::serv::Chakra::Worker::notifyStop() { stopAsnyc.send(); }
 void chakra::serv::Chakra::Worker::onStopAsync(ev::async &watcher, int events) {
     auto worker = static_cast<chakra::serv::Chakra::Worker*>(watcher.data);
     watcher.stop();
-    if (!worker->links.empty()){
-        for (auto link : worker->links) {
-            if (link != nullptr) {
-                delete link;
-                link = nullptr;
-            }
-        }  
-    }
+    worker->stop();
     watcher.loop.break_loop(ev::ALL);
 }
 
-void chakra::serv::Chakra::Worker::stop() { this->stopAsnyc.send(); }
-chakra::serv::Chakra::Worker::~Worker() { stop(); }
+void chakra::serv::Chakra::Worker::stop() { 
+    for (auto link : links) {
+        if (link != nullptr) { delete link; link = nullptr; }
+    }
+}
 
+chakra::serv::Chakra::Worker::~Worker() { stop(); }
 
