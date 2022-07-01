@@ -46,7 +46,7 @@ public:
     static int threads;
 };
 
-int ClientSetBM::threads = 1000;
+int ClientSetBM::threads = 2000;
 
 BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     auto s1 = utils::Basic::getNowMillSec();
@@ -58,8 +58,8 @@ BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     int64_t i = 0;
     int64_t spends = 0;
     for (auto _  : state) {
-        request.set_key("bmcs6_key_" + std::to_string(i));
-        request.set_s("bmcs6_value_" + std::to_string(i));
+        request.set_key("bmcs7_key_" + std::to_string(i));
+        request.set_s("bmcs7_value_" + std::to_string(i));
         auto err = clients[state.thread_index()]->set(request, response);
         if (err) LOG(ERROR) << err.what();
         i++;
