@@ -12,6 +12,7 @@
 #include "client.pb.h"
 #include <malloc.h>
 #include <list>
+#include <thread>
 
 namespace chakra::unitest {
 
@@ -57,6 +58,8 @@ TEST(Utils, case2) {
     for (auto v : q) {
         LOG(INFO) << "v:" << v;
     }
+
+    LOG(INFO) << "hardware concurrency=" << std::thread::hardware_concurrency();
 }
 
 }

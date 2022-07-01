@@ -65,7 +65,7 @@ public:
 
 private:
     void initLibev();
-    void assignWorkers();
+    void assignCPU();
     std::vector<Worker*> workers = {};
     long connNums = 0;
     std::unordered_map<std::string, rocksdb::Iterator*> scanLists;
