@@ -177,12 +177,16 @@ void chakra::cluster::Cluster::onPeersCron(ev::timer &watcher, int event) {
                 && !peer->isPfail()
                 && !peer->isFail()  /* 节点不能为 FAIL or PFAIL 状态 */
                 ) {
-            // TODO: use other way fix this fail reason
-            LOG(INFO) << "[cluster] NOTE peer "
-                         << peer->getName()
-                         << " connect ok, but always not received pong since " << peer->getLastPingSend()
-                         << ", try free link and reconnect(" << (nowMillSec - peer->getLastPingSend()) << "ms)";
-            peer->linkFree(); // 下次重连
+            
+            if (nowMillSec - peer->getLastPingSend() > FLAGS_cluster_peer_timeout_ms) { // 超时下次重连
+                peer->linkFree(); 
+                LOG(INFO) << "[cluster] NOTE peer " << peer->getName()
+                          << " connect ok, but always not received pong since " << peer->getLastPingSend()
+                          << ", try free link and reconnect";
+            } else {
+                LOG(INFO) << "[cluster] NOTE peer " << peer->getName()
+                          << " connect ok, but always not received pong since " << peer->getLastPingSend();
+            }
         }
 
         // 如果目前没有在 PING 节点
