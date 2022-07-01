@@ -12,12 +12,11 @@
 
 DEFINE_int32(server_port, 7290, "chakra server listen port");                                       /* NOLINT */
 DEFINE_int32(server_tcp_backlog, 512, "chakra server tcp back log");                                /* NOLINT */
-DEFINE_int32(server_workers, sysconf(_SC_NPROCESSORS_CONF) * 2 - 1 , "chakra server workers");   
+DEFINE_int32(server_workers, sysconf(_SC_NPROCESSORS_CONF), "chakra server workers");   
 static bool validServerWorkers(const char* flagname, int32_t value) {
     if (value <= 0) return false;
     LOG(INFO) << "The number of processors configured is " <<  sysconf(_SC_NPROCESSORS_CONF);
     LOG(INFO) << "The number of processors currently online (available) is " << sysconf(_SC_NPROCESSORS_ONLN);
-    LOG(INFO) << "The number of works configured is " <<  sysconf(_SC_NPROCESSORS_CONF) * 2 - 1;
     LOG(INFO) << "The pagesize: " << sysconf(_SC_PAGESIZE);
     LOG(INFO) << "The number of pages: " << sysconf(_SC_PHYS_PAGES);  
     LOG(INFO) << "The number of available pages: " << sysconf(_SC_AVPHYS_PAGES); 
@@ -62,7 +61,7 @@ static bool validDbDir(const char* flagname, const std::string& value) {
 DEFINE_validator(db_dir, validDbDir);                                                                                   /* NOLINT */
 DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                                                           /* NOLINT */
 DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                                                             /* NOLINT */
-DEFINE_int32(db_cache_shard_size, sysconf(_SC_NPROCESSORS_CONF) * 2 - 1 , "rocksdb cached shard size");            /* NOLINT */
+DEFINE_int32(db_cache_shard_size, sysconf(_SC_NPROCESSORS_CONF) * 2, "rocksdb cached shard size");                 /* NOLINT */
 DEFINE_int64(db_default_cache_bytes, 1024 * 1024 * 200, "rocksdb cached default cache size default 200MB");             /* NOLINT */
 DEFINE_int64(db_wal_ttl_seconds, 86400 * 5, "rocksdb wal log ttl seconds default 5 days");                              /* NOLINT */
 

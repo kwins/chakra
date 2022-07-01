@@ -25,7 +25,7 @@ DECLARE_int32(server_workers);
 
 chakra::serv::Chakra::Chakra() {
     LOG(INFO) << "[chakra] init";
-    workNum = FLAGS_server_workers - 1;
+    workNum = FLAGS_server_workers > 1 ? FLAGS_server_workers - 1 : 1;
     workers.reserve(workNum);
     for (int i = 0; i < workNum; ++i) {
         workers[i] = new chakra::serv::Chakra::Worker();
