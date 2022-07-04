@@ -10,3 +10,4 @@ core.*
 data
 log
 .cache
+*.log

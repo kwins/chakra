@@ -46,7 +46,7 @@ public:
     static int threads;
 };
 
-int ClientSetBM::threads = 2000;
+int ClientSetBM::threads = 1000;
 
 BENCHMARK_DEFINE_F(ClientSetBM, case0)(benchmark::State& state) {
     auto s1 = utils::Basic::getNowMillSec();

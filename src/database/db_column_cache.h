@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <mutex>
+#include <shared_mutex>
 #include <set>
 #include <thread>
 #include <vector>
@@ -52,7 +53,7 @@ private:
     size_t membytes(const std::shared_ptr<proto::element::Element>& element);
     void eraseNL(const std::string& key);
 
-    std::mutex mutex;
+    mutable std::shared_mutex mutex;
     std::list<KEY_VALUE_PAIR> list;
     std::unordered_map<std::string, KEY_VALUE_PAIR_ITERATOR> table;
     size_t capacity_bytes;

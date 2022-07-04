@@ -25,7 +25,7 @@ DECLARE_int64(db_wal_ttl_seconds);
 DECLARE_int64(db_keep_log_file_num);
 DECLARE_string(db_dir);
 DECLARE_int32(db_cache_shard_size);
-DECLARE_int64(db_default_cache_bytes);
+DECLARE_int64(db_default_cache_shard_bytes);
 
 chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     metaDB = meta;
@@ -48,9 +48,9 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     full = std::shared_ptr<rocksdb::DB>(db);
 
     caches.resize(FLAGS_db_cache_shard_size);
-    int capacity = meta.cached() / FLAGS_db_cache_shard_size;
-    if (capacity <= FLAGS_db_default_cache_bytes) {
-        capacity = FLAGS_db_default_cache_bytes; // 缓存最小分片
+    int capacity = meta.cached();
+    if (capacity <= FLAGS_db_default_cache_shard_bytes) {
+        capacity = FLAGS_db_default_cache_shard_bytes; // 缓存最小分片
     }
     for (int i = 0; i < FLAGS_db_cache_shard_size; i++) {
         caches[i] = std::make_shared<ColumnDBLRUCache>(capacity);
@@ -244,7 +244,7 @@ chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch 
     auto s2 = utils::Basic::getNowMillSec();
     for (auto& key : keys) {
         size_t hashed = ::crc32(0L, (unsigned char*)key.data(), key.size());
-        caches[hashed % FLAGS_db_cache_shard_size]->erase(key);
+        if (caches[hashed % FLAGS_db_cache_shard_size]->exist(key)) caches[hashed % FLAGS_db_cache_shard_size]->erase(key);
     }
     auto s3 = utils::Basic::getNowMillSec();
     LOG_IF(INFO, (s2 - s1 > 2000) || (s3 - s2 > 2000)) << "[familydb] write batch spend step1:" << (s2 - s1) << " step2:" << (s3 - s2);
