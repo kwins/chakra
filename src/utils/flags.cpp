@@ -47,10 +47,10 @@ DEFINE_validator(replica_dir, validReplicaDir);                                 
 DEFINE_int32(replica_timeout_ms, 15000, "replicas timeout ms");                                                         /* NOLINT */
 DEFINE_double(replica_cron_interval_sec, 0.5, "replica cron interval sec, use double");                                 /* NOLINT */
 DEFINE_int32(replica_timeout_retry, 10, "replica timeout retry");                                                       /* NOLINT */
-DEFINE_double(replica_delta_pull_interval_sec, 0.1, "replica pull db dalta interval sec");                              /* NOLINT */
+DEFINE_double(replica_delta_pull_interval_sec, 0.05, "replica pull db dalta interval sec");                             /* NOLINT */
 DEFINE_int64(replica_delta_batch_bytes, 1024 * 1024 * 3, "replica delta batch size");                                   /* NOLINT */
-DEFINE_int64(replica_delta_delay_num, 10000, "replica delta delay num");                                                /* NOLINT */
-DEFINE_double(replica_bulk_send_interval_sec, 0.1, "replica send db bulk interval sec");                                /* NOLINT */
+DEFINE_int64(replica_delta_delay_num, 100000, "replica delta delay num");                                               /* NOLINT */
+DEFINE_double(replica_bulk_send_interval_sec, 0.05, "replica send db bulk interval sec");                               /* NOLINT */
 DEFINE_int64(replica_bulk_batch_bytes, 1024 * 1024 * 3, "replica bulk batch size");                                     /* NOLINT */
 
 DEFINE_string(db_dir, "data", "rocksdb save dir");                                                                      /* NOLINT */
@@ -64,7 +64,7 @@ DEFINE_validator(db_dir, validDbDir);                                           
 DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                                                           /* NOLINT */
 DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                                                             /* NOLINT */
 DEFINE_int32(db_cache_shard_size, std::thread::hardware_concurrency() * 2, "rocksdb cached shard size");                /* NOLINT */
-DEFINE_int64(db_default_cache_bytes, 1024 * 1024 * 200, "rocksdb cached default cache size default 200MB");             /* NOLINT */
+DEFINE_int64(db_default_cache_shard_bytes, 1024 * 1024 * 100, "rocksdb cached default cache size default 200MB");       /* NOLINT */
 DEFINE_int64(db_wal_ttl_seconds, 86400 * 5, "rocksdb wal log ttl seconds default 5 days");                              /* NOLINT */
 
 
