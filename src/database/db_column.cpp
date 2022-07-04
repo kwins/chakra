@@ -22,6 +22,7 @@
 #include <iomanip>
 
 DECLARE_int64(db_wal_ttl_seconds);
+DECLARE_int64(db_keep_log_file_num);
 DECLARE_string(db_dir);
 DECLARE_int32(db_cache_shard_size);
 DECLARE_int64(db_default_cache_bytes);
@@ -30,7 +31,7 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     metaDB = meta;
     DLOG(INFO) << "[columndb] create meta is " << metaDB.DebugString();
     rocksdb::Options rocksOpts;
-    rocksOpts.keep_log_file_num = 5;
+    rocksOpts.keep_log_file_num = FLAGS_db_keep_log_file_num;
     rocksOpts.create_if_missing = true;
     rocksOpts.WAL_ttl_seconds = FLAGS_db_wal_ttl_seconds;
     rocksdb::DB* dbself;
@@ -41,7 +42,7 @@ chakra::database::ColumnDB::ColumnDB(const proto::peer::MetaDB& meta) {
     self = std::shared_ptr<rocksdb::DB>(dbself);
     rocksdb::DB* db;
     s = rocksdb::DB::Open(rocksOpts, FLAGS_db_dir + "/" + metaDB.name(), &db);
-    if (!s.ok()){
+    if (!s.ok()) {
         throw std::logic_error(s.ToString());
     }
     full = std::shared_ptr<rocksdb::DB>(db);
@@ -234,7 +235,9 @@ rocksdb::SequenceNumber chakra::database::ColumnDB::getLastSeqNumber() {
 
 chakra::error::Error chakra::database::ColumnDB::writeBatch(rocksdb::WriteBatch &batch, const std::set<std::string>& keys) {
     auto s1 = utils::Basic::getNowMillSec();
-    auto s = full->Write(rocksdb::WriteOptions(), &batch);
+    rocksdb::WriteOptions writeOpts;
+    writeOpts.disableWAL = true;
+    auto s = full->Write(writeOpts, &batch);
     if (!s.ok()) {
         return error::Error(s.ToString());
     }
