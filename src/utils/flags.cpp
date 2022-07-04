@@ -64,7 +64,7 @@ DEFINE_validator(db_dir, validDbDir);                                           
 DEFINE_string(db_restore_dir, "data", "rocksdb restore dir");                                                           /* NOLINT */
 DEFINE_string(db_backup_dir, "data", "rocksdb backup dir");                                                             /* NOLINT */
 DEFINE_int32(db_cache_shard_size, std::thread::hardware_concurrency() * 2, "rocksdb cached shard size");                /* NOLINT */
-DEFINE_int64(db_default_cache_bytes, 1024 * 1024 * 200, "rocksdb cached default cache size default 200MB");             /* NOLINT */
+DEFINE_int64(db_default_cache_shard_bytes, 1024 * 1024 * 100, "rocksdb cached default cache size default 200MB");       /* NOLINT */
 DEFINE_int64(db_wal_ttl_seconds, 86400 * 5, "rocksdb wal log ttl seconds default 5 days");                              /* NOLINT */
 
 

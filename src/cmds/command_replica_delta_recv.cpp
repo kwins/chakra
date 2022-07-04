@@ -6,6 +6,7 @@
 #include <gflags/gflags_declare.h>
 #include <glog/logging.h>
 
+#include "cluster/cluster.h"
 #include "replica.pb.h"
 #include "database/db_family.h"
 #include "net/packet.h"
@@ -36,7 +37,9 @@ void chakra::cmds::CommandReplicaDeltaRecv::execute(char *req, size_t reqLen, vo
                 batchHandler.Put(seq.data());
             }
 
-            err = dbptr->writeBatch(deltaMessageResponse.db_name(), batchHandler.GetBatch(), batchHandler.GetKeys());
+            auto clsptr = cluster::Cluster::get();
+            auto eraseCache = (link->getPeerName() != clsptr->getMyself()->getName()); /* erase cache if not self */
+            err = dbptr->writeBatch(deltaMessageResponse.db_name(), batchHandler.GetBatch(), batchHandler.GetKeys(), eraseCache);
             if (err) {
                 LOG(ERROR) << "[replication]" << err.what();
             } else {

@@ -43,7 +43,7 @@ public:
     void cacheClear();
     
     // 增量或者全量数据同步时采用 batch write
-    error::Error writeBatch(rocksdb::WriteBatch &batch, const std::set<std::string>& keys);
+    error::Error writeBatch(rocksdb::WriteBatch &batch, const std::set<std::string>& keys, bool eraseCache = true);
     proto::peer::MetaDB getMetaDB(const std::string& dbname);
     error::Error restoreDB();
     RestoreDB getLastRestoreDB();
